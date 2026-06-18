@@ -9,16 +9,27 @@ export type { IEnquadramentoResult, IGeoSampaResult };
 export async function consultarEnquadramento(
 	modo: 'SQL' | 'PROCESSO',
 	identificador: string,
-): Promise<{ ok: boolean; data?: IGeoSampaResult; error?: string }> {
+): Promise<{
+	ok: boolean;
+	data?: IGeoSampaResult;
+	error?: string;
+	modoSalvamento?: 'SQL' | 'PROCESSO';
+	identificadorSalvamento?: string;
+}> {
 	const session = await auth();
 	if (!session) return { ok: false, error: 'Sessão expirada. Faça login novamente.' };
 
 	try {
-		const data =
+		const resultado =
 			modo === 'SQL'
 				? await consultarGeoSampa(identificador.trim())
 				: await consultarGeoSampa(undefined, identificador.trim());
-		return { ok: true, data };
+		return {
+			ok: true,
+			data: resultado.data,
+			modoSalvamento: resultado.modoSalvamento,
+			identificadorSalvamento: resultado.identificadorSalvamento,
+		};
 	} catch (error) {
 		if (error instanceof GeoSampaConsultaError) {
 			return { ok: false, error: error.message };

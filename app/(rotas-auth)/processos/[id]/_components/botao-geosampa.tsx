@@ -33,8 +33,8 @@ export function BotaoGeoSampa({
 			setEtapa('salvar');
 			const salvar = await salvarDadosGeoSampa(
 				processoId,
-				'PROCESSO',
-				numProcesso,
+				consulta.modoSalvamento ?? 'PROCESSO',
+				consulta.identificadorSalvamento ?? numProcesso,
 				consulta.data,
 			);
 			setEtapa(null);
@@ -61,7 +61,7 @@ export function BotaoGeoSampa({
 			type="button"
 			disabled={pending}
 			onClick={atualizarDoGeoSampa}
-			title="Consulta o GeoSampa pelo número do processo e preenche a ficha de monitoramento DEUSO"
+			title="Consulta o GeoSampa pelo número do processo (ou SQL obtido no BI) e preenche a ficha de monitoramento DEUSO"
 			className={cn(
 				'inline-flex items-center gap-2 rounded-lg border border-primary/30 bg-primary-soft px-3 py-2 text-sm font-medium text-primary hover:bg-primary/15 disabled:opacity-60',
 			)}>

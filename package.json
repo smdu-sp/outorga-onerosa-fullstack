@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:seed": "prisma db seed",
+    "db:export-seed": "tsx prisma/export-seed.ts",
     "db:import-planilhas": "tsx prisma/import-planilhas.ts",
     "postinstall": "prisma generate"
   },
@@ -50,9 +51,11 @@
     "cmdk": "^1.0.0",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.5.2",
+    "exceljs": "^4.4.0",
     "input-otp": "^1.4.2",
     "ldapts": "^7.3.1",
     "lucide-react": "^0.475.0",
+    "mssql": "^12.5.5",
     "next": "^15",
     "next-auth": "^5.0.0-beta.25",
     "next-themes": "^0.4.4",
@@ -66,12 +69,12 @@
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
-    "xlsx": "^0.18.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/mssql": "^12.3.0",
     "@types/node": "^20",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
@@ -84,5 +87,9 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "overrides": {
+    "uuid": "^11.1.1",
+    "postcss": "^8.5.10"
   }
 }

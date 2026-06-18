@@ -1,34 +1,34 @@
 import { PrismaClient } from '@prisma/client';
+import { arquivoExportadoExiste, importarDadosExportados } from './seed/importar-exportado';
 
 const prisma = new PrismaClient();
 
-const devUser = {
-	login: 'd854440',
-	nome: 'Bruno Luiz Vieira',
-	email: 'blvieira@prefeitura.sp.gov.br',
-	status: 1,
-	permissao: 'DEV' as const,
-};
-
 async function main() {
-	const usuario = await prisma.usuario.upsert({
-		where: { login: devUser.login },
-		update: {
-			nome: devUser.nome,
-			email: devUser.email,
-			status: Boolean(devUser.status),
-			dev: devUser.permissao === 'DEV',
-		},
-		create: {
-			login: devUser.login,
-			nome: devUser.nome,
-			email: devUser.email,
-			status: Boolean(devUser.status),
-			dev: devUser.permissao === 'DEV',
-		},
-	});
+	console.log('=== Seed Outorga Onerosa ===');
 
-	console.log(`Usuário dev ${usuario.login} criado/atualizado (dev=${usuario.dev}).`);
+	if (!arquivoExportadoExiste()) {
+		throw new Error(
+			'Arquivo prisma/seed/dados-exportados.json não encontrado.\n\n' +
+				'Na máquina com o banco dev populado:\n' +
+				'  npm run db:export-seed\n\n' +
+				'Copie o arquivo gerado para o projeto e execute:\n' +
+				'  npm run db:migrate\n' +
+				'  npm run db:seed',
+		);
+	}
+
+	await importarDadosExportados(prisma);
+
+	const [usuarios, permissoes, grupos, processos, parcelas] = await Promise.all([
+		prisma.usuario.count(),
+		prisma.permissao.count(),
+		prisma.grupoPermissao.count(),
+		prisma.processo.count(),
+		prisma.parcela.count(),
+	]);
+
+	console.log('\n=== Resumo final do seed ===');
+	console.log({ usuarios, permissoes, grupos, processos, parcelas });
 }
 
 main()
