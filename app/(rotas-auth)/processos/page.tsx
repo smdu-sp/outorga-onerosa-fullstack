@@ -69,8 +69,8 @@ async function Home({
 	}
 
 	return (
-		<div className="mx-auto w-full max-w-[1240px] px-4 py-7 pb-[60px] sm:px-8">
-			<div className="mb-[22px] flex flex-wrap items-start justify-between gap-5">
+		<div className="mx-auto w-full px-4 py-7 pb-[60px] sm:px-8">
+			<div className="mb-[22px] flex flex-wrap items-start justify-between gap-5 rounded-2xl border border-border/70 bg-card px-5 py-4 shadow-xs">
 				<div>
 					<h1 className="m-0 text-[30px] font-bold tracking-[-0.01em]">Processos</h1>
 					<p className="mt-1.5 text-sm text-muted-foreground">
