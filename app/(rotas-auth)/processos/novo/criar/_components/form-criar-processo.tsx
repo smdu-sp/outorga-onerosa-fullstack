@@ -28,6 +28,8 @@ import {
 interface Props {
 	identificador: string;
 	modo: 'SQL' | 'PROCESSO';
+	modoSalvamento?: 'SQL' | 'PROCESSO';
+	identificadorSalvamento?: string;
 	enquadramento?: IEnquadramentoResult;
 	enquadramentoErro?: string;
 }
@@ -67,6 +69,8 @@ function CampoForm({
 export default function FormCriarProcesso({
 	identificador,
 	modo,
+	modoSalvamento,
+	identificadorSalvamento,
 	enquadramento,
 	enquadramentoErro,
 }: Props) {
@@ -104,8 +108,8 @@ export default function FormCriarProcesso({
 			if (enquadramento && criado?.id) {
 				const salvarGeo = await salvarDadosGeoSampa(
 					criado.id,
-					modo,
-					identificador,
+					modoSalvamento ?? modo,
+					identificadorSalvamento ?? identificador,
 					enquadramento,
 				);
 

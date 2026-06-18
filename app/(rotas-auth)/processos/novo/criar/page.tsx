@@ -48,6 +48,10 @@ export default async function CriarProcessoPage({
 				<FormCriarProcesso
 					identificador={id}
 					modo={modo as 'SQL' | 'PROCESSO'}
+					modoSalvamento={enquadramento.ok ? enquadramento.modoSalvamento : undefined}
+					identificadorSalvamento={
+						enquadramento.ok ? enquadramento.identificadorSalvamento : undefined
+					}
 					enquadramento={enquadramento.ok ? enquadramento.data : undefined}
 					enquadramentoErro={enquadramento.ok ? undefined : enquadramento.error}
 				/>

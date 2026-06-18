@@ -1,8 +1,9 @@
-import { parseSqlParaLocalizacao } from '@/lib/geosampa-sql.util';
+import { montarSqlDaLocalizacao, parseSqlParaLocalizacao, RE_SQL } from '@/lib/geosampa-sql.util';
 import { prisma } from '@/lib/prisma';
 import { processoDetalheInclude } from '@/lib/server/processos';
 import type { IGeoSampaResult } from '@/types/geosampa';
 import { Prisma } from '@prisma/client';
+import { buscarSqlPorProcessoNoBi } from './bi-cadastro';
 import { GeosampaWfsClient } from './geosampa-wfs.client';
 import {
 	mapEnquadramentoFromCamadas,
@@ -10,8 +11,13 @@ import {
 	mapOutorgaWfsParaGeoSampa,
 } from './geosampa-wfs.mapper';
 
-const RE_SQL = /^\d{3}\.\d{3}\.\d{4}-\d$/;
 const RE_PROCESSO = /^\d{4}\.\d{4}\/\d{7}-\d$/;
+
+export type ConsultaGeoSampaResolvida = {
+	data: IGeoSampaResult;
+	modoSalvamento: 'SQL' | 'PROCESSO';
+	identificadorSalvamento: string;
+};
 
 type FichaCompleta = Prisma.MonitoramentoFichaGetPayload<{
 	include: {
@@ -43,7 +49,7 @@ const wfs = new GeosampaWfsClient();
 export async function consultarGeoSampa(
 	sql?: string,
 	processo?: string,
-): Promise<IGeoSampaResult> {
+): Promise<ConsultaGeoSampaResolvida> {
 	if (sql && processo) {
 		throw new GeoSampaConsultaError(
 			'Informe apenas sql ou processo, não ambos.',
@@ -63,8 +69,12 @@ export async function consultarGeoSampa(
 			);
 		}
 		const doBanco = await buscarPorSql(identificador);
-		if (doBanco) return doBanco;
-		return consultarSqlNoWfs(identificador);
+		const data = doBanco ?? (await consultarSqlNoWfs(identificador));
+		return {
+			data,
+			modoSalvamento: 'SQL',
+			identificadorSalvamento: identificador,
+		};
 	}
 
 	const identificador = processo!.trim();
@@ -75,9 +85,46 @@ export async function consultarGeoSampa(
 		);
 	}
 
+	const sqlResolvido = await resolverSqlParaProcesso(identificador);
+	if (sqlResolvido) {
+		const doBanco = await buscarPorSql(sqlResolvido);
+		const data = doBanco ?? (await consultarSqlNoWfs(sqlResolvido));
+		return {
+			data: { ...data, num_processo: identificador },
+			modoSalvamento: 'SQL',
+			identificadorSalvamento: sqlResolvido,
+		};
+	}
+
 	const doBanco = await buscarPorProcesso(identificador);
-	if (doBanco) return doBanco;
-	return consultarProcessoNoWfs(identificador);
+	if (doBanco) {
+		return {
+			data: doBanco,
+			modoSalvamento: 'PROCESSO',
+			identificadorSalvamento: identificador,
+		};
+	}
+
+	const data = await consultarProcessoNoWfs(identificador);
+	return {
+		data,
+		modoSalvamento: 'PROCESSO',
+		identificadorSalvamento: identificador,
+	};
+}
+
+async function resolverSqlParaProcesso(numProcesso: string): Promise<string | null> {
+	const proc = await prisma.processo.findUnique({
+		where: { num_processo: numProcesso },
+		include: { monitoramento: { include: { localizacao_lote: true } } },
+	});
+
+	const sqlLocal = proc?.monitoramento?.localizacao_lote
+		? montarSqlDaLocalizacao(proc.monitoramento.localizacao_lote)
+		: null;
+	if (sqlLocal) return sqlLocal;
+
+	return buscarSqlPorProcessoNoBi(numProcesso);
 }
 
 async function consultarSqlNoWfs(sql: string): Promise<IGeoSampaResult> {

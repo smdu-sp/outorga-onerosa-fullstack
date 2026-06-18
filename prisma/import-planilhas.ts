@@ -318,6 +318,11 @@ function parseParcelSheet(
 }
 
 function importarProcessosFinanceiros() {
+  if (!arquivoExiste(ARQUIVOS.aprovaDigital)) {
+    console.log(
+      `Aprova Digital: arquivo não encontrado (${ARQUIVOS.aprovaDigital}), pulando.`,
+    );
+  } else {
   const adPath = arquivo(ARQUIVOS.aprovaDigital);
   for (const sheet of listSheets(adPath)) {
     const upper = sheet.toUpperCase();
@@ -335,11 +340,18 @@ function importarProcessosFinanceiros() {
       parseParcelSheet(rows, status, 'ad_dpd');
     }
   }
+  }
 
+  if (!arquivoExiste(ARQUIVOS.fisicosSei)) {
+    console.log(
+      `Físicos/SEI: arquivo não encontrado (${ARQUIVOS.fisicosSei}), pulando.`,
+    );
+  } else {
   const fisicoPath = arquivo(ARQUIVOS.fisicosSei);
   for (const sheet of listSheets(fisicoPath)) {
     const rows = readSheetRows(fisicoPath, sheet);
     parseParcelSheet(rows, statusFromSheetName(sheet), 'fisico');
+  }
   }
 
   console.log(`Processos financeiros parseados: ${processosMap.size}`);
@@ -915,9 +927,10 @@ async function importarMonitoramentoCota() {
   console.log(`Monitoramento cota: ${importados} fichas`);
 }
 
-async function main() {
+export async function importarPlanilhas() {
   console.log('Importando planilhas de:', PLANILHAS_DIR);
 
+  processosMap.clear();
   importarProcessosFinanceiros();
   await upsertProcessos();
   await importarMonitoramentoOutorga();
@@ -930,13 +943,15 @@ async function main() {
     prisma.monitoramentoCotaSolidariedade.count(),
   ]);
 
-  console.log('\nResumo final:');
+  console.log('\nResumo importação planilhas:');
   console.log({ processos, parcelas, fichas, cotas });
 }
 
-main()
-  .catch((error) => {
-    console.error(error);
-    process.exit(1);
-  })
-  .finally(() => prisma.$disconnect());
+if (require.main === module) {
+  importarPlanilhas()
+    .catch((error) => {
+      console.error(error);
+      process.exit(1);
+    })
+    .finally(() => prisma.$disconnect());
+}
