@@ -1,0 +1,394 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Tipo {
+  PDE
+  COTA
+}
+
+enum StatusPagamento {
+  EM_PAGAMENTO
+  QUITADO
+  QUEBRA
+}
+
+model Usuario {
+  id             String         @id @default(uuid())
+  nome           String
+  login          String         @unique
+  email          String         @unique
+  status         Boolean        @default(true)
+  avatar         String?        @db.Text
+  dev            Boolean        @default(false)
+
+  criado_em      DateTime       @default(now())
+  alterado_em    DateTime       @default(now()) @updatedAt
+
+  permissoes     Permissao[]
+  grupos         GrupoPermissao[]
+
+  @@map("usuarios")
+}
+
+model GrupoPermissao {
+  id             String         @id @default(uuid())
+  nome           String         @unique
+
+  criado_em      DateTime       @default(now())
+  alterado_em    DateTime       @default(now()) @updatedAt
+
+  permissoes     Permissao[]
+  usuarios       Usuario[]
+
+  @@map("grupos_permissoes")
+}
+
+model Permissao {
+  id             String             @id @default(uuid())
+  nome           String
+  permissao      String             @unique
+
+  criado_em      DateTime           @default(now())
+  alterado_em    DateTime           @default(now()) @updatedAt
+
+  usuarios       Usuario[]
+  grupos         GrupoPermissao[]
+
+  @@map("permissoes")
+}
+
+model Processo {
+  id                    String          @id @default(uuid())
+  tipo                  Tipo?
+  codigo                String?
+  num_processo          String          @unique
+  protocolo_ad          String?
+  data_entrada          DateTime?       @db.Date
+  status_pagamento      StatusPagamento @default(EM_PAGAMENTO)
+  // unidade_licenciamento UnidadesLicenciamento?
+  // valor_total_outorga   Float?
+
+  criado_em      DateTime               @default(now())
+  alterado_em    DateTime               @default(now()) @updatedAt
+
+  parcelas              Parcela[]
+  monitoramento         MonitoramentoFicha?
+  monitoramento_cota    MonitoramentoCotaSolidariedade?
+
+  @@map("processos")
+}
+
+// --- Módulo monitoramento (planilha DEUSO – Outorga Onerosa) ---
+
+enum IncidenciaCotaSolidariedade {
+  SIM
+  NAO
+}
+
+enum SituacaoMonitoramento {
+  QUITADO
+  ARRECADADO_AD
+  EM_PAGAMENTO
+  SEM_INFORMACAO
+}
+
+enum OrigemMonitoramento {
+  SISACOE
+  SEI
+  APROVA_DIGITAL
+  OUTRO
+}
+
+enum TipoLicencaMonitoramento {
+  APROVACAO
+  EXECUCAO
+  CERTIFICADO_CONCLUSAO
+}
+
+enum ConstaDocumentoMonitoramento {
+  CONSTA
+  NAO_CONSTA
+  NAO_SE_APLICA
+}
+
+/// Ficha única — planilha Cota de Solidariedade OODC (DEUSO), 1:1 com Processo
+model MonitoramentoCotaSolidariedade {
+  id                              String   @id @default(uuid())
+  processo_id                     String   @unique
+  processo                        Processo @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  ficha_ouc                       Int?     // OUC
+  proposta_oodc                   Int?
+  data_informacao_dmus            DateTime? @db.Date
+
+  setor                           String?
+  quadra                          String?
+  lote                            String?  @db.Text
+  lote_atualizado_sqcond          String?
+  codigo_logradouro               String?
+  endereco                        String?  @db.Text
+  proprietario_interessado        String?  @db.Text
+  distrito                        String?
+  subprefeitura                   String?
+  macrozona                       String?  @db.Text
+  macroarea                       String?  @db.Text
+  subsetor                        String?
+  zona_uso                        String?
+  subcategoria_uso                String?  @db.Text
+  coeficiente_utilizado           Decimal? @db.Decimal(10, 4)
+  area_terreno                    Decimal? @db.Decimal(14, 2)
+  valor_m2_quadro14               Decimal? @db.Decimal(14, 2)
+
+  alvara_aprovacao                String?  @db.Text
+  alvara_execucao                 String?  @db.Text
+  certificado_conclusao           String?  @db.Text
+  observacao                      String?  @db.Text
+  origem                          OrigemMonitoramento?
+
+  area_habitacao_social           String?  // "-" ou m² na planilha
+  situacao_cota                   String?  @db.Text
+  modalidade                      String?
+  unidades                        String?
+  estimativa_deposito_fundurb     Decimal? @db.Decimal(14, 2)
+  valor_calculado_processo        Decimal? @db.Decimal(14, 2)
+  valor_pago                      String?  @db.Text
+  valor_devido                    String?  @db.Text
+
+  comprovantes_pagamento_prodam   String?  @db.Text
+  planilha_calculo_cota           ConstaDocumentoMonitoramento?
+  termo_compromisso_portaria      ConstaDocumentoMonitoramento?
+  solicitacao_dsiz                String?  @db.Text
+  preenchimento_qgis              String?  @db.Text
+  observacoes                     String?  @db.Text
+  ficha_revisada_em               DateTime? @db.Date
+
+  area_construida_computavel_total Decimal? @db.Decimal(14, 2) // aba Ext. info
+
+  criado_em                       DateTime @default(now())
+  alterado_em                     DateTime @default(now()) @updatedAt
+
+  @@map("monitoramento_cota_solidariedade")
+}
+
+/// Ficha raiz de monitoramento (1:1 com Processo)
+model MonitoramentoFicha {
+  id                        String   @id @default(uuid())
+  processo_id               String   @unique
+  processo                  Processo @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  // Bloco sem título na linha 4 — dados do processo / controle DEUSO
+  responsavel_preenchimento String?  // CD_RSP_OO
+  proposta_oodc_id          String?  // ID_OO
+  numero_proposta           String?  // NU_PPT_OO
+  processo_modificativo     String?  @db.Text // PRC_MDF_OO
+  proprietario_interessado  String?  @db.Text // NM_PIN_OO
+
+  criado_em                 DateTime @default(now())
+  alterado_em               DateTime @default(now()) @updatedAt
+
+  coordenada                MonitoramentoCoordenada?
+  localizacao_lote          MonitoramentoLocalizacaoLote?
+  enderecos                 MonitoramentoEndereco[]
+  enquadramento_urbanistico MonitoramentoEnquadramentoUrbanistico?
+  subcategorias_uso         MonitoramentoSubcategoriaUso?
+  calculo_outorga           MonitoramentoCalculoOutorga?
+  situacao                  MonitoramentoSituacao?
+  licencas                  MonitoramentoLicenca[]
+  anotacoes_deuso           MonitoramentoAnotacaoDeuso?
+
+  @@map("monitoramento_fichas")
+}
+
+/// Linha 4: Coordenada plana x / y
+model MonitoramentoCoordenada {
+  id                     String             @id @default(uuid())
+  monitoramento_ficha_id String             @unique
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  coordenada_e           Decimal?           @db.Decimal(18, 11) // CRD_E
+  coordenada_n           Decimal?           @db.Decimal(18, 11) // CRD_N
+
+  @@map("monitoramento_coordenadas")
+}
+
+/// Setor, quadra, lote (rótulos linha 5; sem título na linha 4)
+model MonitoramentoLocalizacaoLote {
+  id                     String             @id @default(uuid())
+  monitoramento_ficha_id String             @unique
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  setor                  String?            // CD_SET_OO
+  quadra                 String?            // CD_QDR_OO
+  lote_cadastrado        String?            @db.Text // CD_LT_OO + CD_DL_OO
+  lote_atualizado        String?            @db.Text // CD_CM_OO
+  codigo_logradouro      String?            // CD_LG_OO
+
+  @@map("monitoramento_localizacao_lote")
+}
+
+/// Linha 4: ENDEREÇO 1 / ENDEREÇO 2 (1 ou mais)
+model MonitoramentoEndereco {
+  id                     String             @id @default(uuid())
+  monitoramento_ficha_id String
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  ordem                  Int                // 1 = ENDEREÇO 1, 2 = ENDEREÇO 2
+  tipo                   String?            // TXT_ETP_OO / TXT_ETP2_OO
+  titulo                 String?            // TXT_ETT_OO / TXT_ETT2_OO
+  nome                   String?            @db.Text // TXT_E1_OO / TXT_E2_OO
+  numero                 String?            // TXT_N1_OO / TXT_N2_OO
+
+  @@unique([monitoramento_ficha_id, ordem])
+  @@map("monitoramento_enderecos")
+}
+
+/// Distrito, macrozonas, zonas de uso, tipologia OODC (bloco da imagem)
+model MonitoramentoEnquadramentoUrbanistico {
+  id                     String             @id @default(uuid())
+  monitoramento_ficha_id String             @unique
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  distrito               String?            // SGL_DS_OO
+  subprefeitura          String?            // SGL_SB_OO
+  macrozona              String?            @db.Text // TXT_MZ_OO
+  macroarea              String?            @db.Text // TXT_MA_OO
+  subsetor               String?            // TXT_SST_OO
+  zona_uso_1_18081       String?            // SGL_ZN1_OO
+  zona_uso_2_17975       String?            // SGL_ZN2_OO
+  zona_uso_3_16402       String?            // SGL_ZN3_OO
+  zona_uso_4_16050       String?            // SGL_ZN4_OO
+  zona_uso_5_13885       String?            // SGL_ZN5_OO
+  zona_uso_6_13885       String?            // SGL_ZN6_OO
+  tipologia_uso_oodc     String?            // CD_TUI1_OO
+
+  @@map("monitoramento_enquadramento_urbanistico")
+}
+
+/// Linha 4: SUBCATEGORIA DE USO (R/HMP/HIS e nR)
+model MonitoramentoSubcategoriaUso {
+  id                     String             @id @default(uuid())
+  monitoramento_ficha_id String             @unique
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  uso_r_hmp_his          String?            @db.Text // SLG_SC1_OO
+  uso_r_hmp_his_2        String?            // SLG_SC2_OO
+  uso_r_hmp_his_3        String?            // SLG_SC3_OO
+  uso_nr                 String?            @db.Text // SLG_SC4_OO
+  uso_nr_2               String?            // SLG_SC5_OO
+  uso_nr_3               String?            // SLG_SC6_OO
+  uso_extra              String?            // SLG_SC7_OO (coluna duplicada na planilha)
+
+  @@map("monitoramento_subcategorias_uso")
+}
+
+/// Linha 4: Fp / Fs / áreas / contrapartida / coeficientes (cálculo outorga)
+model MonitoramentoCalculoOutorga {
+  id                     String             @id @default(uuid())
+  monitoramento_ficha_id String             @unique
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  fp_uso_r                String?           // VL_FP_OO
+  fp_uso_nr               String?
+  fs_uso_r                String?           // VL_FS_OO
+  fs_uso_nr               String?
+  area_objeto_uso_r       String?
+  area_objeto_uso_nr      String?
+  area_total_objeto       String?
+  area_nao_computavel     String?           @db.Text // AR_CNC_OO
+  area_nao_computavel_incidente String?     @db.Text // AR_CNCI_OO
+  area_nao_computavel_final     String?     @db.Text // AR_CNCF_OO
+  percentual_fachada_ativa String?          // FA_ARNC_OO
+  area_computavel_total   Decimal?          @db.Decimal(14, 2) // AR_CPT_OO
+  area_construida_total   Decimal?          @db.Decimal(14, 2) // AR_CNT_OO
+  contrapartida_uso_r     String?           // VL_CNT_OO
+  contrapartida_uso_nr    String?
+  contrapartida_total     String?
+  coeficiente_basico      Decimal?          @db.Decimal(10, 4) // CA_BSC_OO
+  coeficiente_utilizado   Decimal?          @db.Decimal(10, 4) // CA_UTL_OO
+  area_terreno            Decimal?          @db.Decimal(14, 2) // AR_ LT_OO
+  valor_m2_quadro14       Decimal?          @db.Decimal(14, 2) // VL_Q14_OO
+  area_fruicao_publica    Decimal?          @db.Decimal(14, 2) // AR_AFP_OO
+  area_doacao_melhoramento Decimal?         @db.Decimal(14, 2) // AR_DMP_OO
+  area_doacao_calcada     Decimal?          @db.Decimal(14, 2) // AR_DCCD_OO
+  area_transferencia      Decimal?          @db.Decimal(14, 2) // AR_TRN_OO
+  area_habitacao_social   Decimal?          @db.Decimal(14, 2) // AR_HIS_OO
+
+  @@map("monitoramento_calculo_outorga")
+}
+
+/// Incidência cota, situação AD, origem
+model MonitoramentoSituacao {
+  id                     String             @id @default(uuid())
+  monitoramento_ficha_id String             @unique
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  incidencia_cota_solidariedade IncidenciaCotaSolidariedade? // ICD_CS_OO
+  situacao               SituacaoMonitoramento? // TXT_ST_OO
+  origem                 OrigemMonitoramento? // ORGM_OO
+
+  @@map("monitoramento_situacao")
+}
+
+/// Linha 4: Alvará aprovação / execução / certificado (1 registro por tipo)
+model MonitoramentoLicenca {
+  id                     String             @id @default(uuid())
+  monitoramento_ficha_id String
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  tipo                   TipoLicencaMonitoramento
+  numero                 String?            @db.Text // NU_ALVA_OO, NU_ALVE_OO, NU_ALVC_OO
+  tipo_documento         String?            // TIPO_ALVA_OO, TIPO_ALVE_OO, TIPO_CTCC_OO
+  data_expedicao         DateTime?          @db.Date // DT_ALVA_OO, DT_ALVE_OO, DT_CNC_OO
+
+  @@unique([monitoramento_ficha_id, tipo])
+  @@map("monitoramento_licencas")
+}
+
+/// Observações e controle DEUSO (final da planilha)
+model MonitoramentoAnotacaoDeuso {
+  id                     String             @id @default(uuid())
+  monitoramento_ficha_id String             @unique
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  observacao_historico   String?            @db.Text // OBS_01_00
+  data_informacao_dmus   DateTime?          @db.Date // DT_INFO_OO
+  solicitacao_dsiz       String?            @db.Text // OBS_02_OO
+  preenchimento_qgis     String?            @db.Text // OBS_03_OO
+
+  @@map("monitoramento_anotacoes_deuso")
+}
+
+model Parcela {
+  id              String         @id @default(uuid())
+  num_parcela     Int
+  valor           Float
+  vencimento      DateTime       @db.Date
+  data_quitacao   DateTime?      @db.Date
+  ano_pagamento   Int?
+  cpf_cnpj        String?
+  status_quitacao Boolean        @default(false)
+  quebra          Boolean        @default(false)
+  // anoEmissaoGuia  Int?
+  // codSiglaUnidade String? SEL
+  // codTipoServico  Int?
+  // numGuia         Int?
+
+  criado_em      DateTime        @default(now())
+  alterado_em    DateTime        @default(now()) @updatedAt
+
+  processo_id     String
+  processo        Processo       @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  @@map("parcelas")
+}
+
+enum UnidadesLicenciamento {
+  RESID
+  COMIN
+}
