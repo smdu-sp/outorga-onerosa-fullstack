@@ -2,7 +2,7 @@
 
 import { Input } from "@/components/ui/input";
 import { z } from "zod";
-import * as xlsx from "xlsx";
+import type { Workbook, Worksheet } from "exceljs";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -18,6 +18,29 @@ const formSchema = z.object({
     tipo: z.enum(["AD", "SEI"], { required_error: "Selecione um tipo de documento." }),
 });
 
+// Unwrap ExcelJS formula cells to their cached result value
+function resolveCell(value: unknown): unknown {
+    if (
+        value !== null &&
+        value !== undefined &&
+        typeof value === 'object' &&
+        !(value instanceof Date) &&
+        !Array.isArray(value) &&
+        'result' in (value as Record<string, unknown>)
+    ) {
+        return (value as { result: unknown }).result ?? null;
+    }
+    return value;
+}
+
+function worksheetToArrayRows(ws: Worksheet): unknown[][] {
+    const rows: unknown[][] = [];
+    ws.eachRow({ includeEmpty: false }, (row) => {
+        rows.push((row.values as unknown[]).slice(1));
+    });
+    return rows;
+}
+
 export default function FormImportacao() {
     const [arquivo, setArquivo] = useState<File | null>(null);
     const [isPending, startTransition] = useTransition();
@@ -30,31 +53,26 @@ export default function FormImportacao() {
 
     async function onSubmit({ tipo }: z.infer<typeof formSchema>) {
         if (!arquivo) toast("Selecione um arquivo válido!");
-        if (arquivo) enviarArquivo(arquivo, tipo);
+        if (arquivo) await enviarArquivo(arquivo, tipo);
     }
 
-    function enviarArquivo(arquivo: File, tipo: string): void {
+    async function enviarArquivo(arquivo: File, tipo: string): Promise<void> {
         if (!arquivo) return alert("Suba um arquivo válido!");
-            const reader = new FileReader();
-            reader.readAsArrayBuffer(arquivo);
-            reader.onload = (e) => {
-                if (e.target){
-                    const data = e.target?.result;
-                    const wb = xlsx.read(data);
-                    try {
-                        switch (tipo) {
-                            case "AD":
-                                planilhaAD(wb)
-                                break;
-                            case "SEI":
-                                planilhaSEI(wb)
-                                break;
-                        }
-                    } catch {
-                        toast("Arquivo inválido!");
-                    }
-                }
-        };
+        try {
+            const { default: ExcelJS } = await import("exceljs");
+            const wb = new ExcelJS.Workbook();
+            await wb.xlsx.load(await arquivo.arrayBuffer());
+            switch (tipo) {
+                case "AD":
+                    await planilhaAD(wb);
+                    break;
+                case "SEI":
+                    planilhaSEI(wb);
+                    break;
+            }
+        } catch {
+            toast("Arquivo inválido!");
+        }
     }
 
     function verificaVencimentoParcela(processo: IProcesso) {
@@ -65,7 +83,7 @@ export default function FormImportacao() {
         return false;
     }
 
-    async function planilhaAD(wb: xlsx.WorkBook) {
+    async function planilhaAD(wb: Workbook) {
         const typeKeyValue: Record<string, string> = {
             "79": "PDE",
             "78": "COTA",
@@ -73,39 +91,42 @@ export default function FormImportacao() {
             "7137": "COTA",
         }
         startTransition(async () => {
-            const emPagamentoDPD = wb.Sheets[wb.SheetNames[1]];
-            const quitadoDPD = wb.Sheets[wb.SheetNames[2]];
-            const quebraDPD = wb.Sheets[wb.SheetNames[3]];
-            const pagamentoAVistaDPCI = wb.Sheets[wb.SheetNames[5]];
-            const linhasEmPagamentoDPD = xlsx.utils.sheet_to_json(emPagamentoDPD, { header: 1 });
-            const linhasQuitadoDPD = xlsx.utils.sheet_to_json(quitadoDPD, { header: 1 });
-            const linhasQuebraDPD = xlsx.utils.sheet_to_json(quebraDPD, { header: 1 });
-            const linhasPagamentoAVistaDPCI = xlsx.utils.sheet_to_json(pagamentoAVistaDPCI, { header: 1 });
+            const linhasEmPagamentoDPD = wb.worksheets[1] ? worksheetToArrayRows(wb.worksheets[1]) : [];
+            const linhasQuitadoDPD = wb.worksheets[2] ? worksheetToArrayRows(wb.worksheets[2]) : [];
+            const linhasQuebraDPD = wb.worksheets[3] ? worksheetToArrayRows(wb.worksheets[3]) : [];
+            const linhasPagamentoAVistaDPCI = wb.worksheets[5] ? worksheetToArrayRows(wb.worksheets[5]) : [];
             const processos: IProcesso[] = [];
             let processo: IProcesso | undefined;
             console.log({linhasEmPagamentoDPD, linhasQuitadoDPD, linhasQuebraDPD, linhasPagamentoAVistaDPCI});
-            let cpf_cnpj = "";
+            let cpf_cnpj: string | undefined = "";
             for (const index in linhasEmPagamentoDPD) {
                 if (+index > 0) {
                     //eslint-disable-next-line @typescript-eslint/no-explicit-any
                     const linhaParcela: any = linhasEmPagamentoDPD[index];
 
-                    const tipo = linhaParcela[1] ? typeKeyValue[linhaParcela[1]] : undefined;
-                    const data_entrada = linhaParcela[0] ? new Date(Date.UTC(0, 0, linhaParcela[0])) : undefined;
-                    const protocolo_ad = linhaParcela[2] || undefined;
-                    const num_processo = linhaParcela[3] || undefined;
+                    const codigoRaw = resolveCell(linhaParcela[1]);
+                    const tipo = codigoRaw ? typeKeyValue[String(codigoRaw)] : undefined;
+                    const dataSerial = resolveCell(linhaParcela[0]);
+                    const data_entrada = dataSerial ? new Date(Date.UTC(0, 0, Number(dataSerial))) : undefined;
+                    const protocolo_ad = resolveCell(linhaParcela[2]) || undefined;
+                    const num_processo = resolveCell(linhaParcela[3]) || undefined;
 
-                    const num_parcela = +linhaParcela[5];
-                    const status_quitacao = linhaParcela[9] === "Pago";
-                    const valor = typeof linhaParcela[7] === "string" ? +linhaParcela[7].replace(".", "").replace(",", ".").replace("R$", "").trim() : linhaParcela[7];
-                    const vencimento = new Date(Date.UTC(0, 0, linhaParcela[6]));
-                    const ano_pagamento = (linhaParcela[8] && linhaParcela[8] !== "") ? +linhaParcela[8] : undefined;
-                    if (linhaParcela[4] && linhaParcela[4].trim() !== "" && num_parcela === 1) cpf_cnpj = linhaParcela[4].trim() || undefined;
+                    const num_parcela = +resolveCell(linhaParcela[5])!;
+                    const situacaoRaw = resolveCell(linhaParcela[9]);
+                    const status_quitacao = situacaoRaw === "Pago";
+                    const valorRaw = resolveCell(linhaParcela[7]);
+                    const valor = typeof valorRaw === "string" ? +valorRaw.replace(".", "").replace(",", ".").replace("R$", "").trim() : Number(valorRaw);
+                    const vencimentoSerial = resolveCell(linhaParcela[6]);
+                    const vencimento = new Date(Date.UTC(0, 0, Number(vencimentoSerial)));
+                    const anoPagamentoRaw = resolveCell(linhaParcela[8]);
+                    const ano_pagamento = (anoPagamentoRaw && anoPagamentoRaw !== "") ? +anoPagamentoRaw : undefined;
+                    const cpfRaw = resolveCell(linhaParcela[4]);
+                    if (cpfRaw && String(cpfRaw).trim() !== "" && num_parcela === 1) cpf_cnpj = String(cpfRaw).trim() || undefined as unknown as string;
                     if (num_parcela === 1 && data_entrada) {
                         if (processo && verificaVencimentoParcela(processo)) {
                             processos.push(processo);
                         }
-                        processo = { tipo, data_entrada, protocolo_ad, num_processo, parcelas: [] }
+                        processo = { tipo, data_entrada, protocolo_ad: protocolo_ad as string | undefined, num_processo: num_processo as string, parcelas: [] }
                     }
                     if (processo && num_parcela && valor) processo.parcelas?.push({ num_parcela, status_quitacao, valor: valor || 0, vencimento, ano_pagamento, cpf_cnpj });
                 }
@@ -117,16 +138,13 @@ export default function FormImportacao() {
             if (processos.length > 0) {
                 const response = await processosServices.importar(processos);
                 console.log(response);
-                // const teste = processos.filter((processo) => !processo.parcelas || processo.parcelas.length === 0 || processo.parcelas.length > 10);
-                // console.log({ teste, processos });
             }
         })
     }
 
-    function planilhaSEI(wb: xlsx.WorkBook) {
-        const wsname = wb.SheetNames[0];
-        const ws = wb.Sheets[wsname];
-        const linhas = xlsx.utils.sheet_to_json(ws, { header: 1 });
+    function planilhaSEI(wb: Workbook) {
+        const ws = wb.worksheets[0];
+        const linhas = ws ? worksheetToArrayRows(ws) : [];
         if (linhas.length <= 0) toast("Lista vazia.");
     }
 
@@ -170,7 +188,7 @@ export default function FormImportacao() {
                                 <Input
                                     type="file"
                                     multiple={false}
-                                    accept=".csv, .xls, .xlsx, .xlsm"
+                                    accept=".xlsx, .xlsm"
                                     className='dark:bg-background bg-muted'
                                     onChange={(event) => {
                                         if (event.target.files) {

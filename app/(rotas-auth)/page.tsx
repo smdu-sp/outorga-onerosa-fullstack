@@ -34,7 +34,7 @@ async function Home({
 		relatorio = data as IDashboard;
 	}
 	return (
-		<div className='mx-auto flex w-full max-w-[1400px] flex-col gap-6 px-4 py-5 md:px-6 md:py-6'>
+		<div className='mx-auto flex w-full flex-col gap-6 px-4 py-5 md:px-6 md:py-6'>
 			<div className='rounded-2xl border border-border/70 bg-card px-5 py-4 shadow-xs'>
 				<div className='flex flex-col gap-1'>
 					<h1 className='text-[25px] font-semibold tracking-tight text-foreground'>Página inicial</h1>

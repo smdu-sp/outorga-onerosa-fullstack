@@ -57,6 +57,7 @@
     "d3-scale": "^4.0.2",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.5.2",
+    "exceljs": "^4.4.0",
     "input-otp": "^1.4.2",
     "ldapts": "^7.3.1",
     "lucide-react": "^0.475.0",
@@ -74,7 +75,6 @@
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
-    "xlsx": "^0.18.5",
     "zod": "^3.24.2"
   },
   "devDependencies": {
@@ -95,5 +95,16 @@
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
+  },
+  "overrides": {
+    "uuid": "^11.1.1",
+    "postcss": "^8.5.10"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.1": true,
+    "prisma@6.19.3": true,
+    "sharp@0.34.5": true
   }
 }
