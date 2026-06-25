@@ -3,6 +3,7 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { ehCampoDataCivil, formatarDataCivil } from '@/lib/datas';
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
 import {
 	SECOES_PROCESSO_DETALHE,
@@ -65,13 +66,15 @@ function formatarValor(
 ): string {
 	if (valor === null || valor === undefined || valor === '') return '—';
 
+	if (ehCampoDataCivil(chave)) {
+		return formatarDataCivil(valor);
+	}
+
+	if (valor instanceof Date) {
+		return formatarDataCivil(valor);
+	}
+
 	if (typeof valor === 'object') {
-		if ('toString' in valor && typeof (valor as { toString: () => string }).toString === 'function') {
-			const texto = (valor as { toString: () => string }).toString();
-			if (texto && texto !== '[object Object]') {
-				return formatarValor(chave, texto, labels);
-			}
-		}
 		return '—';
 	}
 

@@ -34,6 +34,7 @@ export type IGeoSampaEnquadramentoUrbanistico = {
 	zona_uso_5_13885?: string;
 	zona_uso_6_13885?: string;
 	tipologia_uso_oodc?: string;
+	uso?: string;
 };
 
 export type IGeoSampaSubcategoriasUso = {
@@ -115,3 +116,11 @@ export type IGeoSampaResult = {
 
 /** Alias mantido para compatibilidade com o fluxo existente. */
 export type IEnquadramentoResult = IGeoSampaResult;
+
+export type GeoSampaLogEntry = {
+	ts: number;
+	level: 'info' | 'success' | 'warn' | 'error';
+	msg: string;
+};
+
+export type GeoSampaLogFn = (level: GeoSampaLogEntry['level'], msg: string) => void;

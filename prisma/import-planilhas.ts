@@ -16,15 +16,28 @@ import * as XLSX from 'xlsx';
 const prisma = new PrismaClient();
 
 const PLANILHAS_DIR =
-  process.env.PLANILHAS_DIR ??
-  path.join('C:', 'Users', 'd854440', 'Downloads', 'Planilhas CAP OO');
+  process.env.PLANILHAS_DIR ?? path.join(__dirname, '..', 'app', 'planilhas');
 
-const ARQUIVOS = {
+type ChavePlanilha =
+  | 'monitoramentoOutorga'
+  | 'cotaSolidariedade'
+  | 'aprovaDigital'
+  | 'fisicosSei';
+
+/** Fragmentos para localizar arquivos na pasta (aceita sufixos como " (1)") */
+const FRAGMENTOS_ARQUIVO: Record<ChavePlanilha, string[]> = {
+  monitoramentoOutorga: ['banco de dados outorga onerosa'],
+  cotaSolidariedade: ['cota de solidariedade', 'cota solidariedade'],
+  aprovaDigital: ['aprova digital'],
+  fisicosSei: ['fisicos', 'físicos'],
+};
+
+const NOMES_ARQUIVO_LEGADO: Partial<Record<ChavePlanilha, string>> = {
+  monitoramentoOutorga:
+    'BANCO DE DADOS Outorga Onerosa 16.050_14 e 17.975_23 - versão 2024_1.xlsx',
+  cotaSolidariedade: 'Banco de Dados - Cota de solidariedade.xlsx',
   aprovaDigital: 'PLANILHA OUTORGA - APROVA DIGITAL.xlsm',
   fisicosSei: 'Planilha de Outorga - FISICOS  e SEI2.xlsx',
-  cotaSolidariedade: 'BANCO DE DADOS - Cota Solidariedade OODC para ATIC.xlsx',
-  monitoramentoOutorga:
-    'CÓPIA_BANCO DE DADOS Outorga Onerosa 16.050_14 e 17.975_23 - versão 2024_1.xlsx',
 };
 
 const TIPO_POR_CODIGO: Record<string, Tipo> = {
@@ -44,6 +57,7 @@ interface ParcelaImport {
   ano_pagamento?: number;
   cpf_cnpj?: string;
   status_quitacao: boolean;
+  antecipada: boolean;
   quebra?: boolean;
 }
 
@@ -59,12 +73,32 @@ interface ProcessoImport {
 
 const processosMap = new Map<string, ProcessoImport>();
 
-function arquivo(nome: string) {
+function resolverArquivo(chave: ChavePlanilha): string | null {
+  if (!fs.existsSync(PLANILHAS_DIR)) return null;
+
+  const arquivos = fs
+    .readdirSync(PLANILHAS_DIR)
+    .filter((f) => /\.(xlsx|xlsm)$/i.test(f));
+
+  for (const fragmento of FRAGMENTOS_ARQUIVO[chave]) {
+    const encontrado = arquivos.find((f) => f.toLowerCase().includes(fragmento));
+    if (encontrado) return encontrado;
+  }
+
+  const legado = NOMES_ARQUIVO_LEGADO[chave];
+  if (legado && arquivos.includes(legado)) return legado;
+
+  return null;
+}
+
+function caminhoPlanilha(chave: ChavePlanilha): string {
+  const nome = resolverArquivo(chave);
+  if (!nome) throw new Error(`Planilha não encontrada: ${chave}`);
   return path.join(PLANILHAS_DIR, nome);
 }
 
-function arquivoExiste(nome: string) {
-  return fs.existsSync(arquivo(nome));
+function planilhaExiste(chave: ChavePlanilha): boolean {
+  return resolverArquivo(chave) != null;
 }
 
 function cleanText(value: unknown): string | undefined {
@@ -159,11 +193,19 @@ function statusFromSheetName(name: string): StatusPagamento {
   return 'EM_PAGAMENTO';
 }
 
-function parcelaQuitada(situacao: unknown, statusSheet: StatusPagamento): boolean {
+function parcelaQuitada(
+  situacao: unknown,
+  statusSheet: StatusPagamento,
+  layout: 'ad_dpd' | 'ad_dpci' | 'fisico',
+): boolean {
   const text = cleanText(situacao)?.toUpperCase() ?? '';
   if (text.includes('QUEBRA')) return false;
   if (text.includes('QUITADO') || text === 'PAGO' || text.includes('PAGO')) return true;
   if (statusSheet === 'QUITADO') return true;
+  // Aprova Digital: abas quitadas não trazem data de pagamento — status pela aba/situação
+  if (layout !== 'fisico' && statusSheet === 'EM_PAGAMENTO' && text.includes('VENCEU')) {
+    return false;
+  }
   return false;
 }
 
@@ -301,15 +343,26 @@ function parseParcelSheet(
     if (dataEntrada && !current.data_entrada) current.data_entrada = dataEntrada;
     if (protocolo && !current.protocolo_ad) current.protocolo_ad = protocolo;
 
-    const quitada = parcelaQuitada(situacao, statusSheet);
+    const quitada = parcelaQuitada(situacao, statusSheet, layout);
+    const dataQuitacaoFinal = layout === 'fisico' ? dataQuitacao : undefined;
+    let antecipada = false;
+    if (quitada) {
+      if (dataQuitacaoFinal) {
+        antecipada = dataQuitacaoFinal < vencimento;
+      } else if (anoPagamento != null) {
+        antecipada = anoPagamento < vencimento.getFullYear();
+      }
+    }
     current.parcelas.push({
       num_parcela: numParcela,
       valor,
       vencimento,
-      data_quitacao: dataQuitacao,
+      // Aprova Digital não informa data de quitação — apenas status quitada
+      data_quitacao: dataQuitacaoFinal,
       ano_pagamento: anoPagamento,
       cpf_cnpj: cpfAtual,
       status_quitacao: quitada,
+      antecipada,
       quebra: statusSheet === 'QUEBRA' && !quitada,
     });
   }
@@ -318,12 +371,11 @@ function parseParcelSheet(
 }
 
 function importarProcessosFinanceiros() {
-  if (!arquivoExiste(ARQUIVOS.aprovaDigital)) {
-    console.log(
-      `Aprova Digital: arquivo não encontrado (${ARQUIVOS.aprovaDigital}), pulando.`,
-    );
+  if (!planilhaExiste('aprovaDigital')) {
+    console.log('Aprova Digital: arquivo não encontrado, pulando.');
   } else {
-  const adPath = arquivo(ARQUIVOS.aprovaDigital);
+    const adPath = caminhoPlanilha('aprovaDigital');
+    console.log('Aprova Digital:', path.basename(adPath));
   for (const sheet of listSheets(adPath)) {
     const upper = sheet.toUpperCase();
     if (upper.includes('FERIADOS') || upper.includes('VERIFICAR')) continue;
@@ -342,12 +394,11 @@ function importarProcessosFinanceiros() {
   }
   }
 
-  if (!arquivoExiste(ARQUIVOS.fisicosSei)) {
-    console.log(
-      `Físicos/SEI: arquivo não encontrado (${ARQUIVOS.fisicosSei}), pulando.`,
-    );
+  if (!planilhaExiste('fisicosSei')) {
+    console.log('Físicos/SEI: arquivo não encontrado, pulando.');
   } else {
-  const fisicoPath = arquivo(ARQUIVOS.fisicosSei);
+  const fisicoPath = caminhoPlanilha('fisicosSei');
+  console.log('Físicos/SEI:', path.basename(fisicoPath));
   for (const sheet of listSheets(fisicoPath)) {
     const rows = readSheetRows(fisicoPath, sheet);
     parseParcelSheet(rows, statusFromSheetName(sheet), 'fisico');
@@ -389,6 +440,7 @@ async function upsertProcessos() {
               ano_pagamento: parcela.ano_pagamento,
               cpf_cnpj: parcela.cpf_cnpj,
               status_quitacao: parcela.status_quitacao,
+              antecipada: parcela.antecipada,
               quebra: parcela.quebra ?? false,
             })),
           },
@@ -413,6 +465,7 @@ async function upsertProcessos() {
               ano_pagamento: parcela.ano_pagamento,
               cpf_cnpj: parcela.cpf_cnpj,
               status_quitacao: parcela.status_quitacao,
+              antecipada: parcela.antecipada,
               quebra: parcela.quebra ?? false,
             })),
           },
@@ -492,11 +545,12 @@ function cell(row: Record<string, unknown>, ...keys: string[]) {
 }
 
 async function importarMonitoramentoOutorga() {
-  if (!arquivoExiste(ARQUIVOS.monitoramentoOutorga)) {
-    console.log(`Monitoramento outorga: arquivo não encontrado (${ARQUIVOS.monitoramentoOutorga}), pulando.`);
+  if (!planilhaExiste('monitoramentoOutorga')) {
+    console.log('Monitoramento outorga: arquivo não encontrado, pulando.');
     return;
   }
-  const filePath = arquivo(ARQUIVOS.monitoramentoOutorga);
+  const filePath = caminhoPlanilha('monitoramentoOutorga');
+  console.log('Monitoramento OO:', path.basename(filePath));
   const wb = XLSX.readFile(filePath, { cellDates: true });
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
     wb.Sheets['Outorga Onerosa Lei 16.050'],
@@ -782,11 +836,12 @@ async function importarMonitoramentoOutorga() {
 }
 
 async function importarMonitoramentoCota() {
-  if (!arquivoExiste(ARQUIVOS.cotaSolidariedade)) {
-    console.log(`Monitoramento cota: arquivo não encontrado (${ARQUIVOS.cotaSolidariedade}), pulando.`);
+  if (!planilhaExiste('cotaSolidariedade')) {
+    console.log('Monitoramento cota: arquivo não encontrado, pulando.');
     return;
   }
-  const filePath = arquivo(ARQUIVOS.cotaSolidariedade);
+  const filePath = caminhoPlanilha('cotaSolidariedade');
+  console.log('Monitoramento cota:', path.basename(filePath));
   const wb = XLSX.readFile(filePath, { cellDates: true });
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
     wb.Sheets['COTA DE SOLIDARIEDADE'],
@@ -928,11 +983,16 @@ async function importarMonitoramentoCota() {
 }
 
 export async function importarPlanilhas() {
-  console.log('Importando planilhas de:', PLANILHAS_DIR);
+  console.log('Importando planilhas DEUSO de:', PLANILHAS_DIR);
 
   processosMap.clear();
-  importarProcessosFinanceiros();
-  await upsertProcessos();
+  if (planilhaExiste('aprovaDigital') || planilhaExiste('fisicosSei')) {
+    importarProcessosFinanceiros();
+    await upsertProcessos();
+  } else {
+    console.log('Planilhas financeiras (Aprova Digital / Físicos SEI) não encontradas — pulando parcelas.');
+  }
+
   await importarMonitoramentoOutorga();
   await importarMonitoramentoCota();
 

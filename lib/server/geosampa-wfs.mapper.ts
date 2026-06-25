@@ -125,10 +125,31 @@ function mapLoteEnderecos(props: LoteProperties): IGeoSampaResult['enderecos'] {
 	];
 }
 
-function tipologiaFromLote(props: LoteProperties): string | undefined {
+function usoFromLote(props: LoteProperties): string | undefined {
 	if (!props.tipo_uso_imovel) return undefined;
 	const match = props.tipo_uso_imovel.match(/^\d+-(.+)$/);
 	return match ? titleCase(match[1]) : titleCase(props.tipo_uso_imovel);
+}
+
+function parseSetorQuadra(cd_setor_quadra?: string) {
+	if (!cd_setor_quadra || cd_setor_quadra.length < 6) return undefined;
+	return {
+		setor: cd_setor_quadra.slice(0, 3),
+		quadra: cd_setor_quadra.slice(3, 6),
+	};
+}
+
+function mapSituacaoWfs(value?: string): string | undefined {
+	if (!value?.trim()) return undefined;
+	const text = value.trim().toUpperCase();
+	if (text.includes('QUITADO')) return 'QUITADO';
+	if (text.includes('ARRECADADO')) return 'ARRECADADO_AD';
+	if (text.includes('PAGAMENTO')) return 'EM_PAGAMENTO';
+	return 'SEM_INFORMACAO';
+}
+
+function tipologiaCodigoFromUso(texto: string): 'R' | 'nR' {
+	return texto.toLowerCase().includes('residencial') ? 'R' : 'nR';
 }
 
 export function mapLoteWfsParaGeoSampa(
@@ -173,7 +194,11 @@ export function mapLoteWfsParaGeoSampa(
 			subsetor: enriquecimento?.subsetor?.nm_subsetor_operacao_urbana
 				? titleCase(enriquecimento.subsetor.nm_subsetor_operacao_urbana)
 				: undefined,
-			tipologia_uso_oodc: tipologiaFromLote(props),
+			uso: usoFromLote(props),
+			tipologia_uso_oodc: (() => {
+				const u = usoFromLote(props);
+				return u ? tipologiaCodigoFromUso(u) : undefined;
+			})(),
 			...zoneamento,
 		},
 		calculo_outorga: {
@@ -190,6 +215,7 @@ export function mapOutorgaWfsParaGeoSampa(
 	const props = feature.properties;
 	const base: IGeoSampaResult = lote ? { ...lote } : {};
 	const ponto = GeosampaWfsClient.pontoFromGeometry(feature.geometry ?? null);
+	const localizacaoOutorga = parseSetorQuadra(props.cd_setor_quadra);
 
 	return {
 		...base,
@@ -198,6 +224,12 @@ export function mapOutorgaWfsParaGeoSampa(
 		coordenada:
 			base.coordenada ??
 			(ponto ? { coordenada_e: ponto.x, coordenada_n: ponto.y } : undefined),
+		localizacao_lote: base.localizacao_lote ?? (localizacaoOutorga
+			? {
+					...localizacaoOutorga,
+					codigo_logradouro: props.cd_codlog,
+				}
+			: undefined),
 		proprietario_interessado: base.proprietario_interessado,
 		enderecos: base.enderecos?.length ? base.enderecos : parseEnderecoOutorga(props.nm_endereco),
 		enquadramento_urbanistico: {
@@ -216,8 +248,8 @@ export function mapOutorgaWfsParaGeoSampa(
 		},
 		situacao: {
 			...base.situacao,
-			situacao: props.tx_situacao ? titleCase(props.tx_situacao) : base.situacao?.situacao,
-			origem: 'GEOSAMPA_WFS',
+			situacao: mapSituacaoWfs(props.tx_situacao) ?? base.situacao?.situacao,
+			origem: base.situacao?.origem ?? 'OUTRO',
 		},
 		licencas: props.cd_numero_alvara
 			? [

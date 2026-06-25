@@ -2,6 +2,26 @@
 
 import { IParcela } from './processo';
 
+export type ISqlEndereco = {
+	ordem: number;
+	tipo?: string | null;
+	titulo?: string | null;
+	nome?: string | null;
+	numero?: string | null;
+};
+
+export type ISql = {
+	id: string;
+	setor?: string | null;
+	quadra?: string | null;
+	lote_cadastrado?: string | null;
+	lote_atualizado?: string | null;
+	codigo_logradouro?: string | null;
+	coordenada_e?: string | number | null;
+	coordenada_n?: string | number | null;
+	enderecos?: ISqlEndereco[];
+};
+
 export type IMonitoramentoCoordenada = {
 	coordenada_e?: string | number | null;
 	coordenada_n?: string | number | null;
@@ -36,6 +56,7 @@ export type IMonitoramentoEnquadramentoUrbanistico = {
 	zona_uso_5_13885?: string | null;
 	zona_uso_6_13885?: string | null;
 	tipologia_uso_oodc?: string | null;
+	uso?: string | null;
 };
 
 export type IMonitoramentoSubcategoriaUso = {
@@ -168,6 +189,7 @@ export type IProcessoDetalhe = {
 	criado_em?: string;
 	alterado_em?: string;
 	parcelas?: IParcela[];
+	sqls?: ISql[];
 	monitoramento?: IMonitoramentoFicha | null;
 	monitoramento_cota?: IMonitoramentoCotaSolidariedade | null;
 };

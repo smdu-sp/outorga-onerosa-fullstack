@@ -24,16 +24,20 @@ export async function aplicarAcaoParcela(
 	if (acao === 'antecipar') {
 		if (parcela.status_quitacao) throw new Error('Parcela já quitada.');
 		if (parcela.quebra) throw new Error('Parcela em quebra — reverta antes de antecipar.');
-		await prisma.parcela.update({
-			where: { id: parcelaId },
+		await prisma.parcela.updateMany({
+			where: { processo_id: processoId, status_quitacao: false, quebra: false },
 			data: {
 				status_quitacao: true,
+				antecipada: true,
 				data_quitacao: hoje,
 				ano_pagamento: hoje.getFullYear(),
-				quebra: false,
 			},
 		});
 	} else if (acao === 'quebra') {
+		const processo = await prisma.processo.findUnique({ where: { id: processoId }, select: { status_pagamento: true } });
+		if (processo?.status_pagamento === 'QUITADO') {
+			throw new Error('Processo quitado não pode sofrer quebra.');
+		}
 		await prisma.parcela.update({
 			where: { id: parcelaId },
 			data: {

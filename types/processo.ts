@@ -13,6 +13,7 @@ export type IParcela = {
 	data_quitacao?: Date;
 	ano_pagamento?: number;
 	status_quitacao?: boolean;
+	antecipada?: boolean;
 	quebra?: boolean;
 	cpf_cnpj: string;
 };

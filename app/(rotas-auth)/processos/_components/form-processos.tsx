@@ -10,7 +10,7 @@ import {
 	Installment,
 	parcelasP,
 } from '@/app/utils/funcoes-utilitarias';
-import { Button } from '@/components/ui/button';
+import { dataCivilHoje } from '@/lib/datas';
 import {
 	Form,
 	FormControl,
@@ -98,7 +98,7 @@ export default function FormProcessos() {
 				num_processo: processo,
 				tipo: type,
 				protocolo_ad: protocolo,
-				data_entrada: new Date(),
+				data_entrada: dataCivilHoje(),
 				valor_total: Number(parcelasT.valorTotal) || 0,
 				...(parcelas.length > 0 && { parcelas }),
 			});

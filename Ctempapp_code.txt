@@ -1,0 +1,1586 @@
+Babel script content:
+
+
+const { useState, useRef, useEffect, useMemo, useCallback } = React;
+let _navFn = null;
+function navigate(page, data) { _navFn && _navFn(page, data || null); }
+
+const ICON = {
+  search:'M21 21l-4.35-4.35M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',plus:'M12 5v14M5 12h14',home:'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10',folder:'M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z',users:'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',lock:'M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2zM7 11V7a5 5 0 0 1 10 0v4',chevLeft:'M15 18l-6-6 6-6',chevRight:'M9 18l6-6-6-6',chevsLeft:'M11 17l-5-5 5-5M18 17l-5-5 5-5',chevsRight:'M13 17l5-5-5-5M6 17l5-5-5-5',arrowRight:'M5 12h14M12 5l7 7-7 7',arrowLeft:'M19 12H5M12 19l-7-7 7-7',layers:'M12 2 2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5',clock:'M12 7v5l4 2M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',check:'M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3',trendingDown:'M22 17l-8.5-8.5-5 5L2 7M16 17h6v-6',building:'M3 21h18M5 21V7l8-4v18M19 21V11l-6-3M9 9h.01M9 13h.01M9 17h.01',hash:'M4 9h16M4 15h16M10 3L8 21M16 3l-2 18',mapPin:'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',checkCircle:'M22 11.08V12a10 10 0 1 1-5.93-9.14M22 4 12 14.01l-3-3',spinner:'M21 12a9 9 0 1 1-6.22-8.56',alert:'M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z',database:'M12 8c4.42 0 8-1.34 8-3s-3.58-3-8-3-8 1.34-8 3 3.58 3 8 3z M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5 M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6',calc:'M9 7h6m-6 4h.01M15 11h.01M9 15h.01M15 15h.01 M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z',info:'M12 16v-4M12 8h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z',edit:'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z',trash:'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6',eye:'M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',x:'M18 6L6 18M6 6l12 12',save:'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8',more:'M12 5h.01M12 12h.01M12 19h.01',percent:'M19 5L5 19M6.5 6.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zM20.5 17.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0z',calendar:'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18',dollar:'M12 1v22M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6',chartBar:'M18 20V10M12 20V4M6 20v-6',bell:'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0',chevDown:'M6 9l6 6 6-6',chevUp:'M18 15l-6-6-6 6',externalLink:'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 0 2-2h6M15 3h6v6M10 14L21 3',filter:'M22 3H2l8 9.46V19l4 2v-8.54L22 3z',download:'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3',
+};
+
+function Icon({ name, size=16, className='', strokeWidth=2, style }) {
+  const paths = (ICON[name]||'').split(/(?=M)/).filter(Boolean);
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"
+      className={className} style={style} aria-hidden="true">
+      {paths.map((d,i)=><path key={i} d={d}/>)}
+    </svg>
+  );
+}
+
+function SidebarShared({ active }) {
+  const logo = (window.__resources&&window.__resources.smulLogo)||'../assets/smul_icone_azul.png';
+  const nav = [{icon:'home',label:'Página Inicial',key:'home'},{icon:'folder',label:'Processos',key:'lista'}];
+  const admin = [{icon:'users',label:'Usuários'},{icon:'lock',label:'Permissões'}];
+  const isActive = (key) => key===active||(key==='lista'&&(active==='detalhe'||active==='novo'));
+  return (
+    <aside className="sidebar">
+      <div className="sb-header">
+        <div className="sb-logo"><img src={logo} alt="SMUL"/></div>
+        <div className="sb-title"><b>Outorga Onerosa</b><span>Relatórios</span></div>
+      </div>
+      <nav className="sb-nav">
+        <div className="sb-group-label">Geral</div>
+        {nav.map(i=>(
+          <a key={i.label} className={'sb-item'+(isActive(i.key)?' active':'')} href="#"
+            onClick={e=>{e.preventDefault();if(i.key==='lista')navigate('lista');}}>
+            <Icon name={i.icon} size={17}/> {i.label}
+          </a>
+        ))}
+        <div className="sb-group-label" style={{marginTop:10}}>Administração</div>
+        {admin.map(i=>(
+          <a key={i.label} className="sb-item" href="#" onClick={e=>e.preventDefault()}>
+            <Icon name={i.icon} size={17}/> {i.label}
+          </a>
+        ))}
+      </nav>
+      <div className="sb-footer">
+        <div className="sb-avatar">AC</div>
+        <div className="sb-user"><b>Ana Cardoso</b><span>DEUSO · SMUL</span></div>
+      </div>
+    </aside>
+  );
+}
+
+/* ════ LISTA DATA ════ */
+/** Dados de exemplo para a lista de processos. */
+  const STATUS = { EM_PAGAMENTO: 'Em Pagamento', QUITADO: 'Quitado', QUEBRA: 'Quebra' };
+
+  // parcelas: [pagas, total]
+  const P = [
+    { num: '2023.0.123.4567-8', tipo: 'PDE', status: 'EM_PAGAMENTO', interessado: 'Incorporadora Vila Nova Empreendimentos Ltda.', cpf_cnpj: '12.345.678/0001-90', parcelas: [2, 4], valor_total: 737000, valor_devido: 368500, entrada: '2023-04-18', protocolo: 'AD-2023-88120', detalhe: true },
+    { num: '2024.0.045.1120-3', tipo: 'COTA', status: 'QUITADO', interessado: 'Construtora Horizonte Azul S.A.', cpf_cnpj: '98.765.432/0001-10', parcelas: [3, 3], valor_total: 412800, valor_devido: 0, entrada: '2024-01-22', protocolo: 'AD-2024-10233' },
+    { num: '2022.0.987.6543-1', tipo: 'PDE', status: 'QUEBRA', interessado: 'Residencial Parque das Águas SPE Ltda.', cpf_cnpj: '45.221.908/0001-55', parcelas: [1, 5], valor_total: 1240000, valor_devido: 992000, entrada: '2022-09-30', protocolo: 'AD-2022-77410' },
+    { num: '2024.0.331.0098-7', tipo: 'PDE', status: 'EM_PAGAMENTO', interessado: 'MRV Engenharia e Participações', cpf_cnpj: '08.343.492/0012-11', parcelas: [1, 3], valor_total: 568200, valor_devido: 378800, entrada: '2024-03-11', protocolo: 'AD-2024-30551' },
+    { num: '2023.0.556.2210-4', tipo: 'COTA', status: 'EM_PAGAMENTO', interessado: 'Cyrela Brazil Realty', cpf_cnpj: '73.178.600/0001-18', parcelas: [2, 6], valor_total: 2150000, valor_devido: 1433333, entrada: '2023-07-05', protocolo: 'AD-2023-55021' },
+    { num: '2021.0.114.8890-0', tipo: 'PDE', status: 'QUITADO', interessado: 'Tecnisa Engenharia', cpf_cnpj: '08.065.557/0001-12', parcelas: [4, 4], valor_total: 689400, valor_devido: 0, entrada: '2021-11-14', protocolo: 'AD-2021-66120' },
+    { num: '2024.0.778.3401-9', tipo: 'COTA', status: 'EM_PAGAMENTO', interessado: 'Even Construtora e Incorporadora', cpf_cnpj: '43.470.988/0001-65', parcelas: [1, 4], valor_total: 945000, valor_devido: 708750, entrada: '2024-05-02', protocolo: 'AD-2024-78900' },
+    { num: '2022.0.220.5567-2', tipo: 'PDE', status: 'QUEBRA', interessado: 'Mitre Realty SPE 14 Ltda.', cpf_cnpj: '22.778.341/0001-09', parcelas: [2, 5], valor_total: 1080000, valor_devido: 648000, entrada: '2022-06-19', protocolo: 'AD-2022-22015' },
+    { num: '2023.0.902.1144-6', tipo: 'PDE', status: 'EM_PAGAMENTO', interessado: 'Trisul S.A. Incorporadora', cpf_cnpj: '08.811.643/0001-27', parcelas: [3, 5], valor_total: 1360000, valor_devido: 544000, entrada: '2023-10-28', protocolo: 'AD-2023-90112' },
+    { num: '2024.0.118.7723-5', tipo: 'COTA', status: 'QUITADO', interessado: 'Lavvi Empreendimentos Imobiliários', cpf_cnpj: '84.022.190/0001-44', parcelas: [2, 2], valor_total: 318000, valor_devido: 0, entrada: '2024-02-09', protocolo: 'AD-2024-11200' },
+    { num: '2021.0.667.9080-3', tipo: 'PDE', status: 'EM_PAGAMENTO', interessado: 'Direcional Engenharia', cpf_cnpj: '16.614.075/0001-95', parcelas: [4, 6], valor_total: 1725000, valor_devido: 575000, entrada: '2021-08-03', protocolo: 'AD-2021-66780' },
+    { num: '2024.0.443.2219-1', tipo: 'COTA', status: 'EM_PAGAMENTO', interessado: 'Helbor Empreendimentos S.A.', cpf_cnpj: '49.263.189/0001-02', parcelas: [1, 3], valor_total: 612000, valor_devido: 408000, entrada: '2024-04-17', protocolo: 'AD-2024-44221' },
+    { num: '2023.0.205.6612-8', tipo: 'PDE', status: 'QUITADO', interessado: 'Eztec Empreendimentos e Participações', cpf_cnpj: '08.312.229/0001-77', parcelas: [5, 5], valor_total: 1490000, valor_devido: 0, entrada: '2023-05-21', protocolo: 'AD-2023-20566' },
+    { num: '2022.0.890.4432-0', tipo: 'PDE', status: 'EM_PAGAMENTO', interessado: 'You Inc Incorporadora', cpf_cnpj: '11.482.560/0001-31', parcelas: [2, 4], valor_total: 824000, valor_devido: 412000, entrada: '2022-12-07', protocolo: 'AD-2022-89044' },
+  ];
+
+  const processos = P.map((p, i) => ({ id: 'p-' + (1000 + i), ...p }));
+
+  window.LISTA = { processos, STATUS };
+
+/* ════ FIELDS ════ */
+/** Campos editáveis inline, tabelas e formatadores. Exporta p/ window. */
+/* ---------------- Formatadores ---------------- */
+const toNum = (v) => {
+  if (v === null || v === undefined || v === '') return NaN;
+  if (typeof v === 'number') return v;
+  const n = Number(String(v).replace(/\./g, '').replace(',', '.').replace(/[^0-9.\-]/g, ''));
+  return isNaN(n) ? Number(v) : n;
+};
+const fmtCurrency = (v) => {
+  const n = toNum(v);
+  if (isNaN(n)) return '';
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+};
+const fmtArea = (v) => {
+  const n = toNum(v);
+  if (isNaN(n)) return '';
+  return n.toLocaleString('pt-BR') + ' m²';
+};
+const fmtNumber = (v) => {
+  const n = toNum(v);
+  if (isNaN(n)) return String(v ?? '');
+  return n.toLocaleString('pt-BR');
+};
+const fmtDate = (v) => {
+  if (!v) return '';
+  const d = new Date(v.length <= 10 ? v + 'T00:00:00' : v);
+  if (isNaN(d.getTime())) return String(v);
+  return d.toLocaleDateString('pt-BR');
+};
+const fmtDateTime = (v) => {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return String(v);
+  return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+};
+const optLabel = (campo, value) => {
+  if (!campo.options) return value;
+  const o = campo.options.find((x) => x.value === value);
+  return o ? o.label : value;
+};
+const displayValue = (campo, value) => {
+  if (value === null || value === undefined || value === '') return '';
+  switch (campo.type) {
+    case 'currency': return fmtCurrency(value);
+    case 'area': return fmtArea(value);
+    case 'number': return fmtNumber(value);
+    case 'date': return fmtDate(value);
+    case 'datetime': return fmtDateTime(value);
+    case 'select': return optLabel(campo, value);
+    default: return String(value);
+  }
+};
+const isEmpty = (v) => v === null || v === undefined || String(v).trim() === '';
+
+/* ---------------- Campo editável (sempre editável, autosave no blur) ---------------- */
+function EditableField({ campo, value, onCommit, onHistory, hasHistory, autoFocus }) {
+  const [focused, setFocused] = useState(false);
+  const [local, setLocal] = useState(value ?? '');
+  useEffect(() => { if (!focused) setLocal(value ?? ''); }, [value, focused]);
+
+  const required = !!campo.required;
+  const faltando = required && isEmpty(value);
+  const readonly = !!campo.readonly;
+
+  const commit = (v) => {
+    setFocused(false);
+    if (String(v ?? '') !== String(value ?? '')) onCommit(v);
+  };
+
+  const labelEl = (
+    <div className="ef-label-row">
+      <span className="ef-label">{campo.label}{required && <span className="ef-req">*</span>}</span>
+      <span className="ef-label-meta">
+        {hasHistory && (
+          <button type="button" className="ef-hist" title="Histórico de alterações"
+            onClick={(e) => { e.preventDefault(); onHistory && onHistory(); }}>
+            <Icon name="history" size={12} />
+          </button>
+        )}
+        {readonly && <Icon name="lock" size={11} className="ef-lock" />}
+      </span>
+    </div>
+  );
+
+  // ---- Read-only ----
+  if (readonly) {
+    return (
+      <div className={'ef ef-ro' + (campo.full ? ' ef-full' : '') + (campo.destaque ? ' ef-destaque' : '')}>
+        {labelEl}
+        <div className="ef-ro-value">
+          {isEmpty(value) ? <span className="ef-empty">—</span> : displayValue(campo, value)}
+        </div>
+        {campo.nota && <div className="ef-nota">{campo.nota}</div>}
+      </div>
+    );
+  }
+
+  const cls = 'ef-input' + (faltando ? ' ef-missing' : '') + (focused ? ' ef-focused' : '');
+
+  let control;
+  if (campo.type === 'select') {
+    control = (
+      <select className={cls} value={value ?? ''} autoFocus={autoFocus}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+        onChange={(e) => { setFocused(false); onCommit(e.target.value); }}>
+        <option value="">— selecionar —</option>
+        {campo.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    );
+  } else if (campo.type === 'textarea') {
+    control = (
+      <textarea className={cls + ' ef-textarea'} rows={focused ? 4 : 2} value={local} autoFocus={autoFocus}
+        onFocus={() => setFocused(true)} onChange={(e) => setLocal(e.target.value)} onBlur={() => commit(local)} />
+    );
+  } else if (campo.type === 'date') {
+    control = (
+      <input type="date" className={cls} value={value ? String(value).slice(0, 10) : ''} autoFocus={autoFocus}
+        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
+        onChange={(e) => { onCommit(e.target.value); }} />
+    );
+  } else {
+    // text / number / currency / area — input texto com formatação ao sair do foco
+    const shown = focused ? local : (isEmpty(value) ? '' : displayValue(campo, value));
+    const numeric = campo.type === 'currency' || campo.type === 'area' || campo.type === 'number';
+    control = (
+      <input type="text" inputMode={numeric ? 'decimal' : 'text'} className={cls} value={shown} autoFocus={autoFocus}
+        placeholder={faltando ? 'Obrigatório' : '—'}
+        onFocus={() => { setFocused(true); setLocal(isEmpty(value) ? '' : (numeric ? String(toNum(value)).replace('.', ',') : value)); }}
+        onChange={(e) => setLocal(e.target.value)}
+        onBlur={() => commit(numeric ? local.replace(/\s/g, '') : local)} />
+    );
+  }
+
+  return (
+    <div className={'ef' + (campo.full ? ' ef-full' : '')}>
+      {labelEl}
+      {control}
+      {faltando && <div className="ef-hint-missing"><Icon name="alert" size={11} /> Campo obrigatório</div>}
+    </div>
+  );
+}
+
+/* ---------------- Grid de campos ---------------- */
+function CamposGrid({ secao, dados, onField, onHistory, historico }) {
+  return (
+    <div className="campos-grid">
+      {secao.campos.map((campo) => {
+        const chave = secao.id + '.' + campo.key;
+        return (
+          <EditableField key={campo.key} campo={campo} value={dados ? dados[campo.key] : ''}
+            hasHistory={!!(historico && historico[chave])}
+            onHistory={() => onHistory && onHistory(campo, chave)}
+            onCommit={(v) => onField(campo.key, v)} />
+        );
+      })}
+    </div>
+  );
+}
+
+/* ---------------- Badge de status de parcela ---------------- */
+function StatusParcela({ p }) {
+  if (p.quebra) return <span className="badge badge-quebra"><Icon name="trendingDown" size={12} /> Quebra</span>;
+  if (p.status_quitacao === true || p.status_quitacao === 'true') {
+    return <span className="badge badge-ok">{p.antecipada && <Icon name="zap" size={12} />}{p.antecipada ? ' Antecipada' : 'Quitada'}</span>;
+  }
+  return <span className="badge badge-pend">Pendente</span>;
+}
+
+/* ---------------- Tabela de parcelas (com ações) ---------------- */
+function TabelaParcelas({ parcelas, onAcao }) {
+  const total = parcelas.reduce((s, p) => s + toNum(p.valor || 0), 0);
+  const pagas = parcelas.filter((p) => p.status_quitacao === true && !p.quebra).length;
+  return (
+    <div className="parcelas-bloco">
+      <div className="tbl-resumo">
+        <div><span className="tbl-resumo-num">{parcelas.length}</span> parcelas</div>
+        <div><span className="tbl-resumo-num">{pagas}</span> quitadas</div>
+        <div><span className="tbl-resumo-num">{fmtCurrency(total)}</span> total</div>
+      </div>
+      <div className="tbl-scroll">
+      <table className="tbl">
+        <thead>
+          <tr>
+            <th>Nº</th><th>Valor</th><th>Vencimento</th><th>Quitação</th><th>CPF/CNPJ</th><th>Situação</th><th className="tbl-acoes-h">Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+          {parcelas.length === 0 && <tr><td colSpan={7} className="tbl-vazio">Nenhuma parcela cadastrada.</td></tr>}
+          {parcelas.map((p) => (
+            <tr key={p.id} className={p.quebra ? 'tr-quebra' : ''}>
+              <td className="tbl-c">{p.num_parcela}</td>
+              <td>{fmtCurrency(p.valor)}</td>
+              <td className="tbl-c">{fmtDate(p.vencimento)}</td>
+              <td className="tbl-c">{p.data_quitacao ? fmtDate(p.data_quitacao) : '—'}</td>
+              <td>{p.cpf_cnpj}</td>
+              <td className="tbl-c"><StatusParcela p={p} /></td>
+              <td>
+                <div className="tbl-acoes">
+                  {!p.status_quitacao && !p.quebra && (
+                    <button className="act act-zap" title="Munícipe antecipou o pagamento" aria-label="Registrar antecipação" onClick={() => onAcao(p.id, 'antecipar')}>
+                      <Icon name="zap" size={15} />
+                    </button>
+                  )}
+                  {!p.quebra ? (
+                    <button className="act act-quebra" title="Munícipe parou de pagar (registrar quebra)" aria-label="Registrar quebra" onClick={() => onAcao(p.id, 'quebra')}>
+                      <Icon name="trendingDown" size={15} />
+                    </button>
+                  ) : (
+                    <button className="act act-undo" title="Reverter quebra" onClick={() => onAcao(p.id, 'reverter')}>
+                      Reverter
+                    </button>
+                  )}
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      </div>
+      <div className="tbl-legenda">
+        <span><button className="act act-zap" tabIndex={-1}><Icon name="zap" size={14} /></button> Antecipar — munícipe pagou adiantado</span>
+        <span><button className="act act-quebra" tabIndex={-1}><Icon name="trendingDown" size={14} /></button> Quebra — munícipe parou de pagar</span>
+      </div>
+    </div>
+  );
+}
+
+/* ---------------- Tabela genérica editável (endereços / licenças) ---------------- */
+function TabelaEditavel({ colunas, linhas, onCell, onAddRow, onDelRow, addLabel }) {
+  return (
+    <div className="tbl-wrap">
+      <table className="tbl tbl-edit">
+        <thead>
+          <tr>{colunas.map((c) => <th key={c.key}>{c.label}</th>)}<th className="tbl-acoes-h"></th></tr>
+        </thead>
+        <tbody>
+          {linhas.length === 0 && <tr><td colSpan={colunas.length + 1} className="tbl-vazio">Nenhum registro. Use “{addLabel}”.</td></tr>}
+          {linhas.map((linha, ri) => (
+            <tr key={linha.id || ri}>
+              {colunas.map((c) => (
+                <td key={c.key}>
+                  {c.type === 'select' ? (
+                    <select className="cell-input" value={linha[c.key] ?? ''} onChange={(e) => onCell(ri, c.key, e.target.value)}>
+                      <option value="">—</option>
+                      {c.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  ) : c.type === 'date' ? (
+                    <input type="date" className="cell-input" value={linha[c.key] ? String(linha[c.key]).slice(0, 10) : ''} onChange={(e) => onCell(ri, c.key, e.target.value)} />
+                  ) : (
+                    <input type="text" className="cell-input" value={linha[c.key] ?? ''} onChange={(e) => onCell(ri, c.key, e.target.value)} />
+                  )}
+                </td>
+              ))}
+              <td className="tbl-c">
+                <button className="cell-del" title="Remover" onClick={() => onDelRow(ri)}><Icon name="trash" size={13} /></button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button className="add-row" onClick={onAddRow}><Icon name="plus" size={14} /> {addLabel}</button>
+    </div>
+  );
+}
+
+Object.assign(window, {
+  Icon, EditableField, CamposGrid, TabelaParcelas, TabelaEditavel, StatusParcela,
+  fmtCurrency, fmtArea, fmtNumber, fmtDate, fmtDateTime, displayValue, isEmpty, toNum,
+});
+
+/* ════ MOCK DATA ════ */
+/** Dados de exemplo + configuração de campos — portados do schema real do Outorga. */
+  // ---- Enums (de processo-detalhe-labels.ts) ----
+  const TIPO_PROCESSO = { PDE: 'PDE', COTA: 'COTA' };
+  const STATUS_PAGAMENTO = { EM_PAGAMENTO: 'Em Pagamento', QUITADO: 'Quitado', QUEBRA: 'Quebra' };
+  const SITUACAO_MONITORAMENTO = { QUITADO: 'Quitado', ARRECADADO_AD: 'Arrecadado AD', EM_PAGAMENTO: 'Em Pagamento', SEM_INFORMACAO: 'Sem Informação' };
+  const ORIGEM_MONITORAMENTO = { SISACOE: 'SISACOE', SEI: 'SEI', APROVA_DIGITAL: 'Aprova Digital', OUTRO: 'Outro' };
+  const INCIDENCIA_COTA = { SIM: 'Sim', NAO: 'Não' };
+  const CONSTA_DOCUMENTO = { CONSTA: 'Consta', NAO_CONSTA: 'Não consta', NAO_SE_APLICA: 'Não se aplica' };
+  const TIPO_LICENCA = { APROVACAO: 'Alvará de Aprovação', EXECUCAO: 'Alvará de Execução', CERTIFICADO_CONCLUSAO: 'Certificado de Conclusão' };
+
+  const sel = (map) => Object.entries(map).map(([value, label]) => ({ value, label }));
+
+  // ---- Helper p/ montar campos: f(key, label, type, extra) ----
+  const f = (key, label, type = 'text', extra = {}) => ({ key, label, type, ...extra });
+
+  // ===== Seções (uma por tabela do banco) =====
+  // tipo: 'grid' | 'parcelas' | 'enderecos' | 'licencas'
+  // grupo: rótulo do agrupamento na navegação vertical
+  const SECOES = [
+    {
+      id: 'processo', grupo: 'Processo', titulo: 'Dados do Processo', tabela: 'processos', tipo: 'grid',
+      campos: [
+        f('num_processo', 'Número do Processo', 'text', { required: true }),
+        f('tipo', 'Tipo', 'select', { options: sel(TIPO_PROCESSO), required: true }),
+        f('codigo', 'Código', 'text'),
+        f('protocolo_ad', 'Protocolo AD', 'text'),
+        f('data_entrada', 'Data de Entrada', 'date', { required: true }),
+        f('status_pagamento', 'Status de Pagamento', 'select', { options: sel(STATUS_PAGAMENTO), readonly: true, nota: 'Definido pelas parcelas' }),
+        f('criado_em', 'Criado em', 'datetime', { readonly: true }),
+        f('alterado_em', 'Alterado em', 'datetime', { readonly: true }),
+      ],
+    },
+    {
+      id: 'calculo', grupo: 'Processo', titulo: 'Cálculo da Outorga', tabela: 'monitoramento_calculo_outorga', tipo: 'grid', via: 'monitoramento.calculo_outorga',
+      calculado: true,
+      campos: [
+        f('coeficiente_basico', 'Coeficiente Básico', 'number', { readonly: true }),
+        f('coeficiente_utilizado', 'Coeficiente Utilizado', 'number', { readonly: true }),
+        f('area_terreno', 'Área Terreno', 'area', { readonly: true }),
+        f('valor_m2_quadro14', 'Valor m² (Quadro 14)', 'currency', { readonly: true }),
+        f('fp_uso_r', 'Fp Uso R', 'number', { readonly: true }),
+        f('fp_uso_nr', 'Fp Uso nR', 'number', { readonly: true }),
+        f('fs_uso_r', 'Fs Uso R', 'number', { readonly: true }),
+        f('fs_uso_nr', 'Fs Uso nR', 'number', { readonly: true }),
+        f('area_objeto_uso_r', 'Área Objeto Uso R', 'area', { readonly: true }),
+        f('area_objeto_uso_nr', 'Área Objeto Uso nR', 'area', { readonly: true }),
+        f('area_total_objeto', 'Área Total Objeto', 'area', { readonly: true }),
+        f('area_computavel_total', 'Área Computável Total', 'area', { readonly: true }),
+        f('area_construida_total', 'Área Construída Total', 'area', { readonly: true }),
+        f('area_nao_computavel', 'Área Não Computável', 'area', { readonly: true }),
+        f('percentual_fachada_ativa', 'Percentual Fachada Ativa', 'text', { readonly: true }),
+        f('contrapartida_uso_r', 'Contrapartida Uso R', 'currency', { readonly: true }),
+        f('contrapartida_uso_nr', 'Contrapartida Uso nR', 'currency', { readonly: true }),
+        f('contrapartida_total', 'Contrapartida Total', 'currency', { readonly: true, destaque: true }),
+      ],
+    },
+    {
+      id: 'parcelas', grupo: 'Processo', titulo: 'Parcelas', tabela: 'parcelas', tipo: 'parcelas',
+    },
+    {
+      id: 'ficha', grupo: 'Monitoramento DEUSO', titulo: 'Ficha de Monitoramento', tabela: 'monitoramento_fichas', tipo: 'grid', via: 'monitoramento',
+      campos: [
+        f('proprietario_interessado', 'Proprietário / Interessado', 'text', { full: true }),
+        f('responsavel_preenchimento', 'Responsável pelo Preenchimento', 'text'),
+        f('numero_proposta', 'Número da Proposta', 'text'),
+        f('proposta_oodc_id', 'ID Proposta OODC', 'text'),
+        f('processo_modificativo', 'Processo Modificativo', 'text'),
+        f('criado_em', 'Criado em', 'datetime', { readonly: true }),
+        f('alterado_em', 'Alterado em', 'datetime', { readonly: true }),
+      ],
+    },
+    {
+      id: 'coordenada', grupo: 'Monitoramento DEUSO', titulo: 'Coordenada', tabela: 'monitoramento_coordenadas', tipo: 'grid', via: 'monitoramento.coordenada',
+      campos: [
+        f('coordenada_e', 'Coordenada E (X)', 'text'),
+        f('coordenada_n', 'Coordenada N (Y)', 'text'),
+      ],
+    },
+    {
+      id: 'localizacao', grupo: 'Monitoramento DEUSO', titulo: 'Localização do Lote', tabela: 'monitoramento_localizacao_lote', tipo: 'grid', via: 'monitoramento.localizacao_lote',
+      campos: [
+        f('setor', 'Setor', 'text'),
+        f('quadra', 'Quadra', 'text'),
+        f('lote_cadastrado', 'Lote Cadastrado', 'text'),
+        f('lote_atualizado', 'Lote Atualizado', 'text'),
+        f('codigo_logradouro', 'Código Logradouro', 'text'),
+      ],
+    },
+    {
+      id: 'enderecos', grupo: 'Monitoramento DEUSO', titulo: 'Endereços', tabela: 'monitoramento_enderecos', tipo: 'enderecos', via: 'monitoramento.enderecos',
+    },
+    {
+      id: 'enquadramento', grupo: 'Monitoramento DEUSO', titulo: 'Enquadramento Urbanístico', tabela: 'monitoramento_enquadramento_urbanistico', tipo: 'grid', via: 'monitoramento.enquadramento_urbanistico',
+      campos: [
+        f('distrito', 'Distrito', 'text'),
+        f('subprefeitura', 'Subprefeitura', 'text'),
+        f('macrozona', 'Macrozona', 'text'),
+        f('macroarea', 'Macroárea', 'text'),
+        f('subsetor', 'Subsetor', 'text'),
+        f('zona_uso_1_18081', 'Zona de Uso 1', 'text'),
+        f('zona_uso_2_17975', 'Zona de Uso 2', 'text'),
+        f('zona_uso_3_16402', 'Zona de Uso 3', 'text'),
+        f('zona_uso_4_16050', 'Zona de Uso 4', 'text'),
+        f('zona_uso_5_13885', 'Zona de Uso 5', 'text'),
+        f('zona_uso_6_13885', 'Zona de Uso 6', 'text'),
+        f('tipologia_uso_oodc', 'Tipologia de Uso OODC', 'text', { full: true }),
+      ],
+    },
+    {
+      id: 'subcategorias', grupo: 'Monitoramento DEUSO', titulo: 'Subcategorias de Uso', tabela: 'monitoramento_subcategorias_uso', tipo: 'grid', via: 'monitoramento.subcategorias_uso',
+      campos: [
+        f('uso_r_hmp_his', 'Uso R/HMP/HIS', 'text'),
+        f('uso_r_hmp_his_2', 'Uso R/HMP/HIS (2)', 'text'),
+        f('uso_r_hmp_his_3', 'Uso R/HMP/HIS (3)', 'text'),
+        f('uso_nr', 'Uso nR', 'text'),
+        f('uso_nr_2', 'Uso nR (2)', 'text'),
+        f('uso_nr_3', 'Uso nR (3)', 'text'),
+        f('uso_extra', 'Uso Extra', 'text'),
+      ],
+    },
+    {
+      id: 'situacao', grupo: 'Monitoramento DEUSO', titulo: 'Situação', tabela: 'monitoramento_situacao', tipo: 'grid', via: 'monitoramento.situacao',
+      campos: [
+        f('situacao', 'Situação', 'select', { options: sel(SITUACAO_MONITORAMENTO) }),
+        f('incidencia_cota_solidariedade', 'Incidência Cota Solidariedade', 'select', { options: sel(INCIDENCIA_COTA) }),
+        f('origem', 'Origem', 'select', { options: sel(ORIGEM_MONITORAMENTO) }),
+      ],
+    },
+    {
+      id: 'licencas', grupo: 'Monitoramento DEUSO', titulo: 'Licenças', tabela: 'monitoramento_licencas', tipo: 'licencas', via: 'monitoramento.licencas',
+    },
+    {
+      id: 'anotacoes', grupo: 'Monitoramento DEUSO', titulo: 'Anotações DEUSO', tabela: 'monitoramento_anotacoes_deuso', tipo: 'grid', via: 'monitoramento.anotacoes_deuso',
+      campos: [
+        f('observacao_historico', 'Observação / Histórico', 'textarea', { full: true }),
+        f('data_informacao_dmus', 'Data Informação DMUS', 'date'),
+        f('solicitacao_dsiz', 'Solicitação DSIZ', 'text'),
+        f('preenchimento_qgis', 'Preenchimento QGIS', 'text'),
+      ],
+    },
+    {
+      id: 'cota', grupo: 'Cota de Solidariedade', titulo: 'Cota de Solidariedade', tabela: 'monitoramento_cota_solidariedade', tipo: 'grid', via: 'monitoramento_cota',
+      campos: [
+        f('proprietario_interessado', 'Proprietário / Interessado', 'text', { full: true }),
+        f('endereco', 'Endereço', 'textarea', { full: true }),
+        f('ficha_ouc', 'Ficha OUC', 'number'),
+        f('proposta_oodc', 'Proposta OODC', 'number'),
+        f('data_informacao_dmus', 'Data Informação DMUS', 'date'),
+        f('setor', 'Setor', 'text'),
+        f('quadra', 'Quadra', 'text'),
+        f('lote', 'Lote', 'text'),
+        f('lote_atualizado_sqcond', 'Lote Atualizado (SQCOND)', 'text'),
+        f('codigo_logradouro', 'Código Logradouro', 'text'),
+        f('distrito', 'Distrito', 'text'),
+        f('subprefeitura', 'Subprefeitura', 'text'),
+        f('macrozona', 'Macrozona', 'text'),
+        f('macroarea', 'Macroárea', 'text'),
+        f('subsetor', 'Subsetor', 'text'),
+        f('zona_uso', 'Zona de Uso', 'text'),
+        f('subcategoria_uso', 'Subcategoria de Uso', 'text'),
+        f('modalidade', 'Modalidade', 'text'),
+        f('unidades', 'Unidades', 'text'),
+        f('coeficiente_utilizado', 'Coeficiente Utilizado', 'number'),
+        f('area_terreno', 'Área Terreno', 'area'),
+        f('area_construida_computavel_total', 'Área Construída Computável Total', 'area'),
+        f('area_habitacao_social', 'Área Habitação Social', 'text'),
+        f('valor_m2_quadro14', 'Valor m² (Quadro 14)', 'currency'),
+        f('estimativa_deposito_fundurb', 'Estimativa Depósito FUNDURB', 'currency'),
+        f('valor_calculado_processo', 'Valor Calculado Processo', 'currency'),
+        f('valor_pago', 'Valor Pago', 'currency'),
+        f('valor_devido', 'Valor Devido', 'currency'),
+        f('situacao_cota', 'Situação Cota', 'text'),
+        f('alvara_aprovacao', 'Alvará Aprovação', 'text'),
+        f('alvara_execucao', 'Alvará Execução', 'text'),
+        f('certificado_conclusao', 'Certificado Conclusão', 'text'),
+        f('comprovantes_pagamento_prodam', 'Comprovantes Pagamento PRODAM', 'text'),
+        f('planilha_calculo_cota', 'Planilha Cálculo Cota', 'select', { options: sel(CONSTA_DOCUMENTO) }),
+        f('termo_compromisso_portaria', 'Termo Compromisso / Portaria', 'select', { options: sel(CONSTA_DOCUMENTO) }),
+        f('origem', 'Origem', 'text'),
+        f('solicitacao_dsiz', 'Solicitação DSIZ', 'text'),
+        f('preenchimento_qgis', 'Preenchimento QGIS', 'text'),
+        f('observacao', 'Observação', 'textarea', { full: true }),
+        f('observacoes', 'Observações', 'textarea', { full: true }),
+        f('ficha_revisada_em', 'Ficha Revisada em', 'date'),
+      ],
+    },
+  ];
+
+  const COLUNAS_PARCELA = [
+    { key: 'num_parcela', label: 'Nº', type: 'text' },
+    { key: 'valor', label: 'Valor', type: 'currency' },
+    { key: 'vencimento', label: 'Vencimento', type: 'date' },
+    { key: 'data_quitacao', label: 'Data Quitação', type: 'date' },
+    { key: 'ano_pagamento', label: 'Ano', type: 'text' },
+    { key: 'cpf_cnpj', label: 'CPF/CNPJ', type: 'text' },
+    { key: 'status_quitacao', label: 'Situação', type: 'status' },
+  ];
+  const COLUNAS_ENDERECO = [
+    { key: 'ordem', label: 'Ordem', type: 'text' },
+    { key: 'tipo', label: 'Tipo', type: 'text' },
+    { key: 'titulo', label: 'Título', type: 'text' },
+    { key: 'nome', label: 'Nome', type: 'text' },
+    { key: 'numero', label: 'Número', type: 'text' },
+  ];
+  const COLUNAS_LICENCA = [
+    { key: 'tipo', label: 'Tipo', type: 'select', options: sel(TIPO_LICENCA) },
+    { key: 'numero', label: 'Número', type: 'text' },
+    { key: 'tipo_documento', label: 'Tipo Documento', type: 'text' },
+    { key: 'data_expedicao', label: 'Data Expedição', type: 'date' },
+  ];
+
+  // ===== Processo de exemplo (com alguns campos vazios de propósito) =====
+  const PROCESSO = {
+    id: 'p-2024-0042',
+    num_processo: '2023.0.123.4567-8',
+    tipo: 'PDE',
+    codigo: 'OODC-4421',
+    protocolo_ad: 'AD-2023-88120',
+    data_entrada: '2023-04-18',
+    status_pagamento: 'EM_PAGAMENTO',
+    criado_em: '2023-04-18T09:32:00',
+    alterado_em: '2026-05-29T14:05:00',
+    parcelas: [
+      { id: 'pa1', num_parcela: 1, valor: 184250.0, vencimento: '2023-06-10', data_quitacao: '2023-06-08', ano_pagamento: 2023, cpf_cnpj: '12.345.678/0001-90', status_quitacao: true },
+      { id: 'pa2', num_parcela: 2, valor: 184250.0, vencimento: '2024-06-10', data_quitacao: '2024-06-09', ano_pagamento: 2024, cpf_cnpj: '12.345.678/0001-90', status_quitacao: true },
+      { id: 'pa3', num_parcela: 3, valor: 184250.0, vencimento: '2025-06-10', data_quitacao: null, ano_pagamento: 2025, cpf_cnpj: '12.345.678/0001-90', status_quitacao: false },
+      { id: 'pa4', num_parcela: 4, valor: 184250.0, vencimento: '2026-06-10', data_quitacao: null, ano_pagamento: null, cpf_cnpj: '12.345.678/0001-90', status_quitacao: false },
+    ],
+    monitoramento: {
+      proprietario_interessado: 'Incorporadora Vila Nova Empreendimentos Ltda.',
+      responsavel_preenchimento: 'Ana Beatriz Cardoso',
+      numero_proposta: '2023/0421',
+      proposta_oodc_id: 'OODC-4421',
+      processo_modificativo: '',
+      criado_em: '2023-05-02T10:11:00',
+      alterado_em: '2026-05-29T14:05:00',
+      coordenada: { coordenada_e: '333.412,18', coordenada_n: '7.394.880,42' },
+      localizacao_lote: { setor: '073', quadra: '142', lote_cadastrado: '0021', lote_atualizado: '0021-3', codigo_logradouro: '' },
+      enderecos: [
+        { ordem: 1, tipo: 'Avenida', titulo: 'Eng.', nome: 'Luís Carlos Berrini', numero: '1500' },
+        { ordem: 2, tipo: 'Rua', titulo: '', nome: 'Funchal', numero: '263' },
+      ],
+      enquadramento_urbanistico: {
+        distrito: 'Itaim Bibi', subprefeitura: 'Pinheiros', macrozona: 'Estruturação e Qualificação Urbana',
+        macroarea: 'Estruturação Metropolitana', subsetor: 'Arco Pinheiros',
+        zona_uso_1_18081: 'ZEU', zona_uso_2_17975: '', zona_uso_3_16402: '', zona_uso_4_16050: '',
+        zona_uso_5_13885: '', zona_uso_6_13885: '', tipologia_uso_oodc: 'Misto (R + nR)',
+      },
+      subcategorias_uso: { uso_r_hmp_his: 'R', uso_r_hmp_his_2: '', uso_r_hmp_his_3: '', uso_nr: 'nR1', uso_nr_2: '', uso_nr_3: '', uso_extra: '' },
+      calculo_outorga: {
+        coeficiente_basico: 1, coeficiente_utilizado: 4, area_terreno: 2400, valor_m2_quadro14: 9200,
+        fp_uso_r: 1, fp_uso_nr: 1, fs_uso_r: 0.7, fs_uso_nr: 1,
+        area_objeto_uso_r: 5200, area_objeto_uso_nr: 3100, area_total_objeto: 8300,
+        area_computavel_total: 9600, area_construida_total: 11200, area_nao_computavel: 1600,
+        percentual_fachada_ativa: '25%', contrapartida_uso_r: 268640, contrapartida_uso_nr: 468360, contrapartida_total: 737000,
+      },
+      situacao: { situacao: 'EM_PAGAMENTO', incidencia_cota_solidariedade: 'SIM', origem: 'SEI' },
+      licencas: [
+        { id: 'l1', tipo: 'APROVACAO', numero: '2023/12.345-00', tipo_documento: 'Alvará', data_expedicao: '2023-08-15' },
+        { id: 'l2', tipo: 'EXECUCAO', numero: '2024/00.987-11', tipo_documento: 'Alvará', data_expedicao: '2024-02-20' },
+      ],
+      anotacoes_deuso: {
+        observacao_historico: 'Processo com incidência de cota de solidariedade. Aguardando comprovação da 3ª parcela.',
+        data_informacao_dmus: '2024-11-12', solicitacao_dsiz: '', preenchimento_qgis: 'Sim',
+      },
+    },
+    monitoramento_cota: {
+      proprietario_interessado: 'Incorporadora Vila Nova Empreendimentos Ltda.',
+      endereco: 'Av. Eng. Luís Carlos Berrini, 1500 — Itaim Bibi, São Paulo/SP',
+      ficha_ouc: 4421, proposta_oodc: 421, data_informacao_dmus: '2024-11-12',
+      setor: '073', quadra: '142', lote: '0021', lote_atualizado_sqcond: '0021-3', codigo_logradouro: '',
+      distrito: 'Itaim Bibi', subprefeitura: 'Pinheiros', macrozona: 'Estruturação e Qualificação Urbana',
+      macroarea: 'Estruturação Metropolitana', subsetor: 'Arco Pinheiros', zona_uso: 'ZEU', subcategoria_uso: 'Misto',
+      modalidade: 'Habitação de Interesse Social', unidades: '40', coeficiente_utilizado: 4, area_terreno: 2400,
+      area_construida_computavel_total: 9600, area_habitacao_social: '1200', valor_m2_quadro14: 9200,
+      estimativa_deposito_fundurb: 737000, valor_calculado_processo: 737000, valor_pago: 368500, valor_devido: 368500,
+      situacao_cota: 'Em pagamento', alvara_aprovacao: '2023/12.345-00', alvara_execucao: '2024/00.987-11', certificado_conclusao: '',
+      comprovantes_pagamento_prodam: '', planilha_calculo_cota: 'CONSTA', termo_compromisso_portaria: 'NAO_CONSTA',
+      origem: 'SEI', solicitacao_dsiz: '', preenchimento_qgis: 'Sim', observacao: '', observacoes: '', ficha_revisada_em: '',
+    },
+  };
+
+  // Histórico de alterações de exemplo (por campo "secao.campo")
+  const HISTORICO = {
+    'processo.status_pagamento': [{ usuario: 'Ana Cardoso', em: '2026-05-29T14:05:00', de: 'Quitado', para: 'Em Pagamento' }],
+    'situacao.situacao': [{ usuario: 'Ana Cardoso', em: '2026-05-29T14:05:00', de: 'Quitado', para: 'Em Pagamento' }],
+    'ficha.proprietario_interessado': [{ usuario: 'Marcos Lima', em: '2025-10-02T11:20:00', de: 'Vila Nova Ltda', para: 'Incorporadora Vila Nova Empreendimentos Ltda.' }],
+  };
+
+  window.MOCK = {
+    SECOES, COLUNAS_PARCELA, COLUNAS_ENDERECO, COLUNAS_LICENCA, PROCESSO, HISTORICO,
+    enums: { TIPO_PROCESSO, STATUS_PAGAMENTO, SITUACAO_MONITORAMENTO, ORIGEM_MONITORAMENTO, INCIDENCIA_COTA, CONSTA_DOCUMENTO, TIPO_LICENCA },
+  };
+
+/* ════ LISTA ════ */
+/** Lista de processos — header, busca, filtros, tabela clicável, paginação. */
+const STATUS_LABEL = (window.LISTA && window.LISTA.STATUS) || {};
+const fmtBRL = (n) => n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+const fmtData = (s) => { const d = new Date(s + 'T00:00:00'); return d.toLocaleDateString('pt-BR'); };
+
+function StatusBadge({ status }) {
+  return <span className={'badge badge-' + status.toLowerCase()}>{STATUS_LABEL[status]}</span>;
+}
+
+function Parcelas({ p }) {
+  const [pagas, total] = p.parcelas;
+  const pct = Math.round((pagas / total) * 100);
+  const cls = p.status === 'QUEBRA' ? 'broken' : pagas === total ? 'full' : '';
+  return (
+    <div className="parc">
+      <span className="parc-label">{pagas}/{total}</span>
+      <div className="parc-bar"><div className={'parc-fill ' + cls} style={{ width: pct + '%' }} /></div>
+    </div>
+  );
+}
+
+function StatCard({ icon, color, label, value, sub }) {
+  return (
+    <div className="stat">
+      <div className="stat-top">
+        <div className={'stat-icon ' + color}><Icon name={icon} size={16} /></div>
+        <span className="stat-label">{label}</span>
+      </div>
+      <div className="stat-value">{value}</div>
+      {sub && <div className="stat-sub">{sub}</div>}
+    </div>
+  );
+}
+
+function ListaApp() {
+  const todos = window.LISTA.processos;
+  const [busca, setBusca] = useState('');
+  const [tipo, setTipo] = useState('TODOS');
+  const [status, setStatus] = useState('TODOS');
+  const [pagina, setPagina] = useState(1);
+  const [limite, setLimite] = useState(10);
+
+  const filtrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return todos.filter((p) => {
+      if (tipo !== 'TODOS' && p.tipo !== tipo) return false;
+      if (status !== 'TODOS' && p.status !== status) return false;
+      if (q && !(p.num.toLowerCase().includes(q) || p.interessado.toLowerCase().includes(q) || p.cpf_cnpj.includes(q))) return false;
+      return true;
+    });
+  }, [todos, busca, tipo, status]);
+
+  const total = filtrados.length;
+  const ultimaPag = Math.max(1, Math.ceil(total / limite));
+  const pagAtual = Math.min(pagina, ultimaPag);
+  const inicio = (pagAtual - 1) * limite;
+  const pageItens = filtrados.slice(inicio, inicio + limite);
+
+  const resetPag = (fn) => (v) => { fn(v); setPagina(1); };
+
+  // métricas (sobre todos os processos, não filtrados)
+  const emPagamento = todos.filter((p) => p.status === 'EM_PAGAMENTO').length;
+  const quitados = todos.filter((p) => p.status === 'QUITADO').length;
+  const quebras = todos.filter((p) => p.status === 'QUEBRA').length;
+  const aReceber = todos.reduce((s, p) => s + p.valor_devido, 0);
+
+  const irParaDetalhe = (p) => navigate('detalhe', p);
+
+  const paginas = [];
+  for (let i = 1; i <= ultimaPag; i++) paginas.push(i);
+
+  return (
+    <div className="app">
+      <SidebarShared active="lista" />
+      <div className="lista-main">
+        <div className="lista-wrap">
+          <div className="lista-head">
+            <div>
+              <h1>Processos</h1>
+              <p>Consulte, acompanhe e edite os processos de outorga onerosa.</p>
+            </div>
+            <button className="btn btn-primary" onClick={() => { navigate('novo'); }}>
+              <Icon name="plus" size={16} /> Novo processo
+            </button>
+          </div>
+
+          <div className="stats">
+            <StatCard icon="layers" color="blue" label="Total" value={todos.length} sub="processos cadastrados" />
+            <StatCard icon="clock" color="amber" label="Em pagamento" value={emPagamento} sub="parcelas em curso" />
+            <StatCard icon="check" color="green" label="Quitados" value={quitados} sub="contrapartida concluída" />
+            <StatCard icon="trendingDown" color="red" label="Em quebra" value={quebras} sub={fmtBRL(aReceber) + ' a receber'} />
+          </div>
+
+          <div className="toolbar">
+            <div className="busca">
+              <Icon name="search" size={15} />
+              <input value={busca} onChange={(e) => resetPag(setBusca)(e.target.value)} placeholder="Buscar por número, interessado ou CPF/CNPJ…" />
+            </div>
+            <div className="filtros">
+              <div className="filtro-grp">
+                {['TODOS', 'PDE', 'COTA'].map((t) => (
+                  <button key={t} className={'filtro-btn' + (tipo === t ? ' active' : '')} onClick={() => resetPag(setTipo)(t)}>
+                    {t === 'TODOS' ? 'Todos os tipos' : t}
+                  </button>
+                ))}
+              </div>
+              <div className="filtro-grp">
+                {[['TODOS', 'Todos'], ['EM_PAGAMENTO', 'Em pagamento'], ['QUITADO', 'Quitado'], ['QUEBRA', 'Quebra']].map(([v, l]) => (
+                  <button key={v} className={'filtro-btn' + (status === v ? ' active' : '')} onClick={() => resetPag(setStatus)(v)}>{l}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="lista-tbl-wrap">
+            <div className="lista-tbl-scroll">
+              <table className="lista-tbl">
+                <thead>
+                  <tr>
+                    <th>Número do processo</th>
+                    <th>Tipo</th>
+                    <th>Interessado</th>
+                    <th>Status</th>
+                    <th className="th-c">Parcelas</th>
+                    <th className="th-r">Valor devido</th>
+                    <th className="th-c">Entrada</th>
+                    <th className="th-r">Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageItens.length === 0 && (
+                    <tr><td colSpan={8}><div className="lista-vazio">Nenhum processo encontrado com os filtros atuais.</div></td></tr>
+                  )}
+                  {pageItens.map((p) => (
+                    <tr key={p.id} onClick={() => irParaDetalhe(p)}>
+                      <td className="cel-num">{p.num}<small>{p.protocolo}</small></td>
+                      <td><span className="badge badge-tipo">{p.tipo}</span></td>
+                      <td className="cel-interessado">{p.interessado}<small>{p.cpf_cnpj}</small></td>
+                      <td><StatusBadge status={p.status} /></td>
+                      <td className="td-c"><Parcelas p={p} /></td>
+                      <td className={'td-r cel-valor' + (p.valor_devido === 0 ? ' zero' : '')}>{p.valor_devido === 0 ? 'Quitado' : fmtBRL(p.valor_devido)}</td>
+                      <td className="td-c cel-data">{fmtData(p.entrada)}</td>
+                      <td className="td-r">
+                        <a className="ver-link" href="#" onClick={(e) => { e.preventDefault(); e.stopPropagation(); navigate('detalhe', p); }}>
+                          Ver / Editar <Icon name="arrowRight" size={14} />
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="lista-foot">
+            <div className="foot-info">
+              {total > 0 ? <><b>{inicio + 1}</b>–<b>{Math.min(inicio + limite, total)}</b> de <b>{total}</b> processos</> : 'Nenhum processo'}
+            </div>
+            <div className="pager">
+              <button className="pg" disabled={pagAtual === 1} onClick={() => setPagina(1)} title="Primeira"><Icon name="chevsLeft" size={15} /></button>
+              <button className="pg" disabled={pagAtual === 1} onClick={() => setPagina(pagAtual - 1)} title="Anterior"><Icon name="chevLeft" size={15} /></button>
+              {paginas.map((n) => (
+                <button key={n} className={'pg' + (n === pagAtual ? ' active' : '')} onClick={() => setPagina(n)}>{n}</button>
+              ))}
+              <button className="pg" disabled={pagAtual === ultimaPag} onClick={() => setPagina(pagAtual + 1)} title="Próxima"><Icon name="chevRight" size={15} /></button>
+              <button className="pg" disabled={pagAtual === ultimaPag} onClick={() => setPagina(ultimaPag)} title="Última"><Icon name="chevsRight" size={15} /></button>
+            </div>
+            <div className="foot-reg">
+              Registros por página
+              <select value={limite} onChange={(e) => resetPag(setLimite)(+e.target.value)}>
+                {[5, 10, 15, 20, 50].map((l) => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/* ════ NOVO PROCESSO ════ */
+/** Novo Processo — formulário de identificação + chamada simulada à API de enquadramento. */
+
+/* ===== Base simulada "consultada" pela API (GeoSampa / cadastro) ===== */
+const BASE = {
+  '073.142.0021-0': {
+    sql: '073.142.0021-0', processo: '6068.2024/0012345-6',
+    enquadramento: {
+      distrito: 'Itaim Bibi', subprefeitura: 'Pinheiros', macrozona: 'Estruturação e Qualificação Urbana',
+      macroarea: 'Estruturação Metropolitana', subsetor: 'Arco Pinheiros',
+      zonas: ['ZEU'], tipologia_uso_oodc: 'Misto (R + nR)',
+    },
+    parametros: { coeficiente_basico: 1, coeficiente_maximo: 4, area_terreno: 2400, valor_m2_quadro14: 9200, fator_planejamento: 1.0, fator_social: 0.7 },
+  },
+  '019.045.0008-3': {
+    sql: '019.045.0008-3', processo: '6068.2025/0003187-2',
+    enquadramento: {
+      distrito: 'Lapa', subprefeitura: 'Lapa', macrozona: 'Estruturação e Qualificação Urbana',
+      macroarea: 'Qualificação da Urbanização', subsetor: 'Eixo Marginal Tietê',
+      zonas: ['ZM', 'ZC'], tipologia_uso_oodc: 'Não residencial (nR)',
+    },
+    parametros: { coeficiente_basico: 1, coeficiente_maximo: 2, area_terreno: 1180, valor_m2_quadro14: 5400, fator_planejamento: 1.0, fator_social: 1.0 },
+  },
+  '155.301.0042-7': {
+    sql: '155.301.0042-7', processo: '6068.2025/0009921-0',
+    enquadramento: {
+      distrito: 'Santo Amaro', subprefeitura: 'Santo Amaro', macrozona: 'Estruturação e Qualificação Urbana',
+      macroarea: 'Estruturação Metropolitana', subsetor: 'Arco Jurubatuba',
+      zonas: ['ZEM'], tipologia_uso_oodc: 'Residencial (R)',
+    },
+    parametros: { coeficiente_basico: 1, coeficiente_maximo: 4, area_terreno: 3650, valor_m2_quadro14: 6800, fator_planejamento: 1.0, fator_social: 0.5 },
+  },
+};
+// Índice cruzado por nº de processo
+const POR_PROCESSO = {};
+Object.values(BASE).forEach((r) => { POR_PROCESSO[r.processo] = r; });
+
+const EXEMPLOS = [
+  { modo: 'SQL', valor: '073.142.0021-0' },
+  { modo: 'SQL', valor: '019.045.0008-3' },
+  { modo: 'PROCESSO', valor: '6068.2025/0009921-0' },
+];
+
+const PIPE_STEPS = [
+  { id: 'val', label: 'Validando identificador', icon: 'check' },
+  { id: 'geo', label: 'Localizando lote no GeoSampa', icon: 'mapPin' },
+  { id: 'enq', label: 'Apurando enquadramento urbanístico', icon: 'building' },
+  { id: 'calc', label: 'Calculando parâmetros de outorga', icon: 'calc' },
+];
+
+const reSQL = /^\d{3}\.\d{3}\.\d{4}-\d$/;
+const reProc = /^\d{4}\.\d{4}\/\d{7}-\d$/;
+
+function KV({ label, value, full, hl, zona }) {
+  const empty = value == null || value === '';
+  return (
+    <div className={'kv' + (full ? ' kv-full' : '')}>
+      <span className="kv-label">{label}</span>
+      <span className={'kv-value' + (empty ? ' empty' : '') + (hl ? ' hl' : '') + (zona ? ' zona' : '')}>
+        {empty ? '—' : value}
+      </span>
+    </div>
+  );
+}
+
+function Pipeline({ step }) {
+  return (
+    <div className="pipe">
+      {PIPE_STEPS.map((s, i) => {
+        const state = i < step ? 'done' : i === step ? 'run' : 'wait';
+        return (
+          <div key={s.id} className={'pipe-step ' + state}>
+            <span className="pipe-ic">
+              {state === 'done' ? <Icon name="check" size={13} />
+                : state === 'run' ? <Icon name="spinner" size={13} className="spin" />
+                : <Icon name={s.icon} size={12} />}
+            </span>
+            {s.label}{state === 'run' ? '…' : ''}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function Resultado({ data, identificador }) {
+  const e = data.enquadramento;
+  const p = data.parametros;
+  return (
+    <div className="card fade-in">
+      <div className="card-head">
+        <div className="card-head-ic"><Icon name="building" size={18} /></div>
+        <div>
+          <div className="card-head-tt">Enquadramento Urbanístico</div>
+          <div className="card-head-sub">Retornado pela API a partir de <b style={{ fontFamily: "'JetBrains Mono', monospace" }}>{identificador}</b></div>
+        </div>
+        <span className="src-tag" style={{ marginLeft: 'auto' }}><Icon name="database" size={12} /> GeoSampa</span>
+      </div>
+      <div className="card-body">
+        <div className="res-banner">
+          <Icon name="checkCircle" size={18} />
+          Lote localizado — enquadramento apurado com sucesso.
+        </div>
+
+        <div className="kv-grid">
+          <KV label="Distrito" value={e.distrito} />
+          <KV label="Subprefeitura" value={e.subprefeitura} />
+          <KV label="Macrozona" value={e.macrozona} full />
+          <KV label="Macroárea" value={e.macroarea} />
+          <KV label="Subsetor" value={e.subsetor} />
+          <KV label={'Zona' + (e.zonas.length > 1 ? 's' : '') + ' de Uso'} value={e.zonas.join('  ·  ')} zona full />
+          <KV label="Tipologia de Uso OODC" value={e.tipologia_uso_oodc} full />
+        </div>
+
+        <div className="res-divider" />
+        <p className="res-sub"><Icon name="calc" size={13} style={{ verticalAlign: '-2px', marginRight: 6 }} />Parâmetros para cálculo da contrapartida</p>
+        <div className="kv-grid">
+          <KV label="Coeficiente Básico" value={p.coeficiente_basico} hl />
+          <KV label="Coeficiente Máximo" value={p.coeficiente_maximo} hl />
+          <KV label="Área do Terreno" value={fmtArea(p.area_terreno)} />
+          <KV label="Valor m² (Quadro 14)" value={fmtBRL(p.valor_m2_quadro14)} />
+          <KV label="Fator de Planejamento (Fp)" value={p.fator_planejamento.toFixed(1)} />
+          <KV label="Fator Social (Fs)" value={p.fator_social.toFixed(1)} />
+        </div>
+      </div>
+      <div className="res-foot">
+        <div className="res-foot-note"><Icon name="info" size={14} /> Os campos serão pré-preenchidos no processo e poderão ser ajustados pelo DEUSO.</div>
+        <div className="res-foot-actions">
+          <a className="btn" href='#' onClick={(e)=>{e.preventDefault();navigate('lista')}}>Cancelar</a>
+          <a className='btn btn-primary btn-lg' href='#' onClick={(e)=>{e.preventDefault();navigate('detalhe',null)}}>
+            Criar processo <Icon name="arrowRight" size={15} />
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NovoApp() {
+  const [modo, setModo] = useState('SQL'); // 'SQL' | 'PROCESSO'
+  const [valor, setValor] = useState('');
+  const [erro, setErro] = useState('');
+  const [fase, setFase] = useState('idle'); // idle | loading | done
+  const [step, setStep] = useState(0);
+  const [resultado, setResultado] = useState(null);
+  const [usado, setUsado] = useState('');
+  const inputRef = useRef(null);
+  const timers = useRef([]);
+
+  useEffect(() => () => timers.current.forEach(clearTimeout), []);
+
+  const placeholder = modo === 'SQL' ? '000.000.0000-0' : '0000.0000/0000000-0';
+  const labelInput = modo === 'SQL' ? 'SQL — Setor · Quadra · Lote' : 'Número do processo (SEI)';
+
+  const trocarModo = (m) => { setModo(m); setErro(''); if (fase !== 'loading') { setValor(''); } };
+
+  const validar = (v) => {
+    if (!v.trim()) return 'Informe o ' + (modo === 'SQL' ? 'SQL do lote.' : 'número do processo.');
+    if (modo === 'SQL' && !reSQL.test(v.trim())) return 'SQL inválido. Use o formato 000.000.0000-0.';
+    if (modo === 'PROCESSO' && !reProc.test(v.trim())) return 'Número inválido. Use o formato 0000.0000/0000000-0.';
+    return '';
+  };
+
+  const enviar = (e) => {
+    e && e.preventDefault();
+    if (fase === 'loading') return;
+    const v = valor.trim();
+    const msg = validar(v);
+    if (msg) { setErro(msg); inputRef.current && inputRef.current.focus(); return; }
+    setErro('');
+    setResultado(null);
+    setFase('loading');
+    setStep(0);
+    setUsado(v);
+
+    // Avança o pipeline passo a passo (simula a API)
+    timers.current.forEach(clearTimeout);
+    timers.current = [];
+    const passo = (i, delay) => timers.current.push(setTimeout(() => setStep(i), delay));
+    passo(1, 650);
+    passo(2, 1350);
+    passo(3, 2100);
+    timers.current.push(setTimeout(() => {
+      const found = modo === 'SQL' ? BASE[v] : POR_PROCESSO[v];
+      // fallback: gera um registro plausível pra qualquer identificador válido
+      const data = found || {
+        enquadramento: {
+          distrito: 'Consolação', subprefeitura: 'Sé', macrozona: 'Estruturação e Qualificação Urbana',
+          macroarea: 'Estruturação Metropolitana', subsetor: 'Centro Histórico',
+          zonas: ['ZC'], tipologia_uso_oodc: 'Misto (R + nR)',
+        },
+        parametros: { coeficiente_basico: 1, coeficiente_maximo: 4, area_terreno: 1500, valor_m2_quadro14: 7200, fator_planejamento: 1.0, fator_social: 1.0 },
+      };
+      setResultado(data);
+      setFase('done');
+    }, 2900));
+  };
+
+  const usarExemplo = (ex) => {
+    setModo(ex.modo); setValor(ex.valor); setErro('');
+    setTimeout(() => inputRef.current && inputRef.current.focus(), 0);
+  };
+
+  const reiniciar = () => { setFase('idle'); setResultado(null); setStep(0); inputRef.current && inputRef.current.focus(); };
+
+  return (
+    <div className="app">
+      <SidebarShared active="novo" />
+      <div className="novo-main">
+        <div className="novo-wrap">
+          <div className="bread">
+            <a href='#' onClick={(e)=>{e.preventDefault();navigate('lista')}}><Icon name="chevLeft" size={13} /> Processos</a>
+            <span className="sep">/</span>
+            <span>Novo processo</span>
+          </div>
+
+          <div className="novo-head">
+            <h1>Novo processo</h1>
+            <p>Informe o número do processo ou o SQL do lote. O sistema consulta a base cartográfica e calcula automaticamente o enquadramento urbanístico e os parâmetros de outorga.</p>
+          </div>
+
+          <div className="card">
+            <div className="card-head">
+              <div className="card-head-ic"><Icon name="search" size={18} /></div>
+              <div>
+                <div className="card-head-tt">Identificação do imóvel</div>
+                <div className="card-head-sub">Escolha como deseja localizar o lote</div>
+              </div>
+            </div>
+            <div className="card-body">
+              <div className="seg" role="tablist" style={{ marginBottom: 18 }}>
+                <button className={modo === 'SQL' ? 'active' : ''} onClick={() => trocarModo('SQL')} disabled={fase === 'loading'}>
+                  <Icon name="mapPin" size={15} /> SQL do lote
+                </button>
+                <button className={modo === 'PROCESSO' ? 'active' : ''} onClick={() => trocarModo('PROCESSO')} disabled={fase === 'loading'}>
+                  <Icon name="hash" size={15} /> Número do processo
+                </button>
+              </div>
+
+              <form onSubmit={enviar}>
+                <label className="field-label">{labelInput}</label>
+                <div className="field-row">
+                  <div className="input-big">
+                    <Icon name={modo === 'SQL' ? 'mapPin' : 'hash'} size={18} />
+                    <input
+                      ref={inputRef}
+                      value={valor}
+                      onChange={(e) => { setValor(e.target.value); if (erro) setErro(''); }}
+                      placeholder={placeholder}
+                      disabled={fase === 'loading'}
+                      autoFocus
+                      inputMode={modo === 'SQL' ? 'numeric' : 'text'}
+                      spellCheck="false"
+                    />
+                  </div>
+                  <button type="submit" className="btn btn-primary btn-lg" disabled={fase === 'loading'}>
+                    {fase === 'loading'
+                      ? <><Icon name="spinner" size={16} className="spin" /> Consultando…</>
+                      : <><Icon name="search" size={16} /> Consultar</>}
+                  </button>
+                </div>
+
+                {erro
+                  ? <div className="field-err"><Icon name="alert" size={14} /> {erro}</div>
+                  : <div className="field-hint">
+                      <Icon name="info" size={13} />
+                      {modo === 'SQL'
+                        ? <>Formato <code>Setor.Quadra.Lote-Dígito</code>, ex. <code>073.142.0021-0</code></>
+                        : <>Formato SEI, ex. <code>6068.2024/0012345-6</code></>}
+                    </div>}
+              </form>
+
+              {fase === 'idle' && (
+                <div className="exemplos">
+                  <span className="exemplos-lbl">Exemplos:</span>
+                  {EXEMPLOS.map((ex) => (
+                    <button key={ex.valor} type="button" className="chip-ex" onClick={() => usarExemplo(ex)}>{ex.valor}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {fase === 'loading' && (
+            <div className="card fade-in">
+              <div className="card-head">
+                <div className="card-head-ic"><Icon name="layers" size={18} /></div>
+                <div>
+                  <div className="card-head-tt">Processando consulta</div>
+                  <div className="card-head-sub">Identificador enviado para a API · <b style={{ fontFamily: "'JetBrains Mono', monospace" }}>{usado}</b></div>
+                </div>
+              </div>
+              <div className="card-body">
+                <div className="sent-bar">
+                  <span className="dot-pulse"></span>
+                  Dados enviados · aguardando resposta do servidor
+                  <span className="pct">{[15, 42, 70, 92][step]}%</span>
+                </div>
+                <div className="progress"><div className="progress-fill" style={{ width: [15, 42, 70, 92][step] + '%' }}></div></div>
+                <Pipeline step={step} />
+              </div>
+            </div>
+          )}
+
+          {fase === 'done' && resultado && (
+            <>
+              <Resultado data={resultado} identificador={usado} />
+              <div style={{ textAlign: 'center', marginTop: 16 }}>
+                <button className="btn" onClick={reiniciar}><Icon name="search" size={14} /> Consultar outro identificador</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+/* ════ DETALHE / EDIÇÃO ════ */
+/** App: página dedicada de detalhe/edição do processo. */
+const ENUM = window.MOCK.enums;
+
+/* ---- acesso a dados via caminho ("monitoramento.coordenada" etc) ---- */
+function getVia(data, via) {
+  if (!via) return data;
+  return via.split('.').reduce((acc, k) => (acc ? acc[k] : undefined), data);
+}
+function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+/* ---- nº de campos editáveis vazios por seção (indicador "a preencher") ---- */
+function contarVazios(secao, data) {
+  if (secao.tipo !== 'grid') return 0;
+  const dados = getVia(data, secao.via) || {};
+  return secao.campos.filter((c) => !c.readonly && isEmpty(dados[c.key])).length;
+}
+function contarObrigatoriosVazios(secao, data) {
+  if (secao.tipo !== 'grid') return 0;
+  const dados = getVia(data, secao.via) || {};
+  return secao.campos.filter((c) => c.required && isEmpty(dados[c.key])).length;
+}
+
+const GRUPOS = ['Processo', 'Monitoramento DEUSO', 'Cota de Solidariedade'];
+const GRUPO_ICON = { 'Processo': 'folder', 'Monitoramento DEUSO': 'building', 'Cota de Solidariedade': 'home' };
+
+function DetalheApp({ processoInicial }) {
+  const [data, setData] = useState(() => clone(window.MOCK.PROCESSO));
+  const [activeId, setActiveId] = useState('processo');
+  const [save, setSave] = useState({ state: 'idle', at: data.alterado_em });
+  const [busca, setBusca] = useState('');
+  const [drawer, setDrawer] = useState(null); // { campo, chave, label }
+  const [toast, setToast] = useState(null);
+  const [kbdOpen, setKbdOpen] = useState(false);
+  const saveTimer = useRef(null);
+  const toastTimer = useRef(null);
+  const buscaRef = useRef(null);
+
+  const historico = window.MOCK.HISTORICO;
+
+  /* ---- autosave simulado ---- */
+  const dispararSave = useCallback(() => {
+    setSave({ state: 'saving', at: null });
+    clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      const agora = new Date().toISOString();
+      setData((d) => ({ ...d, alterado_em: agora }));
+      setSave({ state: 'saved', at: agora });
+    }, 650);
+  }, []);
+
+  const flashToast = (msg) => {
+    setToast(msg);
+    clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 2600);
+  };
+
+  /* ---- atualizar um campo de uma seção ---- */
+  const atualizarCampo = (secao, key, value) => {
+    setData((prev) => {
+      const next = clone(prev);
+      if (!secao.via) { next[key] = value; }
+      else {
+        const partes = secao.via.split('.');
+        let alvo = next;
+        for (let i = 0; i < partes.length; i++) {
+          if (alvo[partes[i]] == null) alvo[partes[i]] = {};
+          if (i === partes.length - 1) alvo[partes[i]][key] = value;
+          else alvo = alvo[partes[i]];
+        }
+      }
+      return next;
+    });
+    dispararSave();
+  };
+
+  /* ---- ações de parcela ---- */
+  const acaoParcela = (id, acao) => {
+    setData((prev) => {
+      const next = clone(prev);
+      const p = next.parcelas.find((x) => x.id === id);
+      if (!p) return prev;
+      if (acao === 'quebra') { p.quebra = true; p.status_quitacao = false; p.antecipada = false; }
+      if (acao === 'reverter') { p.quebra = false; }
+      if (acao === 'antecipar') { p.status_quitacao = true; p.antecipada = true; p.quebra = false; p.data_quitacao = new Date().toISOString().slice(0, 10); }
+      // status geral derivado
+      const temQuebra = next.parcelas.some((x) => x.quebra);
+      const todasQuitadas = next.parcelas.every((x) => x.status_quitacao);
+      next.status_pagamento = temQuebra ? 'QUEBRA' : todasQuitadas ? 'QUITADO' : 'EM_PAGAMENTO';
+      return next;
+    });
+    dispararSave();
+    flashToast(acao === 'quebra' ? 'Quebra registrada — município parou de pagar' : acao === 'antecipar' ? 'Pagamento antecipado registrado' : 'Quebra revertida');
+  };
+
+  /* ---- tabelas editáveis (endereços/licenças) ---- */
+  const editarCelula = (via, ri, key, value) => {
+    setData((prev) => {
+      const next = clone(prev);
+      const lista = getVia(next, via);
+      if (lista && lista[ri]) lista[ri][key] = value;
+      return next;
+    });
+    dispararSave();
+  };
+  const addLinha = (via, modelo) => {
+    setData((prev) => {
+      const next = clone(prev);
+      const lista = getVia(next, via);
+      if (lista) lista.push({ ...modelo, id: 'n' + Date.now() });
+      return next;
+    });
+    dispararSave();
+  };
+  const delLinha = (via, ri) => {
+    setData((prev) => {
+      const next = clone(prev);
+      const lista = getVia(next, via);
+      if (lista) lista.splice(ri, 1);
+      return next;
+    });
+    dispararSave();
+  };
+
+  const secoesVisiveis = useMemo(() => {
+    if (!busca.trim()) return SECOES;
+    const q = busca.toLowerCase();
+    return SECOES.filter((s) =>
+      s.titulo.toLowerCase().includes(q) ||
+      s.tabela.toLowerCase().includes(q) ||
+      (s.campos || []).some((c) => c.label.toLowerCase().includes(q))
+    );
+  }, [busca]);
+
+  // garantir seção ativa visível
+  useEffect(() => {
+    if (busca.trim() && !secoesVisiveis.find((s) => s.id === activeId) && secoesVisiveis[0]) {
+      setActiveId(secoesVisiveis[0].id);
+    }
+  }, [busca, secoesVisiveis, activeId]);
+
+  /* ---- atalhos de teclado ---- */
+  useEffect(() => {
+    const onKey = (e) => {
+      const tag = (e.target.tagName || '').toLowerCase();
+      const editing = tag === 'input' || tag === 'textarea' || tag === 'select';
+      if (e.key === '/' && !editing) { e.preventDefault(); buscaRef.current && buscaRef.current.focus(); return; }
+      if (e.key === '?' && !editing) { e.preventDefault(); setKbdOpen((v) => !v); return; }
+      if (e.key === 'Escape') { setDrawer(null); setKbdOpen(false); return; }
+      if (editing) return;
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        e.preventDefault();
+        const idx = secoesVisiveis.findIndex((s) => s.id === activeId);
+        const nx = secoesVisiveis[Math.min(idx + 1, secoesVisiveis.length - 1)];
+        if (nx) setActiveId(nx.id);
+      }
+      if (e.key === 'k' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        const idx = secoesVisiveis.findIndex((s) => s.id === activeId);
+        const pv = secoesVisiveis[Math.max(idx - 1, 0)];
+        if (pv) setActiveId(pv.id);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [activeId, secoesVisiveis]);
+
+  const secao = SECOES.find((s) => s.id === activeId) || SECOES[0];
+  const valorDevido = data.monitoramento_cota?.valor_devido;
+  const valorTotal = data.monitoramento_cota?.valor_calculado_processo;
+
+  const abrirHistorico = (campo, chave) => setDrawer({ campo, chave, label: campo.label });
+
+  return (
+    <div className="app">
+      <SidebarShared active="detalhe" />
+      <div className="main">
+        <Topo
+          data={data} save={save} busca={busca} setBusca={setBusca} buscaRef={buscaRef}
+          valorDevido={valorDevido} valorTotal={valorTotal}
+          onPrint={() => window.print()} onKbd={() => setKbdOpen(true)}
+        />
+        <div className="corpo">
+          <VerticalNav
+            data={data} activeId={activeId} setActiveId={setActiveId}
+            secoesVisiveis={secoesVisiveis} busca={busca}
+          />
+          <Painel
+            secao={secao} data={data}
+            onField={(key, v) => atualizarCampo(secao, key, v)}
+            onAcaoParcela={acaoParcela}
+            onCell={(ri, key, v) => editarCelula(secao.via, ri, key, v)}
+            onAddRow={() => addLinha(secao.via, secao.id === 'enderecos'
+              ? { ordem: (getVia(data, secao.via)?.length || 0) + 1, tipo: '', titulo: '', nome: '', numero: '' }
+              : { tipo: '', numero: '', tipo_documento: '', data_expedicao: '' })}
+            onDelRow={(ri) => delLinha(secao.via, ri)}
+            onHistory={abrirHistorico}
+            historico={historico}
+            busca={busca}
+          />
+        </div>
+      </div>
+
+      <HistDrawer drawer={drawer} historico={historico} onClose={() => setDrawer(null)} />
+      {kbdOpen && <KbdModal onClose={() => setKbdOpen(false)} />}
+      {toast && (
+        <div className="toast-wrap"><div className="toast"><Icon name="check" size={16} />{toast}</div></div>
+      )}
+    </div>
+  );
+}
+
+/* ================= Cabeçalho fixo ================= */
+function Topo({ data, save, busca, setBusca, buscaRef, valorDevido, valorTotal, onPrint, onKbd }) {
+  const statusCls = 'badge badge-' + (data.status_pagamento || '').toLowerCase();
+  return (
+    <header className="topo">
+      <div className="topo-bread">
+        <a href='#' onClick={(e)=>{e.preventDefault();navigate('lista');}}><Icon name="chevronLeft" size={14} /> Processos</a>
+        <span className="sep">/</span>
+        <span>{data.num_processo}</span>
+      </div>
+      <div className="topo-main">
+        <div className="topo-id">
+          <div className="topo-id-row">
+            <div className="topo-num">{data.num_processo}</div>
+            <span className="badge badge-tipo">{data.tipo}</span>
+            <span className={statusCls}>{ENUM.STATUS_PAGAMENTO[data.status_pagamento] || data.status_pagamento}</span>
+          </div>
+          <div className="topo-facts">
+            <div className="fact"><span className="fact-label">Valor total</span><span className="fact-value">{fmtCurrency(valorTotal)}</span></div>
+            <div className="fact"><span className="fact-label">Valor devido</span><span className="fact-value due">{fmtCurrency(valorDevido)}</span></div>
+            <div className="fact"><span className="fact-label">Data de entrada</span><span className="fact-value">{fmtDate(data.data_entrada)}</span></div>
+          </div>
+        </div>
+        <div className="topo-actions">
+          <SaveIndicator save={save} />
+          <div className="busca">
+            <Icon name="search" size={15} />
+            <input ref={buscaRef} value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar campo…  ( / )" />
+          </div>
+          <button className="btn" onClick={onKbd} title="Atalhos de teclado"><Icon name="keyboard" size={16} /></button>
+          <button className="btn" onClick={onPrint}><Icon name="download" size={15} /> Exportar</button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function SaveIndicator({ save }) {
+  if (save.state === 'saving') return <span className="save-ind save-saving"><Icon name="history" size={14} className="spin" /> Salvando…</span>;
+  if (save.state === 'saved') return <span className="save-ind save-saved"><Icon name="check" size={14} /> Salvo {save.at ? '· ' + fmtDateTime(save.at).split(' ')[1] : ''}</span>;
+  return <span className="save-ind save-idle"><span className="save-dot" /> Alterações salvas automaticamente</span>;
+}
+
+/* ================= Navegação vertical agrupada ================= */
+function VerticalNav({ data, activeId, setActiveId, secoesVisiveis, busca }) {
+  const visibleIds = new Set(secoesVisiveis.map((s) => s.id));
+  return (
+    <nav className="vnav">
+      {GRUPOS.map((grupo) => {
+        const secoesGrupo = SECOES.filter((s) => s.grupo === grupo);
+        const algumaVisivel = secoesGrupo.some((s) => visibleIds.has(s.id));
+        if (busca.trim() && !algumaVisivel) return null;
+        return (
+          <div className="vnav-group" key={grupo}>
+            <div className="vnav-group-label"><Icon name={GRUPO_ICON[grupo]} size={13} /> {grupo}</div>
+            {secoesGrupo.map((s) => {
+              const oculto = busca.trim() && !visibleIds.has(s.id);
+              const obrig = contarObrigatoriosVazios(s, data);
+              const vazios = contarVazios(s, data);
+              const isCalc = s.calculado;
+              return (
+                <button key={s.id} className={'vnav-item' + (s.id === activeId ? ' active' : '') + (oculto ? ' vnav-hidden' : '')}
+                  onClick={() => setActiveId(s.id)}>
+                  <span className="vnav-label">{s.titulo}</span>
+                  {isCalc ? (
+                    <span className="vnav-pill lock"><Icon name="lock" size={10} /></span>
+                  ) : obrig > 0 ? (
+                    <span className="vnav-pill amber" title={obrig + ' campo(s) obrigatório(s) a preencher'}>{obrig}</span>
+                  ) : vazios > 0 ? (
+                    <span className="vnav-pill count" title={vazios + ' campo(s) a preencher'}>{vazios}</span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        );
+      })}
+    </nav>
+  );
+}
+
+/* ================= Painel de conteúdo ================= */
+function Painel({ secao, data, onField, onAcaoParcela, onCell, onAddRow, onDelRow, onHistory, historico, busca }) {
+  const dados = getVia(data, secao.via);
+  const vazios = contarVazios(secao, data);
+  const total = secao.tipo === 'grid' ? secao.campos.filter((c) => !c.readonly).length : null;
+
+  return (
+    <section className="painel">
+      <div className="painel-head">
+        <div>
+          <div className="painel-title">{secao.titulo}</div>
+          <div className="painel-tabela">{secao.tabela}</div>
+        </div>
+        <div className="painel-meta">
+          {secao.tipo === 'grid' && !secao.calculado && (
+            <span>{total - vazios}/{total} preenchidos{vazios > 0 ? <> · <b style={{ color: 'oklch(0.5 0.13 70)' }}>{vazios} a preencher</b></> : ' ✓'}</span>
+          )}
+          <span>Alterado em <b>{fmtDateTime(data.alterado_em)}</b></span>
+        </div>
+      </div>
+      <div className="painel-body">
+        {secao.calculado && (
+          <div className="aviso-calc">
+            <Icon name="lock" size={15} />
+            Valores calculados automaticamente pelo sistema a partir das áreas e coeficientes. Somente leitura.
+          </div>
+        )}
+        {secao.tipo === 'grid' && (
+          <BuscaGrid secao={secao} dados={dados} onField={onField} onHistory={onHistory} historico={historico} busca={busca} />
+        )}
+        {secao.tipo === 'parcelas' && (
+          <TabelaParcelas parcelas={data.parcelas || []} onAcao={onAcaoParcela} />
+        )}
+        {secao.tipo === 'enderecos' && (
+          <TabelaEditavel colunas={window.MOCK.COLUNAS_ENDERECO} linhas={dados || []}
+            onCell={onCell} onAddRow={onAddRow} onDelRow={onDelRow} addLabel="Adicionar endereço" />
+        )}
+        {secao.tipo === 'licencas' && (
+          <TabelaEditavel colunas={window.MOCK.COLUNAS_LICENCA} linhas={dados || []}
+            onCell={onCell} onAddRow={onAddRow} onDelRow={onDelRow} addLabel="Adicionar licença" />
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* grid com destaque de busca por campo */
+function BuscaGrid({ secao, dados, onField, onHistory, historico, busca }) {
+  const q = busca.trim().toLowerCase();
+  return (
+    <div className="campos-grid">
+      {secao.campos.map((campo) => {
+        const chave = secao.id + '.' + campo.key;
+        const hl = q && campo.label.toLowerCase().includes(q);
+        return (
+          <div key={campo.key} className={(campo.full ? 'ef-full ' : '') + (hl ? 'field-hl' : '')} style={campo.full ? {} : null}>
+            <EditableField campo={campo} value={dados ? dados[campo.key] : ''}
+              hasHistory={!!(historico && historico[chave])}
+              onHistory={() => onHistory(campo, chave)}
+              onCommit={(v) => onField(campo.key, v)} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ================= Drawer de histórico ================= */
+function HistDrawer({ drawer, historico, onClose }) {
+  const itens = drawer && historico[drawer.chave] ? historico[drawer.chave] : [];
+  return (
+    <>
+      <div className={'drawer-overlay' + (drawer ? ' open' : '')} onClick={onClose} />
+      <aside className={'drawer' + (drawer ? ' open' : '')}>
+        <div className="drawer-head">
+          <div>
+            <h3>Histórico de alterações</h3>
+            <p>{drawer ? drawer.label : ''}</p>
+          </div>
+          <button className="drawer-close" onClick={onClose}><Icon name="x" size={18} /></button>
+        </div>
+        <div className="drawer-body">
+          {itens.length === 0 && <p className="hist-vazio">Nenhuma alteração registrada para este campo.</p>}
+          {itens.map((h, i) => (
+            <div className="hist-item" key={i}>
+              <div className="hist-dot" />
+              <div>
+                <div className="hist-user">{h.usuario}</div>
+                <div className="hist-em">{fmtDateTime(h.em)}</div>
+                <div className="hist-change">
+                  <span className="hist-de">{h.de || '—'}</span>
+                  <Icon name="chevronRight" size={12} />
+                  <span className="hist-para">{h.para}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </aside>
+    </>
+  );
+}
+
+/* ================= Modal de atalhos ================= */
+function KbdModal({ onClose }) {
+  const linhas = [
+    ['Próxima seção', ['J', '↓']],
+    ['Seção anterior', ['K', '↑']],
+    ['Buscar campo', ['/']],
+    ['Esta ajuda', ['?']],
+    ['Fechar', ['Esc']],
+  ];
+  return (
+    <div className="kbd-modal-overlay" onClick={onClose}>
+      <div className="kbd-modal" onClick={(e) => e.stopPropagation()}>
+        <h3>Atalhos de teclado</h3>
+        {linhas.map(([nome, teclas]) => (
+          <div className="kbd-row" key={nome}>
+            <span>{nome}</span>
+            <span style={{ display: 'flex', gap: 6 }}>{teclas.map((t) => <kbd key={t}>{t}</kbd>)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+
+
+function AppRouter() {
+  const [page, setPage] = React.useState('lista');
+  const [routeData, setRouteData] = React.useState(null);
+  React.useEffect(() => { _navFn = (p,d) => { setPage(p); setRouteData(d); }; }, []);
+  return (
+    <div className="app">
+      {page==='lista'   && <ListaApp />}
+      {page==='novo'    && <NovoApp />}
+      {page==='detalhe' && <DetalheApp processoInicial={routeData} />}
+    </div>
+  );
+}
+ReactDOM.createRoot(document.getElementById('root')).render(<AppRouter />);
+
+  

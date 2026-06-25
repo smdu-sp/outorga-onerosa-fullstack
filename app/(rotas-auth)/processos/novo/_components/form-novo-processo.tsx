@@ -20,6 +20,9 @@ import Link from 'next/link';
 import { useRef, useState } from 'react';
 import { consultarEnquadramento, type IEnquadramentoResult } from '../actions';
 import { resumoEnquadramento, resumoEndereco, resumoParametros } from '@/lib/geosampa-resumo';
+import { GeoSampaLogPanel } from '@/app/(rotas-auth)/processos/[id]/_components/geosampa-log-panel';
+import type { GeoSampaLogEntry } from '@/types/geosampa';
+import { TIPOLOGIA_USO_OODC } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
 import {
 	CampoKV,
 	ChipExemplo,
@@ -58,6 +61,7 @@ export default function FormNovoProcesso() {
 	const [resultado, setResultado] = useState<IEnquadramentoResult | null>(null);
 	const [usado, setUsado] = useState('');
 	const [erroApi, setErroApi] = useState('');
+	const [logEntries, setLogEntries] = useState<GeoSampaLogEntry[]>([]);
 	const inputRef = useRef<HTMLInputElement>(null);
 	const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -116,8 +120,11 @@ export default function FormNovoProcesso() {
 		if (!resp.ok || !resp.data) {
 			setFase('error');
 			setErroApi(resp.error ?? 'Erro inesperado ao consultar a API.');
+			setLogEntries(resp.logs ?? []);
 			return;
 		}
+
+		setLogEntries([]);
 
 		setStep(4);
 		setResultado(resp.data);
@@ -136,6 +143,7 @@ export default function FormNovoProcesso() {
 		setResultado(null);
 		setStep(0);
 		setErroApi('');
+		setLogEntries([]);
 		setTimeout(() => inputRef.current?.focus(), 0);
 	}
 
@@ -331,6 +339,15 @@ export default function FormNovoProcesso() {
 								<p className="mt-1 text-sm text-muted-foreground">{erroApi}</p>
 							</div>
 						</div>
+						{logEntries.length > 0 && (
+							<div className="mt-4">
+								<GeoSampaLogPanel
+									entries={logEntries}
+									onClose={() => setLogEntries([])}
+									inline
+								/>
+							</div>
+						)}
 						<div className="mt-4 flex justify-end border-t border-border pt-3">
 							<button
 								type="button"
@@ -389,7 +406,16 @@ export default function FormNovoProcesso() {
 									full
 									mono
 								/>
-								<CampoKV label="Tipologia de Uso OODC" value={enq?.tipologia_uso_oodc} full />
+								<CampoKV
+									label="Tipologia de Uso OODC"
+									value={
+										enq?.tipologia_uso_oodc
+											? (TIPOLOGIA_USO_OODC[enq.tipologia_uso_oodc] ?? enq.tipologia_uso_oodc)
+											: undefined
+									}
+									full
+								/>
+								<CampoKV label="Uso" value={enq?.uso || undefined} full />
 							</div>
 
 							<div className="my-5 h-px bg-border" />

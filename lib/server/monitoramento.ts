@@ -3,9 +3,10 @@ import {
 	type GeoSampaMonitoramentoPayload,
 	mapGeoSampaParaMonitoramento,
 } from '@/lib/enquadramento-persistencia';
+import { CAMPOS_DATA_CIVIL, parseDataCivil } from '@/lib/datas';
 import { SECOES_MONITORAMENTO_DEUSO } from '@/lib/monitoramento-secoes';
 import { prisma } from '@/lib/prisma';
-import { processoDetalheInclude } from '@/lib/server/processos';
+import { buscarDetalheProcesso } from '@/lib/server/processos';
 import {
 	IncidenciaCotaSolidariedade,
 	OrigemMonitoramento,
@@ -14,7 +15,7 @@ import {
 	TipoLicencaMonitoramento,
 } from '@prisma/client';
 
-const CAMPOS_DATA = new Set(['data_informacao_dmus', 'data_expedicao']);
+const CAMPOS_DATA = CAMPOS_DATA_CIVIL;
 const CAMPOS_NUMERICOS = new Set([
 	'coordenada_e',
 	'coordenada_n',
@@ -35,16 +36,14 @@ function limparValor(chave: string, valor: unknown): unknown {
 	if (valor === '' || valor === null || valor === undefined) return undefined;
 	if (typeof valor === 'string' && valor.trim() === '') return undefined;
 
-	if (typeof valor === 'string') {
-		if (CAMPOS_DATA.has(chave)) {
-			const data = new Date(valor);
-			return Number.isNaN(data.getTime()) ? undefined : data;
-		}
-		if (CAMPOS_NUMERICOS.has(chave)) {
-			const normalizado = valor.replace(/\./g, '').replace(',', '.');
-			const n = Number.parseFloat(normalizado);
-			return Number.isFinite(n) ? n : undefined;
-		}
+	if (CAMPOS_DATA.has(chave)) {
+		return parseDataCivil(valor) ?? undefined;
+	}
+
+	if (typeof valor === 'string' && CAMPOS_NUMERICOS.has(chave)) {
+		const normalizado = valor.replace(/\./g, '').replace(',', '.');
+		const n = Number.parseFloat(normalizado);
+		return Number.isFinite(n) ? n : undefined;
 	}
 
 	return valor;
@@ -195,10 +194,7 @@ export async function salvarSecaoMonitoramentoDeuso(
 		await upsertRelacaoUnica(tx, ficha.id, secaoId, dados);
 	});
 
-	return prisma.processo.findUnique({
-		where: { id: processoId },
-		include: processoDetalheInclude,
-	});
+	return buscarDetalheProcesso(processoId);
 }
 
 async function aplicarPayloadGeoSampaNaFicha(
@@ -291,7 +287,7 @@ async function aplicarPayloadGeoSampaNaFicha(
 		const anotacoes = {
 			...anotacoes_deuso,
 			data_informacao_dmus: anotacoes_deuso.data_informacao_dmus
-				? new Date(anotacoes_deuso.data_informacao_dmus)
+				? parseDataCivil(anotacoes_deuso.data_informacao_dmus)
 				: undefined,
 		};
 		await tx.monitoramentoAnotacaoDeuso.upsert({
@@ -322,7 +318,9 @@ async function aplicarPayloadGeoSampaNaFicha(
 				tipo: licenca.tipo as TipoLicencaMonitoramento,
 				numero: licenca.numero,
 				tipo_documento: licenca.tipo_documento,
-				data_expedicao: licenca.data_expedicao ? new Date(licenca.data_expedicao) : undefined,
+				data_expedicao: licenca.data_expedicao
+					? parseDataCivil(licenca.data_expedicao)
+					: undefined,
 				monitoramento_ficha_id: fichaId,
 			}));
 		if (lista.length > 0) {
@@ -352,8 +350,5 @@ export async function salvarDadosGeoSampaNoProcesso(
 		await aplicarPayloadGeoSampaNaFicha(tx, ficha.id, payload);
 	});
 
-	return prisma.processo.findUnique({
-		where: { id: processoId },
-		include: processoDetalheInclude,
-	});
+	return buscarDetalheProcesso(processoId);
 }

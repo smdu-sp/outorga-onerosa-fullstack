@@ -1,5 +1,6 @@
 'use client';
 
+import { formatarDataCivil } from '@/lib/datas';
 import { cn } from '@/lib/utils';
 import { IProcesso } from '@/types/processo';
 import { ArrowRight } from 'lucide-react';
@@ -20,9 +21,6 @@ const STATUS_CLASS: Record<string, string> = {
 
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
-
-const fmtData = (d?: Date | string | null) =>
-	d ? new Date(d).toLocaleDateString('pt-BR') : '—';
 
 function StatusBadge({ status }: { status?: string }) {
 	if (!status) return <span className="text-muted-foreground">—</span>;
@@ -156,7 +154,7 @@ export function TabelaLista({ processos }: { processos: IProcesso[] }) {
 											{quitado ? 'Quitado' : fmtBRL(valorDevido)}
 										</td>
 										<td className="border-t border-border px-3.5 py-[13px] text-center align-middle whitespace-nowrap tabular-nums">
-											{fmtData(p.data_entrada)}
+											{formatarDataCivil(p.data_entrada)}
 										</td>
 										<td className="border-t border-border px-3.5 py-[13px] text-right align-middle whitespace-nowrap">
 											<Link

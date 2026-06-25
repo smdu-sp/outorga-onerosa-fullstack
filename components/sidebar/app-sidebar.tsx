@@ -18,7 +18,7 @@ export function AppSidebar({
   data,
   props,
 }: {
-  data: { menuUsuario: IMenu[]; menuAdmin: IMenu[] }
+  data: { menuUsuario: IMenu[]; menuAdmin: IMenu[]; menuDev?: IMenu[] }
   props?: ComponentProps<typeof Sidebar>
 }) {
   return (

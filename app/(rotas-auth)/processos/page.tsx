@@ -38,6 +38,7 @@ async function Home({
 	const busca = (params.busca as string) ?? '';
 	const tipo = (params.tipo as string) ?? 'TODOS';
 	const status = (params.status as string) ?? 'TODOS';
+	const vencimento = (params.vencimento as string) ?? '';
 
 	let dataProcessos: IProcesso[] = [];
 	let total = 0;
@@ -50,7 +51,7 @@ async function Home({
 	};
 
 	const [response, statsResponse] = await Promise.all([
-		buscarTudo(pagina, limite, busca, tipo, status),
+		buscarTudo(pagina, limite, busca, tipo, status, vencimento),
 		buscarEstatisticas(),
 	]);
 
@@ -121,6 +122,7 @@ async function Home({
 					buscaInicial={busca}
 					tipoInicial={tipo}
 					statusInicial={status}
+					vencimentoInicial={vencimento}
 				/>
 			</Suspense>
 

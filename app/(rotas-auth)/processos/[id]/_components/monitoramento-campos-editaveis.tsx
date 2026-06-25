@@ -8,6 +8,7 @@ import {
 	ORIGEM_MONITORAMENTO,
 	SITUACAO_MONITORAMENTO,
 	TIPO_LICENCA,
+	TIPOLOGIA_USO_OODC,
 } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
 import { Input } from '@/components/ui/input';
 import {
@@ -18,10 +19,12 @@ import {
 	SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { CAMPOS_DATA_CIVIL, dataCivilParaInput, ehCampoDataCivil } from '@/lib/datas';
 import { cn } from '@/lib/utils';
 import { salvarSecao } from '@/services/monitoramento/server-functions/salvar-secao';
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
 import { toast } from 'sonner';
 
@@ -48,23 +51,22 @@ const CAMPOS_TEXTAREA = new Set([
 	'uso_nr',
 ]);
 
-const CAMPOS_DATA = new Set(['data_informacao_dmus', 'data_expedicao']);
+const CAMPOS_DATA = CAMPOS_DATA_CIVIL;
 
 const CAMPOS_ENUM: Record<string, Record<string, string>> = {
 	incidencia_cota_solidariedade: INCIDENCIA_COTA,
 	situacao: SITUACAO_MONITORAMENTO,
 	origem: ORIGEM_MONITORAMENTO,
 	tipo: TIPO_LICENCA,
+	tipologia_uso_oodc: TIPOLOGIA_USO_OODC,
 };
 
 function valorParaInput(chave: string, valor: unknown): string {
 	if (valor === null || valor === undefined || valor === '') return '';
-	if (typeof valor === 'object' && 'toString' in valor) {
-		return (valor as { toString: () => string }).toString();
+	if (ehCampoDataCivil(chave) || CAMPOS_DATA.has(chave)) {
+		return dataCivilParaInput(valor);
 	}
-	if (CAMPOS_DATA.has(chave) && typeof valor === 'string') {
-		return valor.slice(0, 10);
-	}
+	if (typeof valor === 'string') return valor;
 	return String(valor);
 }
 
@@ -281,15 +283,40 @@ function TabelaEnderecosEditavel({
 		salvar(next);
 	};
 
-	const colunas = Object.keys(labels).filter((c) => !CAMPOS_IGNORADOS.has(c));
+	const adicionarEndereco = () => {
+		setLinhas((prev) => [...prev, { ordem: prev.length + 1 }]);
+	};
+
+	const removerEndereco = (index: number) => {
+		const next = linhas
+			.filter((_, i) => i !== index)
+			.map((linha, i) => ({ ...linha, ordem: i + 1 }));
+		setLinhas(next);
+		salvar(next);
+	};
+
+	const colunas = Object.keys(labels).filter((c) => !CAMPOS_IGNORADOS.has(c) && c !== 'ordem');
 
 	return (
 		<div className="space-y-4">
 			{linhas.map((linha, index) => (
 				<div key={index} className="rounded-md border p-4">
-					<p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-						Endereço {(linha.ordem as number) ?? index + 1}
-					</p>
+					<div className="mb-3 flex items-center justify-between">
+						<p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+							Endereço {index + 1}
+						</p>
+						{linhas.length > 1 && (
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-7 gap-1.5 text-destructive hover:text-destructive"
+								onClick={() => removerEndereco(index)}
+								disabled={pending}>
+								<Trash2 className="h-3.5 w-3.5" />
+								Remover
+							</Button>
+						)}
+					</div>
 					<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 						{colunas.map((chave) => (
 							<CampoEditavel
@@ -304,6 +331,15 @@ function TabelaEnderecosEditavel({
 					</div>
 				</div>
 			))}
+			<Button
+				variant="outline"
+				size="sm"
+				className="gap-1.5"
+				onClick={adicionarEndereco}
+				disabled={pending}>
+				<Plus className="h-3.5 w-3.5" />
+				Adicionar endereço
+			</Button>
 		</div>
 	);
 }

@@ -11,7 +11,7 @@ import {
 	Info,
 	Loader2,
 } from 'lucide-react';
-import { salvarDadosGeoSampa } from '@/services/monitoramento/server-functions/salvar-geosampa';
+import { dataCivilHoje } from '@/lib/datas';
 import { criar } from '@/services/processos/server-functions/criar';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -19,6 +19,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { IEnquadramentoResult } from '../../actions';
 import { resumoEnquadramento, resumoEndereco, resumoParametros } from '@/lib/geosampa-resumo';
+import { TIPOLOGIA_USO_OODC } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
 import {
 	CampoKV,
 	NovoCard,
@@ -94,7 +95,7 @@ export default function FormCriarProcesso({
 				num_processo: numProcesso.trim(),
 				tipo,
 				protocolo_ad: protocolo.trim() || undefined,
-				data_entrada: new Date(),
+				data_entrada: dataCivilHoje(),
 				valor_total: 0,
 			});
 
@@ -176,7 +177,15 @@ export default function FormCriarProcesso({
 								full
 								mono
 							/>
-							<CampoKV label="Tipologia OODC" value={enq?.tipologia_uso_oodc} />
+							<CampoKV
+								label="Tipologia OODC"
+								value={
+									enq?.tipologia_uso_oodc
+										? (TIPOLOGIA_USO_OODC[enq.tipologia_uso_oodc] ?? enq.tipologia_uso_oodc)
+										: undefined
+								}
+							/>
+							<CampoKV label="Uso" value={enq?.uso || undefined} full />
 						</div>
 
 						<div className="h-px bg-border" />

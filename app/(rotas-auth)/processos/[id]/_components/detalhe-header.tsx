@@ -11,8 +11,7 @@ import { BotaoGeoSampa } from './botao-geosampa';
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const fmtData = (d?: string | null) =>
-	d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+import { formatarDataCivil } from '@/lib/datas';
 
 const STATUS_CLASS: Record<string, string> = {
 	EM_PAGAMENTO: 'bg-warning-soft text-[oklch(0.5_0.13_70)]',
@@ -110,7 +109,7 @@ export function DetalheHeader({
 							value={fmtBRL(valorDevido)}
 							destaque={valorDevido > 0}
 						/>
-						<Metrica label="Data de entrada" value={fmtData(processo.data_entrada)} />
+						<Metrica label="Data de entrada" value={formatarDataCivil(processo.data_entrada)} />
 					</div>
 				</div>
 			</div>

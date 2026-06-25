@@ -90,7 +90,7 @@ function NavItems({ items }: { items: IMenu[] }) {
 export function NavMain({
 	data,
 }: {
-	data: { menuUsuario?: IMenu[]; menuAdmin?: IMenu[] };
+	data: { menuUsuario?: IMenu[]; menuAdmin?: IMenu[]; menuDev?: IMenu[] };
 }) {
 	return (
 		<SidebarContent className="px-2 py-3">
@@ -113,6 +113,18 @@ export function NavMain({
 							Administração
 						</SidebarGroupLabel>
 						<NavItems items={data.menuAdmin} />
+					</>
+				)}
+				{data.menuDev && data.menuDev.length > 0 && (
+					<>
+						<SidebarGroupLabel
+							className={cn(
+								'px-2.5 pb-1 pt-2.5 text-[11px] font-medium uppercase tracking-normal text-amber-500/70',
+								(data.menuUsuario?.length || data.menuAdmin?.length) && 'mt-2.5',
+							)}>
+							Desenvolvimento
+						</SidebarGroupLabel>
+						<NavItems items={data.menuDev} />
 					</>
 				)}
 			</SidebarGroup>

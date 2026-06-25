@@ -30,14 +30,19 @@ export interface LoteProperties {
 }
 
 export interface OutorgaProperties {
+	cd_identificador_outorga_onerosa?: number;
 	cd_processo?: string;
 	cd_proposta?: number;
 	nm_distrito?: string;
 	nm_endereco?: string;
 	cd_setor_quadra?: string;
+	cd_codlog?: string;
 	qt_area_terreno?: number;
+	cd_coeficiente_projeto?: string;
 	cd_coeficiente_utilizacao?: string;
 	cd_categoria_uso?: string;
+	cd_tipo_uso?: string;
+	qt_area_excedente?: number;
 	qt_valor_contrapartida?: number;
 	tx_situacao?: string;
 	cd_numero_alvara?: string;
@@ -52,7 +57,7 @@ const LOTE_FIELDS =
 	'cd_setor_fiscal,cd_quadra_fiscal,cd_lote,cd_digito_sql,cd_logradouro,nm_logradouro_completo,cd_numero_porta,nm_proprietario,qt_area_terreno,qt_area_terreno_calc,tipo_uso_imovel,ge_poligono';
 
 const OUTORGA_FIELDS =
-	'cd_processo,cd_proposta,nm_distrito,nm_endereco,cd_setor_quadra,qt_area_terreno,cd_coeficiente_utilizacao,cd_categoria_uso,qt_valor_contrapartida,tx_situacao,cd_numero_alvara,ge_ponto';
+	'cd_identificador_outorga_onerosa,cd_processo,cd_proposta,nm_distrito,nm_endereco,cd_setor_quadra,cd_codlog,qt_area_terreno,cd_coeficiente_projeto,cd_coeficiente_utilizacao,cd_categoria_uso,cd_tipo_uso,qt_area_excedente,qt_valor_contrapartida,tx_situacao,cd_numero_alvara,ge_ponto';
 
 export class GeosampaWfsClient {
 	private readonly baseUrl: string;
@@ -69,6 +74,20 @@ export class GeosampaWfsClient {
 		if (!match) throw new Error(`SQL inválido: ${sql}`);
 		const [, setor, quadra, lote, digito] = match;
 		return `cd_setor_fiscal='${setor}' AND cd_quadra_fiscal='${quadra}' AND cd_lote='${lote}' AND cd_digito_sql=${digito}`;
+	}
+
+	static sqlParaCqlSemDigito(sql: string): string {
+		const match = sql.trim().match(/^(\d{3})\.(\d{3})\.(\d{4})-(\d)$/);
+		if (!match) throw new Error(`SQL inválido: ${sql}`);
+		const [, setor, quadra, lote] = match;
+		return `cd_setor_fiscal='${setor}' AND cd_quadra_fiscal='${quadra}' AND cd_lote='${lote}'`;
+	}
+
+	static sqlParaCqlLoteZero(sql: string): string {
+		const match = sql.trim().match(/^(\d{3})\.(\d{3})\.(\d{4})-(\d)$/);
+		if (!match) throw new Error(`SQL inválido: ${sql}`);
+		const [, setor, quadra] = match;
+		return `cd_setor_fiscal='${setor}' AND cd_quadra_fiscal='${quadra}' AND cd_lote='0000'`;
 	}
 
 	static processoParaCdProcesso(processo: string): string {
@@ -122,14 +141,62 @@ export class GeosampaWfsClient {
 		return data.features[0] ?? null;
 	}
 
-	async buscarOutorgaPorProcesso(processo: string) {
-		const cdProcesso = GeosampaWfsClient.processoParaCdProcesso(processo);
-		const data = await this.getFeature<OutorgaProperties>(
-			'geoportal:outorga_onerosa',
-			`cd_processo='${cdProcesso}'`,
-			OUTORGA_FIELDS,
-		);
+	async buscarLotePorSqlSemDigito(sql: string) {
+		const cql = GeosampaWfsClient.sqlParaCqlSemDigito(sql);
+		const data = await this.getFeature<LoteProperties>('geoportal:lote', cql, LOTE_FIELDS);
 		return data.features[0] ?? null;
+	}
+
+	async buscarLotePorSqlLoteZero(sql: string) {
+		const cql = GeosampaWfsClient.sqlParaCqlLoteZero(sql);
+		const data = await this.getFeature<LoteProperties>('geoportal:lote', cql, LOTE_FIELDS);
+		return data.features[0] ?? null;
+	}
+
+	async buscarOutorgaPorProcesso(processo: string) {
+		const formatado = processo.trim();
+		const somenteDigitos = GeosampaWfsClient.processoParaCdProcesso(processo);
+		const filtros = [
+			`cd_processo='${formatado.replace(/'/g, "''")}'`,
+			`cd_processo='${somenteDigitos}'`,
+		];
+		for (const cql of filtros) {
+			const data = await this.getFeature<OutorgaProperties>(
+				'geoportal:outorga_onerosa',
+				cql,
+				OUTORGA_FIELDS,
+			);
+			if (data.features[0]) return data.features[0];
+		}
+		return null;
+	}
+
+	async listarOutorgaPaginado(startIndex = 0, count = 500) {
+		const params = new URLSearchParams({
+			service: 'WFS',
+			version: '2.0.0',
+			request: 'GetFeature',
+			typeName: 'geoportal:outorga_onerosa',
+			outputFormat: 'application/json',
+			propertyName: OUTORGA_FIELDS,
+			count: String(count),
+			startIndex: String(startIndex),
+		});
+
+		const url = `${this.baseUrl}?${params.toString()}`;
+		const response = await fetch(url, {
+			headers: { Accept: 'application/json' },
+			signal: AbortSignal.timeout(60_000),
+		});
+
+		if (!response.ok) {
+			const body = await response.text().catch(() => '');
+			throw new Error(
+				`WFS outorga_onerosa retornou HTTP ${response.status}: ${body.slice(0, 300)}`,
+			);
+		}
+
+		return (await response.json()) as WfsFeatureCollection<OutorgaProperties>;
 	}
 
 	async buscarZoneamentoNoPonto(x: number, y: number) {

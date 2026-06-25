@@ -10,6 +10,14 @@ datasource db {
 enum Tipo {
   PDE
   COTA
+  AIU
+}
+
+enum OrigemProcesso {
+  APROVA_DIGITAL
+  SEI
+  FISICO
+  PORTAL
 }
 
 enum StatusPagamento {
@@ -71,6 +79,7 @@ model Processo {
   protocolo_ad          String?
   data_entrada          DateTime?       @db.Date
   status_pagamento      StatusPagamento @default(EM_PAGAMENTO)
+  origem                OrigemProcesso?
   // unidade_licenciamento UnidadesLicenciamento?
   // valor_total_outorga   Float?
 
@@ -78,10 +87,50 @@ model Processo {
   alterado_em    DateTime               @default(now()) @updatedAt
 
   parcelas              Parcela[]
+  sqls                  Sql[]
   monitoramento         MonitoramentoFicha?
   monitoramento_cota    MonitoramentoCotaSolidariedade?
 
   @@map("processos")
+}
+
+/// SQL (Setor/Quadra/Lote) — cada processo pode ter um ou mais SQLs
+model Sql {
+  id                String      @id @default(uuid())
+  processo_id       String
+  processo          Processo    @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  setor             String?
+  quadra            String?
+  lote_cadastrado   String?     @db.Text
+  lote_atualizado   String?     @db.Text
+  codigo_logradouro String?
+
+  coordenada_e      Decimal?    @db.Decimal(18, 11)
+  coordenada_n      Decimal?    @db.Decimal(18, 11)
+
+  criado_em         DateTime    @default(now())
+  alterado_em       DateTime    @default(now()) @updatedAt
+
+  enderecos         SqlEndereco[]
+
+  @@map("sqls")
+}
+
+/// Endereço associado a um SQL específico
+model SqlEndereco {
+  id      String  @id @default(uuid())
+  sql_id  String
+  sql     Sql     @relation(fields: [sql_id], references: [id], onDelete: Cascade)
+
+  ordem   Int
+  tipo    String?
+  titulo  String?
+  nome    String? @db.Text
+  numero  String?
+
+  @@unique([sql_id, ordem])
+  @@map("sql_enderecos")
 }
 
 // --- Módulo monitoramento (planilha DEUSO – Outorga Onerosa) ---
@@ -266,6 +315,7 @@ model MonitoramentoEnquadramentoUrbanistico {
   zona_uso_5_13885       String?            // SGL_ZN5_OO
   zona_uso_6_13885       String?            // SGL_ZN6_OO
   tipologia_uso_oodc     String?            // CD_TUI1_OO
+  uso                    String?            @db.Text
 
   @@map("monitoramento_enquadramento_urbanistico")
 }
@@ -373,7 +423,11 @@ model Parcela {
   ano_pagamento   Int?
   cpf_cnpj        String?
   status_quitacao Boolean        @default(false)
+  antecipada      Boolean        @default(false)
   quebra          Boolean        @default(false)
+  dias_antecipacao Int?
+  mes_competencia  String?
+  mes_arrecadacao  String?
   // anoEmissaoGuia  Int?
   // codSiglaUnidade String? SEL
   // codTipoServico  Int?

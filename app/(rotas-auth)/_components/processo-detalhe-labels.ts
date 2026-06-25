@@ -67,6 +67,7 @@ export const LABELS_ENQUADRAMENTO: Record<string, string> = {
 	zona_uso_5_13885: 'Zona de Uso 5',
 	zona_uso_6_13885: 'Zona de Uso 6',
 	tipologia_uso_oodc: 'Tipologia de Uso OODC',
+	uso: 'Uso',
 };
 
 export const LABELS_SUBCATEGORIA_USO: Record<string, string> = {
@@ -130,30 +131,15 @@ export const LABELS_ANOTACOES: Record<string, string> = {
 export const LABELS_COTA: Record<string, string> = {
 	ficha_ouc: 'Ficha OUC',
 	proposta_oodc: 'Proposta OODC',
-	data_informacao_dmus: 'Data Informação DMUS',
-	setor: 'Setor',
-	quadra: 'Quadra',
 	lote: 'Lote',
 	lote_atualizado_sqcond: 'Lote Atualizado (SQCOND)',
-	codigo_logradouro: 'Código Logradouro',
 	endereco: 'Endereço',
-	proprietario_interessado: 'Proprietário / Interessado',
-	distrito: 'Distrito',
-	subprefeitura: 'Subprefeitura',
-	macrozona: 'Macrozona',
-	macroarea: 'Macroárea',
-	subsetor: 'Subsetor',
 	zona_uso: 'Zona de Uso',
 	subcategoria_uso: 'Subcategoria de Uso',
-	coeficiente_utilizado: 'Coeficiente Utilizado',
-	area_terreno: 'Área Terreno',
-	valor_m2_quadro14: 'Valor m² (Quadro 14)',
 	alvara_aprovacao: 'Alvará Aprovação',
 	alvara_execucao: 'Alvará Execução',
 	certificado_conclusao: 'Certificado Conclusão',
 	observacao: 'Observação',
-	origem: 'Origem',
-	area_habitacao_social: 'Área Habitação Social',
 	situacao_cota: 'Situação Cota',
 	modalidade: 'Modalidade',
 	unidades: 'Unidades',
@@ -164,13 +150,9 @@ export const LABELS_COTA: Record<string, string> = {
 	comprovantes_pagamento_prodam: 'Comprovantes Pagamento PRODAM',
 	planilha_calculo_cota: 'Planilha Cálculo Cota',
 	termo_compromisso_portaria: 'Termo Compromisso / Portaria',
-	solicitacao_dsiz: 'Solicitação DSIZ',
-	preenchimento_qgis: 'Preenchimento QGIS',
 	observacoes: 'Observações',
 	ficha_revisada_em: 'Ficha Revisada em',
 	area_construida_computavel_total: 'Área Construída Computável Total',
-	criado_em: 'Criado em',
-	alterado_em: 'Alterado em',
 };
 
 export const INCIDENCIA_COTA: Record<string, string> = {
@@ -201,6 +183,12 @@ export const CONSTA_DOCUMENTO: Record<string, string> = {
 export const TIPO_PROCESSO: Record<string, string> = {
 	PDE: 'PDE',
 	COTA: 'COTA',
+};
+
+export const TIPOLOGIA_USO_OODC: Record<string, string> = {
+	R: 'R - Residencial',
+	nR: 'nR - Não Residencial',
+	'R/nR': 'R/nR - Uso Misto',
 };
 
 export const TIPO_LICENCA: Record<string, string> = {

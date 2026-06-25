@@ -20,6 +20,7 @@ export const NAV_DETALHE: NavDetalheGrupo[] = [
 		itens: [
 			{ id: 'processo', label: 'Dados do Processo' },
 			{ id: 'parcelas', label: 'Parcelas' },
+			{ id: 'cota', label: 'Cota de Solidariedade' },
 		],
 	},
 	{
@@ -36,10 +37,6 @@ export const NAV_DETALHE: NavDetalheGrupo[] = [
 			{ id: 'licencas', label: 'Licenças' },
 			{ id: 'anotacoes', label: 'Anotações DEUSO' },
 		],
-	},
-	{
-		grupo: 'Cota de Solidariedade',
-		itens: [{ id: 'cota', label: 'Cota de Solidariedade' }],
 	},
 ];
 

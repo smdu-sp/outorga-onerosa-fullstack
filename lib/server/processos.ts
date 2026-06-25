@@ -1,11 +1,16 @@
 import { prisma } from '@/lib/prisma';
 import { verificaLimite, verificaPagina } from '@/lib/pagination';
+import { serializarRegistro } from '@/lib/serializar-prisma';
 import { ICreateProcesso } from '@/types/processo';
 import { Prisma, StatusPagamento } from '@prisma/client';
 import { recalcularStatusPagamento } from '@/lib/parcelas-utils';
 
 export const processoDetalheInclude = {
 	parcelas: { orderBy: { num_parcela: 'asc' as const } },
+	sqls: {
+		orderBy: { criado_em: 'asc' as const },
+		include: { enderecos: { orderBy: { ordem: 'asc' as const } } },
+	},
 	monitoramento: {
 		include: {
 			coordenada: true,
@@ -29,6 +34,7 @@ function mapParcelasCreate(parcelas: ICreateProcesso['parcelas']) {
 		num_parcela: parcela.num_parcela,
 		data_quitacao: parcela.data_quitacao || undefined,
 		status_quitacao: parcela.status_quitacao || false,
+		antecipada: false,
 		quebra: parcela.quebra || false,
 		ano_pagamento: parcela.ano_pagamento || undefined,
 		cpf_cnpj: parcela.cpf_cnpj,
@@ -106,7 +112,7 @@ export async function buscarDetalheProcesso(id: string) {
 		include: processoDetalheInclude,
 	});
 	if (!processo) throw new Error('Processo não encontrado.');
-	return processo;
+	return serializarRegistro(processo as unknown as Record<string, unknown>);
 }
 
 export async function dashboardProcessos() {
@@ -255,7 +261,7 @@ function mapProcessoLista(
 	};
 }
 
-function montarFiltrosProcessos(busca?: string, tipo?: string, status?: string) {
+function montarFiltrosProcessos(busca?: string, tipo?: string, status?: string, vencimento?: string) {
 	const termo = busca?.trim();
 	const filtros: Prisma.ProcessoWhereInput[] = [];
 
@@ -279,6 +285,20 @@ function montarFiltrosProcessos(busca?: string, tipo?: string, status?: string) 
 
 	if (status && status !== 'TODOS') {
 		filtros.push({ status_pagamento: status as 'EM_PAGAMENTO' | 'QUITADO' | 'QUEBRA' });
+	}
+
+	if (vencimento === 'MES') {
+		const hoje = new Date();
+		const inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+		const fim = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59);
+		filtros.push({ parcelas: { some: { status_quitacao: false, vencimento: { gte: inicio, lte: fim } } } });
+	} else if (vencimento === '7DIAS') {
+		const hoje = new Date();
+		hoje.setHours(0, 0, 0, 0);
+		const em7 = new Date(hoje);
+		em7.setDate(em7.getDate() + 7);
+		em7.setHours(23, 59, 59);
+		filtros.push({ parcelas: { some: { status_quitacao: false, vencimento: { gte: hoje, lte: em7 } } } });
 	}
 
 	return filtros.length > 0 ? { AND: filtros } : {};
@@ -320,9 +340,10 @@ export async function buscarTodosProcessos(
 	busca?: string,
 	tipo?: string,
 	status?: string,
+	vencimento?: string,
 ) {
 	[pagina, limite] = verificaPagina(pagina, limite);
-	const where = montarFiltrosProcessos(busca, tipo, status);
+	const where = montarFiltrosProcessos(busca, tipo, status, vencimento);
 
 	const total = await prisma.processo.count({ where });
 	if (total === 0) return { total: 0, pagina: 0, limite: 0, data: [] };

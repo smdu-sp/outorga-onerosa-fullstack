@@ -13,8 +13,7 @@ import { STATUS_PAGAMENTO } from '@/app/(rotas-auth)/_components/processo-detalh
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const fmtData = (d?: Date | string | null) =>
-	d ? new Date(d).toLocaleDateString('pt-BR') : '—';
+import { formatarDataCivil } from '@/lib/datas';
 
 function StatusParcela({ parcela }: { parcela: IParcelaView }) {
 	if (parcela.quebra) {
@@ -129,6 +128,7 @@ export function DetalheParcelas({
 						) : (
 							parcelasView.map((p, i) => {
 								const pendente = !p.status_quitacao && !p.quebra;
+								const processoQuitado = statusPagamento === 'QUITADO';
 								return (
 									<tr key={p.id ?? i} className={cn(p.quebra && 'bg-destructive/5')}>
 										<td className="border-t border-border px-3.5 py-3 text-center tabular-nums">
@@ -138,10 +138,10 @@ export function DetalheParcelas({
 											{fmtBRL(p.valor)}
 										</td>
 										<td className="border-t border-border px-3.5 py-3 text-center">
-											{fmtData(p.vencimento)}
+											{formatarDataCivil(p.vencimento)}
 										</td>
 										<td className="border-t border-border px-3.5 py-3 text-center">
-											{fmtData(p.data_quitacao)}
+											{formatarDataCivil(p.data_quitacao)}
 										</td>
 										<td className="border-t border-border px-3.5 py-3 text-center tabular-nums">
 											{p.ano_pagamento ?? '—'}
@@ -174,7 +174,7 @@ export function DetalheParcelas({
 														<Undo2 className="h-3.5 w-3.5" />
 														Reverter
 													</button>
-												) : (
+												) : !processoQuitado && (
 													<button
 														type="button"
 														disabled={pending}

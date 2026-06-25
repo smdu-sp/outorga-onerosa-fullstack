@@ -20,6 +20,7 @@ export function resumoEnquadramento(data: IGeoSampaResult) {
 		subsetor: e?.subsetor ?? '',
 		zonas: zonasDoEnquadramento(e),
 		tipologia_uso_oodc: e?.tipologia_uso_oodc ?? '',
+		uso: e?.uso ?? '',
 	};
 }
 

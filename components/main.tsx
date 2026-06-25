@@ -5,11 +5,13 @@
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import {
+	BarChart3,
 	BookLock,
 	FolderOpen,
 	House,
 	Lock,
 	LucideProps,
+	Terminal,
 	Users,
 } from 'lucide-react';
 import { ForwardRefExoticComponent, ReactNode, RefAttributes, type CSSProperties } from 'react';
@@ -40,6 +42,11 @@ const menuUsuario: IMenu[] = [
 		titulo: 'Processos',
 		url: '/processos',
 	},
+	{
+		icone: BarChart3,
+		titulo: 'Relatórios',
+		url: '/relatorios',
+	},
 ];
 
 const menuAdmin: IMenu[] = [
@@ -63,6 +70,11 @@ const menuAdmin: IMenu[] = [
 	},
 ];
 
+const menuDev: IMenu[] =
+	process.env.NODE_ENV === 'development'
+		? [{ icone: Terminal, titulo: 'Dev Logs', url: '/dev-logs' }]
+		: [];
+
 export default function Main({
 	override = false,
 	children,
@@ -76,7 +88,7 @@ export default function Main({
 		<SidebarProvider
 			style={{ '--sidebar-width': '244px' } as CSSProperties}
 			className="min-h-svh bg-app-background">
-			<AppSidebar data={{ menuUsuario, menuAdmin }} />
+			<AppSidebar data={{ menuUsuario, menuAdmin, menuDev }} />
 			<SidebarInset className="bg-app-background">
 				<div className="flex min-h-svh flex-col">
 					<div className="flex items-center border-b border-border bg-app-background px-4 py-3 md:hidden">

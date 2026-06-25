@@ -1,23 +1,33 @@
 'use client';
 
+import { cn } from '@/lib/utils';
 import { Search } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { FiltroGrupo } from './filtro-grupo';
 
+const VENC_CHIPS = [
+	{ value: '', label: 'Todos' },
+	{ value: 'MES', label: 'Vence este mês' },
+	{ value: '7DIAS', label: 'Vence em 7 dias' },
+] as const;
+
 export function ToolbarLista({
 	buscaInicial = '',
 	tipoInicial = 'TODOS',
 	statusInicial = 'TODOS',
+	vencimentoInicial = '',
 }: {
 	buscaInicial?: string;
 	tipoInicial?: string;
 	statusInicial?: string;
+	vencimentoInicial?: string;
 }) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const [busca, setBusca] = useState(buscaInicial);
+	const [vencimento, setVencimento] = useState(vencimentoInicial);
 
 	const atualizarParams = useCallback(
 		(updates: Record<string, string | null>) => {
@@ -72,6 +82,26 @@ export function ToolbarLista({
 						{ value: 'QUEBRA', label: 'Quebra' },
 					]}
 				/>
+			</div>
+
+			<div className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary p-1">
+				{VENC_CHIPS.map((chip) => (
+					<button
+						key={chip.value}
+						type="button"
+						onClick={() => {
+							setVencimento(chip.value);
+							atualizarParams({ vencimento: chip.value || null });
+						}}
+						className={cn(
+							'rounded-md px-3 py-1 text-[12.5px] font-medium transition-colors',
+							vencimento === chip.value
+								? 'bg-primary text-primary-foreground shadow-xs'
+								: 'text-muted-foreground hover:bg-muted hover:text-foreground',
+						)}>
+						{chip.label}
+					</button>
+				))}
 			</div>
 		</div>
 	);
