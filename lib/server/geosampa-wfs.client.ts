@@ -53,6 +53,14 @@ export interface ZoneamentoProperties {
 	cd_numero_legislacao_zoneamento?: number;
 }
 
+export interface AiuProperties {
+	cd_identificador_perimetro_aiu?: number;
+	tx_tipo_perimetro?: string;
+	nm_perimetro?: string;
+	cd_numero_lei?: string;
+	nm_lei?: string;
+}
+
 const LOTE_FIELDS =
 	'cd_setor_fiscal,cd_quadra_fiscal,cd_lote,cd_digito_sql,cd_logradouro,nm_logradouro_completo,cd_numero_porta,nm_proprietario,qt_area_terreno,qt_area_terreno_calc,tipo_uso_imovel,ge_poligono';
 
@@ -236,6 +244,25 @@ export class GeosampaWfsClient {
 			'nm_distrito_municipal',
 		);
 		return data.features[0]?.properties ?? null;
+	}
+
+	/**
+	 * Verifica se o ponto está dentro de algum perímetro da AIU Setor Central
+	 * (Lei 17.844/22, camada geoportal:perimetro_aiu). Retorna o perímetro mais
+	 * específico (setor de adesão) quando houver sobreposição com o expandido.
+	 */
+	async buscarAiuSetorCentralNoPonto(x: number, y: number) {
+		const cql = `INTERSECTS(ge_poligono,POINT(${x} ${y}))`;
+		const data = await this.getFeature<AiuProperties>(
+			'geoportal:perimetro_aiu',
+			cql,
+			'nm_lei,nm_perimetro,tx_tipo_perimetro,cd_numero_lei',
+		);
+		if (!data.features.length) return null;
+		const adesao = data.features.find((f) =>
+			/ades/i.test(f.properties.tx_tipo_perimetro ?? ''),
+		);
+		return (adesao ?? data.features[0]).properties;
 	}
 
 	async buscarSubsetorNoPonto(x: number, y: number) {

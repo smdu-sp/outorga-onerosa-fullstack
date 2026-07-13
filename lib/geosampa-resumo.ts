@@ -18,6 +18,8 @@ export function resumoEnquadramento(data: IGeoSampaResult) {
 		macrozona: e?.macrozona ?? '',
 		macroarea: e?.macroarea ?? '',
 		subsetor: e?.subsetor ?? '',
+		intervencao_urbanistica: e?.intervencao_urbanistica ?? '',
+		intervencao_setor: e?.intervencao_setor ?? '',
 		zonas: zonasDoEnquadramento(e),
 		tipologia_uso_oodc: e?.tipologia_uso_oodc ?? '',
 		uso: e?.uso ?? '',

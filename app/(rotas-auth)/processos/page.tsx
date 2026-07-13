@@ -47,7 +47,7 @@ async function Home({
 		em_pagamento: 0,
 		quitados: 0,
 		quebras: 0,
-		a_receber: 0,
+		valor_quebra: 0,
 	};
 
 	const [response, statsResponse] = await Promise.all([
@@ -113,7 +113,7 @@ async function Home({
 					color="red"
 					label="Em quebra"
 					value={stats.quebras}
-					sub={`${fmtBRL(stats.a_receber)} a receber`}
+					sub={`${fmtBRL(stats.valor_quebra)} não recebido`}
 				/>
 			</div>
 

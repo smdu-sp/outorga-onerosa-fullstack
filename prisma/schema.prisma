@@ -308,6 +308,8 @@ model MonitoramentoEnquadramentoUrbanistico {
   macrozona              String?            @db.Text // TXT_MZ_OO
   macroarea              String?            @db.Text // TXT_MA_OO
   subsetor               String?            // TXT_SST_OO
+  intervencao_urbanistica String?           // AIUSC quando dentro do perímetro da AIU Setor Central (Lei 17.844/22)
+  intervencao_setor      String?            @db.Text // tx_tipo_perimetro da camada geoportal:perimetro_aiu
   zona_uso_1_18081       String?            // SGL_ZN1_OO
   zona_uso_2_17975       String?            // SGL_ZN2_OO
   zona_uso_3_16402       String?            // SGL_ZN3_OO

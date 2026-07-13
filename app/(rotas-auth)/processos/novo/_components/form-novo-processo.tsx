@@ -397,9 +397,14 @@ export default function FormNovoProcesso() {
 								{endereco && <CampoKV label="Endereço" value={endereco} full />}
 								<CampoKV label="Distrito" value={enq?.distrito} />
 								<CampoKV label="Subprefeitura" value={enq?.subprefeitura} />
-								<CampoKV label="Macrozona" value={enq?.macrozona} full />
+								<CampoKV label="Macrozona" value={enq?.macrozona} />
 								<CampoKV label="Macroárea" value={enq?.macroarea} />
 								<CampoKV label="Subsetor" value={enq?.subsetor} />
+								<CampoKV
+									label="Intervenções urbanísticas"
+									value={enq?.intervencao_urbanistica}
+								/>
+								<CampoKV label="Setor" value={enq?.intervencao_setor} full />
 								<CampoKV
 									label={`Zona${(enq?.zonas.length ?? 0) > 1 ? 's' : ''} de Uso`}
 									value={enq?.zonas.join('  ·  ')}

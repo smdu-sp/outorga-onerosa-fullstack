@@ -5,8 +5,11 @@ import {
 	INCIDENCIA_COTA,
 	LABELS_ENDERECO,
 	LABELS_LICENCA,
+	MACROAREA_OPCOES,
+	MACROZONA_OPCOES,
 	ORIGEM_MONITORAMENTO,
 	SITUACAO_MONITORAMENTO,
+	SUBSETOR_OPCOES,
 	TIPO_LICENCA,
 	TIPOLOGIA_USO_OODC,
 } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
@@ -45,8 +48,6 @@ const CAMPOS_TEXTAREA = new Set([
 	'lote_cadastrado',
 	'lote_atualizado',
 	'nome',
-	'macrozona',
-	'macroarea',
 	'uso_r_hmp_his',
 	'uso_nr',
 ]);
@@ -59,6 +60,9 @@ const CAMPOS_ENUM: Record<string, Record<string, string>> = {
 	origem: ORIGEM_MONITORAMENTO,
 	tipo: TIPO_LICENCA,
 	tipologia_uso_oodc: TIPOLOGIA_USO_OODC,
+	macrozona: MACROZONA_OPCOES,
+	macroarea: MACROAREA_OPCOES,
+	subsetor: SUBSETOR_OPCOES,
 };
 
 function valorParaInput(chave: string, valor: unknown): string {

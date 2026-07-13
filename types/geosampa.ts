@@ -27,6 +27,8 @@ export type IGeoSampaEnquadramentoUrbanistico = {
 	macrozona?: string;
 	macroarea?: string;
 	subsetor?: string;
+	intervencao_urbanistica?: string;
+	intervencao_setor?: string;
 	zona_uso_1_18081?: string;
 	zona_uso_2_17975?: string;
 	zona_uso_3_16402?: string;

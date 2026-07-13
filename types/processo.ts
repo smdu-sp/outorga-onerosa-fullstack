@@ -40,7 +40,7 @@ export interface IEstatisticasProcessos {
 	em_pagamento: number;
 	quitados: number;
 	quebras: number;
-	a_receber: number;
+	valor_quebra: number;
 }
 
 export interface IRespostaProcesso {

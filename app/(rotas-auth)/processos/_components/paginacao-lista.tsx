@@ -8,7 +8,6 @@ import {
 	ChevronsRight,
 } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
 function retornaPaginas(pagina: number, limite: number, total: number): number[] {
 	const ultimaPagina = Math.ceil(total / limite) || 1;
@@ -21,8 +20,8 @@ function retornaPaginas(pagina: number, limite: number, total: number): number[]
 
 export function PaginacaoLista({
 	total,
-	pagina: paginaProp,
-	limite: limiteProp,
+	pagina,
+	limite,
 }: {
 	total: number;
 	pagina: number;
@@ -33,20 +32,14 @@ export function PaginacaoLista({
 	const pathname = usePathname();
 	const limites = [5, 10, 15, 20, 50];
 
-	const [pagina, setPagina] = useState(paginaProp);
-	const [limite, setLimite] = useState(limiteProp);
-
-	useEffect(() => {
-		setPagina(paginaProp);
-		setLimite(limiteProp);
-	}, [paginaProp, limiteProp]);
-
-	useEffect(() => {
+	function navegar(novaPagina: number, novoLimite: number) {
 		const params = new URLSearchParams(searchParams.toString());
-		params.set('pagina', String(pagina));
-		params.set('limite', String(limite));
+		params.set('pagina', String(novaPagina));
+		params.set('limite', String(novoLimite));
 		router.push(`${pathname}?${params.toString()}`, { scroll: false });
-	}, [pagina, limite, pathname, router, searchParams]);
+	}
+
+	const irParaPagina = (n: number) => navegar(n, limite);
 
 	if (total === 0) return null;
 
@@ -66,12 +59,12 @@ export function PaginacaoLista({
 			</div>
 
 			<div className="flex items-center gap-1">
-				<PgBtn disabled={pagAtual === 1} onClick={() => setPagina(1)} title="Primeira">
+				<PgBtn disabled={pagAtual === 1} onClick={() => irParaPagina(1)} title="Primeira">
 					<ChevronsLeft className="h-[15px] w-[15px]" />
 				</PgBtn>
 				<PgBtn
 					disabled={pagAtual === 1}
-					onClick={() => setPagina(pagAtual - 1)}
+					onClick={() => irParaPagina(pagAtual - 1)}
 					title="Anterior">
 					<ChevronLeft className="h-[15px] w-[15px]" />
 				</PgBtn>
@@ -79,19 +72,19 @@ export function PaginacaoLista({
 					<PgBtn
 						key={n}
 						active={n === pagAtual}
-						onClick={() => setPagina(n)}>
+						onClick={() => irParaPagina(n)}>
 						{n}
 					</PgBtn>
 				))}
 				<PgBtn
 					disabled={pagAtual === ultimaPag}
-					onClick={() => setPagina(pagAtual + 1)}
+					onClick={() => irParaPagina(pagAtual + 1)}
 					title="Próxima">
 					<ChevronRight className="h-[15px] w-[15px]" />
 				</PgBtn>
 				<PgBtn
 					disabled={pagAtual === ultimaPag}
-					onClick={() => setPagina(ultimaPag)}
+					onClick={() => irParaPagina(ultimaPag)}
 					title="Última">
 					<ChevronsRight className="h-[15px] w-[15px]" />
 				</PgBtn>
@@ -101,10 +94,7 @@ export function PaginacaoLista({
 				Registros por página
 				<select
 					value={limite}
-					onChange={(e) => {
-						setLimite(+e.target.value);
-						setPagina(1);
-					}}
+					onChange={(e) => navegar(1, +e.target.value)}
 					className="h-[34px] rounded-lg border border-border bg-card px-2 text-sm text-foreground outline-none">
 					{limites.map((l) => (
 						<option key={l} value={l}>

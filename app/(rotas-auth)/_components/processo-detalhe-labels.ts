@@ -1,5 +1,16 @@
 /** @format */
 
+import { MACROAREAS, MACROZONAS, SUBSETORES } from '@/lib/enquadramento-catalogo';
+
+/** Opções canônicas (chave = valor gravado = rótulo exibido). */
+function opcoesIdentidade(valores: readonly string[]): Record<string, string> {
+	return Object.fromEntries(valores.map((v) => [v, v]));
+}
+
+export const MACROZONA_OPCOES = opcoesIdentidade(MACROZONAS);
+export const MACROAREA_OPCOES = opcoesIdentidade(MACROAREAS);
+export const SUBSETOR_OPCOES = opcoesIdentidade(SUBSETORES);
+
 export const LABELS_PROCESSO: Record<string, string> = {
 	tipo: 'Tipo',
 	codigo: 'Código',
@@ -60,6 +71,8 @@ export const LABELS_ENQUADRAMENTO: Record<string, string> = {
 	macrozona: 'Macrozona',
 	macroarea: 'Macroárea',
 	subsetor: 'Subsetor',
+	intervencao_urbanistica: 'Intervenções urbanísticas',
+	intervencao_setor: 'Setor',
 	zona_uso_1_18081: 'Zona de Uso 1',
 	zona_uso_2_17975: 'Zona de Uso 2',
 	zona_uso_3_16402: 'Zona de Uso 3',

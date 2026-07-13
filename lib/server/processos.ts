@@ -305,14 +305,14 @@ function montarFiltrosProcessos(busca?: string, tipo?: string, status?: string, 
 }
 
 export async function buscarEstatisticasProcessos() {
-	const [total, em_pagamento, quitados, quebras, processosComValor] =
+	const [total, em_pagamento, quitados, quebras, processosQuebra] =
 		await Promise.all([
 			prisma.processo.count(),
 			prisma.processo.count({ where: { status_pagamento: 'EM_PAGAMENTO' } }),
 			prisma.processo.count({ where: { status_pagamento: 'QUITADO' } }),
 			prisma.processo.count({ where: { status_pagamento: 'QUEBRA' } }),
 			prisma.processo.findMany({
-				where: { status_pagamento: { in: ['EM_PAGAMENTO', 'QUEBRA'] } },
+				where: { status_pagamento: 'QUEBRA' },
 				include: {
 					parcelas: true,
 					monitoramento_cota: { select: { valor_devido: true } },
@@ -320,7 +320,8 @@ export async function buscarEstatisticasProcessos() {
 			}),
 		]);
 
-	const a_receber = processosComValor.reduce((acc, processo) => {
+	// Valor não pago pelos processos em quebra (dinheiro que o município deixou de receber).
+	const valor_quebra = processosQuebra.reduce((acc, processo) => {
 		const valorPlanilha = processo.monitoramento_cota?.valor_devido;
 		if (valorPlanilha) return acc + parseValorMonetario(valorPlanilha);
 		return (
@@ -331,7 +332,7 @@ export async function buscarEstatisticasProcessos() {
 		);
 	}, 0);
 
-	return { total, em_pagamento, quitados, quebras, a_receber };
+	return { total, em_pagamento, quitados, quebras, valor_quebra };
 }
 
 export async function buscarTodosProcessos(

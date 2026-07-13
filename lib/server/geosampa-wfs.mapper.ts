@@ -1,5 +1,11 @@
 import type { IGeoSampaResult } from '@/types/geosampa';
 import {
+	macrozonaDeMacroarea,
+	normalizarMacroarea,
+	normalizarSubsetor,
+} from '@/lib/enquadramento-catalogo';
+import {
+	type AiuProperties,
 	GeosampaWfsClient,
 	type LoteProperties,
 	type OutorgaProperties,
@@ -163,6 +169,7 @@ export function mapLoteWfsParaGeoSampa(
 			nm_subsetor_operacao_urbana?: string;
 			nm_operacao_urbana?: string;
 		} | null;
+		aiu?: AiuProperties | null;
 	},
 ): IGeoSampaResult {
 	const props = feature.properties;
@@ -170,6 +177,10 @@ export function mapLoteWfsParaGeoSampa(
 	const zoneamento = enriquecimento?.zoneamento
 		? mapZoneamento(enriquecimento.zoneamento)
 		: {};
+	const macroarea = normalizarMacroarea(
+		enriquecimento?.macroarea?.nm_macroarea,
+		enriquecimento?.macroarea?.sg_macroarea,
+	);
 
 	return {
 		proprietario_interessado: props.nm_proprietario
@@ -187,13 +198,11 @@ export function mapLoteWfsParaGeoSampa(
 			subprefeitura: enriquecimento?.subprefeitura?.nm_subprefeitura
 				? titleCase(enriquecimento.subprefeitura.nm_subprefeitura)
 				: undefined,
-			macroarea: enriquecimento?.macroarea?.nm_macroarea
-				? titleCase(enriquecimento.macroarea.nm_macroarea)
-				: undefined,
-			macrozona: enriquecimento?.macroarea?.sg_macroarea,
-			subsetor: enriquecimento?.subsetor?.nm_subsetor_operacao_urbana
-				? titleCase(enriquecimento.subsetor.nm_subsetor_operacao_urbana)
-				: undefined,
+			macroarea,
+			macrozona: macrozonaDeMacroarea(macroarea),
+			subsetor: normalizarSubsetor(enriquecimento?.subsetor?.nm_subsetor_operacao_urbana),
+			intervencao_urbanistica: enriquecimento?.aiu ? 'AIUSC' : undefined,
+			intervencao_setor: enriquecimento?.aiu?.tx_tipo_perimetro || undefined,
 			uso: usoFromLote(props),
 			tipologia_uso_oodc: (() => {
 				const u = usoFromLote(props);
@@ -272,6 +281,7 @@ export function mapEnquadramentoFromCamadas(camadas: {
 		nm_subsetor_operacao_urbana?: string;
 		nm_operacao_urbana?: string;
 	} | null;
+	aiu?: AiuProperties | null;
 }) {
 	return mapLoteWfsParaGeoSampa(
 		{ type: 'Feature', properties: {}, geometry: null },

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { dataCivilHoje } from '@/lib/datas';
 import { criar } from '@/services/processos/server-functions/criar';
+import { salvarDadosGeoSampa } from '@/services/monitoramento/server-functions/salvar-geosampa';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -170,7 +171,12 @@ export default function FormCriarProcesso({
 							{endereco && <CampoKV label="Endereço" value={endereco} full />}
 							<CampoKV label="Distrito" value={enq?.distrito} />
 							<CampoKV label="Subprefeitura" value={enq?.subprefeitura} />
-							<CampoKV label="Macrozona" value={enq?.macrozona} full />
+							<CampoKV label="Macrozona" value={enq?.macrozona} />
+							<CampoKV
+								label="Intervenções urbanísticas"
+								value={enq?.intervencao_urbanistica}
+							/>
+							<CampoKV label="Setor" value={enq?.intervencao_setor} full />
 							<CampoKV
 								label="Zona de Uso"
 								value={enq?.zonas.join(' · ')}

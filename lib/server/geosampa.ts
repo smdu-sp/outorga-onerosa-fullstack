@@ -30,7 +30,6 @@ type FichaCompleta = Prisma.MonitoramentoFichaGetPayload<{
 		situacao: true;
 		licencas: true;
 		anotacoes_deuso: true;
-		processo: { select: { num_processo: true } };
 	};
 }>;
 
@@ -298,12 +297,13 @@ async function enriquecerEspacialmente(
 }
 
 async function buscarCamadasNoPonto(x: number, y: number) {
-	const [zoneamento, macroarea, subprefeitura, distrito, subsetor] = await Promise.all([
+	const [zoneamento, macroarea, subprefeitura, distrito, subsetor, aiu] = await Promise.all([
 		wfs.buscarZoneamentoNoPonto(x, y),
 		wfs.buscarMacroareaNoPonto(x, y),
 		wfs.buscarSubprefeituraNoPonto(x, y),
 		wfs.buscarDistritoNoPonto(x, y),
 		wfs.buscarSubsetorNoPonto(x, y),
+		wfs.buscarAiuSetorCentralNoPonto(x, y),
 	]);
 
 	return {
@@ -312,6 +312,7 @@ async function buscarCamadasNoPonto(x: number, y: number) {
 		subprefeitura,
 		distrito,
 		subsetor,
+		aiu,
 	};
 }
 
@@ -398,6 +399,10 @@ function mapFichaParaGeoSampa(ficha: FichaCompleta, numProcesso?: string): IGeoS
 					macrozona: ficha.enquadramento_urbanistico.macrozona ?? undefined,
 					macroarea: ficha.enquadramento_urbanistico.macroarea ?? undefined,
 					subsetor: ficha.enquadramento_urbanistico.subsetor ?? undefined,
+					intervencao_urbanistica:
+						ficha.enquadramento_urbanistico.intervencao_urbanistica ?? undefined,
+					intervencao_setor:
+						ficha.enquadramento_urbanistico.intervencao_setor ?? undefined,
 					zona_uso_1_18081: ficha.enquadramento_urbanistico.zona_uso_1_18081 ?? undefined,
 					zona_uso_2_17975: ficha.enquadramento_urbanistico.zona_uso_2_17975 ?? undefined,
 					zona_uso_3_16402: ficha.enquadramento_urbanistico.zona_uso_3_16402 ?? undefined,
