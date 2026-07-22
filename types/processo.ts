@@ -1,5 +1,7 @@
 /** @format */
 
+import type { CodigoPendencia } from '@/lib/pendencias-processo';
+
 export enum ITipoProcesso {
 	PDE,
 	COTA,
@@ -33,6 +35,7 @@ export type IProcesso = {
 	valor_devido?: number;
 	parcelas_pagas?: number;
 	parcelas_total?: number;
+	pendencias?: CodigoPendencia[];
 };
 
 export interface IEstatisticasProcessos {

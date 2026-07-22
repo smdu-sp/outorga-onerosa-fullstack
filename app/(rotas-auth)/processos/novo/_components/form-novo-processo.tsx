@@ -18,7 +18,8 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRef, useState } from 'react';
-import { consultarEnquadramento, type IEnquadramentoResult } from '../actions';
+import type { IEnquadramentoResult } from '@/types/geosampa';
+import { consultarEnquadramento } from '../actions';
 import { resumoEnquadramento, resumoEndereco, resumoParametros } from '@/lib/geosampa-resumo';
 import { GeoSampaLogPanel } from '@/app/(rotas-auth)/processos/[id]/_components/geosampa-log-panel';
 import type { GeoSampaLogEntry } from '@/types/geosampa';

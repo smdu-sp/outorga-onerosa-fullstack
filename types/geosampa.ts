@@ -50,22 +50,22 @@ export type IGeoSampaSubcategoriasUso = {
 };
 
 export type IGeoSampaCalculoOutorga = {
-	fp_uso_r?: string;
-	fp_uso_nr?: string;
-	fs_uso_r?: string;
-	fs_uso_nr?: string;
-	area_objeto_uso_r?: string;
-	area_objeto_uso_nr?: string;
-	area_total_objeto?: string;
+	fp_uso_r?: number;
+	fp_uso_nr?: number;
+	fs_uso_r?: number;
+	fs_uso_nr?: number;
+	area_objeto_uso_r?: number;
+	area_objeto_uso_nr?: number;
+	area_total_objeto?: number;
 	area_nao_computavel?: string;
 	area_nao_computavel_incidente?: string;
 	area_nao_computavel_final?: string;
-	percentual_fachada_ativa?: string;
+	percentual_fachada_ativa?: number;
 	area_computavel_total?: number;
 	area_construida_total?: number;
-	contrapartida_uso_r?: string;
-	contrapartida_uso_nr?: string;
-	contrapartida_total?: string;
+	contrapartida_uso_r?: number;
+	contrapartida_uso_nr?: number;
+	contrapartida_total?: number;
 	coeficiente_basico?: number;
 	coeficiente_utilizado?: number;
 	area_terreno?: number;

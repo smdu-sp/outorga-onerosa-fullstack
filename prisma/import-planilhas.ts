@@ -12,6 +12,7 @@ import {
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
+import { parseNumeroBr } from '../lib/parse-numero-br';
 
 const prisma = new PrismaClient();
 
@@ -46,7 +47,7 @@ const TIPO_POR_CODIGO: Record<string, Tipo> = {
   '7022': 'PDE',
   '7023': 'PDE',
   '7137': 'COTA',
-  '109': 'COTA',
+  '109': 'AIU',
 };
 
 interface ParcelaImport {
@@ -152,19 +153,8 @@ function parseExcelDate(value: unknown): Date | undefined {
   return undefined;
 }
 
-function parseNumber(value: unknown): number | undefined {
-  if (value === null || value === undefined || value === '') return undefined;
-  if (typeof value === 'number' && !isNaN(value)) return value;
-  const text = cleanText(value);
-  if (!text || text === '-') return undefined;
-  const normalized = text
-    .replace(/R\$\s?/gi, '')
-    .replace(/\./g, '')
-    .replace(',', '.')
-    .replace(/[^\d.-]/g, '');
-  const num = Number(normalized);
-  return isNaN(num) ? undefined : num;
-}
+// Fonte única em lib/parse-numero-br.ts (reusada pela normalização de dados).
+const parseNumber = parseNumeroBr;
 
 function parseIntSafe(value: unknown): number | undefined {
   const num = parseNumber(value);
@@ -711,22 +701,23 @@ async function importarMonitoramentoOutorga() {
       where: { monitoramento_ficha_id: ficha.id },
       create: {
         monitoramento_ficha_id: ficha.id,
-        fp_uso_r: cleanText(row[fpCols[0]]),
-        fp_uso_nr: cleanText(row[fpCols[1]]),
-        fs_uso_r: cleanText(row[fsCols[0]]),
-        fs_uso_nr: cleanText(row[fsCols[1]]),
-        area_objeto_uso_r: cleanText(row[arObjCols[0]]),
-        area_objeto_uso_nr: cleanText(row[arObjCols[1]]),
-        area_total_objeto: cleanText(row[arObjCols[2]]),
+        fp_uso_r: parseNumber(row[fpCols[0]]),
+        fp_uso_nr: parseNumber(row[fpCols[1]]),
+        fs_uso_r: parseNumber(row[fsCols[0]]),
+        fs_uso_nr: parseNumber(row[fsCols[1]]),
+        area_objeto_uso_r: parseNumber(row[arObjCols[0]]),
+        area_objeto_uso_nr: parseNumber(row[arObjCols[1]]),
+        area_total_objeto: parseNumber(row[arObjCols[2]]),
         area_nao_computavel: cleanText(row['AR_CNC_OO']),
         area_nao_computavel_incidente: cleanText(row['AR_CNCI_OO']),
         area_nao_computavel_final: cleanText(row['AR_CNCF_OO']),
-        percentual_fachada_ativa: cleanText(row['FA_ARNC_OO']),
+        percentual_fachada_ativa: parseNumber(row['FA_ARNC_OO']),
         area_computavel_total: parseNumber(row['AR_CPT_OO']),
         area_construida_total: parseNumber(row['AR_CNT_OO']),
-        contrapartida_uso_r: cleanText(row[vlCntCols[0]]),
-        contrapartida_uso_nr: cleanText(row[vlCntCols[1]]),
-        contrapartida_total: cleanText(row[vlCntCols[2]]),
+        contrapartida_uso_r: parseNumber(row[vlCntCols[0]]),
+        contrapartida_uso_nr: parseNumber(row[vlCntCols[1]]),
+        // contrapartida_total NÃO vem da planilha (valor corrompido por escala —
+        // ver auditar-contrapartida.ts). É derivado das parcelas em backfill-totais.ts.
         coeficiente_basico: parseNumber(row['CA_BSC_OO']),
         coeficiente_utilizado: parseNumber(row['CA_UTL_OO']),
         area_terreno: parseNumber(row['AR_ LT_OO']),
@@ -738,22 +729,23 @@ async function importarMonitoramentoOutorga() {
         area_habitacao_social: parseNumber(row['AR_HIS_OO']),
       },
       update: {
-        fp_uso_r: cleanText(row[fpCols[0]]),
-        fp_uso_nr: cleanText(row[fpCols[1]]),
-        fs_uso_r: cleanText(row[fsCols[0]]),
-        fs_uso_nr: cleanText(row[fsCols[1]]),
-        area_objeto_uso_r: cleanText(row[arObjCols[0]]),
-        area_objeto_uso_nr: cleanText(row[arObjCols[1]]),
-        area_total_objeto: cleanText(row[arObjCols[2]]),
+        fp_uso_r: parseNumber(row[fpCols[0]]),
+        fp_uso_nr: parseNumber(row[fpCols[1]]),
+        fs_uso_r: parseNumber(row[fsCols[0]]),
+        fs_uso_nr: parseNumber(row[fsCols[1]]),
+        area_objeto_uso_r: parseNumber(row[arObjCols[0]]),
+        area_objeto_uso_nr: parseNumber(row[arObjCols[1]]),
+        area_total_objeto: parseNumber(row[arObjCols[2]]),
         area_nao_computavel: cleanText(row['AR_CNC_OO']),
         area_nao_computavel_incidente: cleanText(row['AR_CNCI_OO']),
         area_nao_computavel_final: cleanText(row['AR_CNCF_OO']),
-        percentual_fachada_ativa: cleanText(row['FA_ARNC_OO']),
+        percentual_fachada_ativa: parseNumber(row['FA_ARNC_OO']),
         area_computavel_total: parseNumber(row['AR_CPT_OO']),
         area_construida_total: parseNumber(row['AR_CNT_OO']),
-        contrapartida_uso_r: cleanText(row[vlCntCols[0]]),
-        contrapartida_uso_nr: cleanText(row[vlCntCols[1]]),
-        contrapartida_total: cleanText(row[vlCntCols[2]]),
+        contrapartida_uso_r: parseNumber(row[vlCntCols[0]]),
+        contrapartida_uso_nr: parseNumber(row[vlCntCols[1]]),
+        // contrapartida_total NÃO vem da planilha (valor corrompido por escala —
+        // ver auditar-contrapartida.ts). É derivado das parcelas em backfill-totais.ts.
         coeficiente_basico: parseNumber(row['CA_BSC_OO']),
         coeficiente_utilizado: parseNumber(row['CA_UTL_OO']),
         area_terreno: parseNumber(row['AR_ LT_OO']),
@@ -914,8 +906,8 @@ async function importarMonitoramentoCota() {
         valor_calculado_processo: parseNumber(
           cell(row, 'VALOR CALCULADO APRESENTADO', 'COTA DE SOLIDARIEDADE'),
         ),
-        valor_pago: cleanText(cell(row, 'VALOR PAGO')),
-        valor_devido: cleanText(cell(row, 'VALOR DEVIDO')),
+        valor_pago: parseNumber(cell(row, 'VALOR PAGO')),
+        valor_devido: parseNumber(cell(row, 'VALOR DEVIDO')),
         comprovantes_pagamento_prodam: cleanText(cell(row, 'COMPROVANTES', 'PRODAM')),
         planilha_calculo_cota: mapConsta(cell(row, 'PLANILHA DE CÁLCULO', 'PLANILHA DE CALCULO')),
         termo_compromisso_portaria: mapConsta(cell(row, 'TERMO DE COMPROMISSO', 'PORTARIA')),
@@ -961,8 +953,8 @@ async function importarMonitoramentoCota() {
         valor_calculado_processo: parseNumber(
           cell(row, 'VALOR CALCULADO APRESENTADO', 'COTA DE SOLIDARIEDADE'),
         ),
-        valor_pago: cleanText(cell(row, 'VALOR PAGO')),
-        valor_devido: cleanText(cell(row, 'VALOR DEVIDO')),
+        valor_pago: parseNumber(cell(row, 'VALOR PAGO')),
+        valor_devido: parseNumber(cell(row, 'VALOR DEVIDO')),
         comprovantes_pagamento_prodam: cleanText(cell(row, 'COMPROVANTES', 'PRODAM')),
         planilha_calculo_cota: mapConsta(cell(row, 'PLANILHA DE CÁLCULO', 'PLANILHA DE CALCULO')),
         termo_compromisso_portaria: mapConsta(cell(row, 'TERMO DE COMPROMISSO', 'PORTARIA')),

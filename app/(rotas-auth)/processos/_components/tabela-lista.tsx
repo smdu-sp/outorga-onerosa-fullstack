@@ -1,9 +1,11 @@
 'use client';
 
 import { formatarDataCivil } from '@/lib/datas';
+import { PENDENCIAS_META, type CodigoPendencia } from '@/lib/pendencias-processo';
 import { cn } from '@/lib/utils';
 import { IProcesso } from '@/types/processo';
-import { ArrowRight } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -21,6 +23,18 @@ const STATUS_CLASS: Record<string, string> = {
 
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+
+const COLUNAS: { label: string; align?: 'center' | 'right' }[] = [
+	{ label: 'Número do processo' },
+	{ label: 'Tipo' },
+	{ label: 'Interessado' },
+	{ label: 'Status' },
+	{ label: 'Parcelas', align: 'center' },
+	{ label: 'Valor devido', align: 'right' },
+	{ label: 'Entrada', align: 'center' },
+	{ label: 'Dados', align: 'center' },
+	{ label: 'Ações', align: 'right' },
+];
 
 function StatusBadge({ status }: { status?: string }) {
 	if (!status) return <span className="text-muted-foreground">—</span>;
@@ -61,6 +75,57 @@ function ParcelasBarra({
 	);
 }
 
+function PendenciasCell({ pendencias }: { pendencias?: CodigoPendencia[] }) {
+	if (!pendencias || pendencias.length === 0) {
+		return (
+			<span className="inline-flex items-center gap-1.5 text-xs font-medium text-success">
+				<CheckCircle2 className="h-3.5 w-3.5" />
+				Completo
+			</span>
+		);
+	}
+
+	const temCritica = pendencias.some((c) => PENDENCIAS_META[c].severidade === 'critica');
+	const pillClass = temCritica
+		? 'bg-destructive/12 text-destructive'
+		: 'bg-warning-soft text-[oklch(0.5_0.13_70)]';
+
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<span
+					className={cn(
+						'inline-flex cursor-help items-center rounded-full px-2.5 py-0.5 text-xs font-semibold',
+						pillClass,
+					)}>
+					{pendencias.length} pendência{pendencias.length === 1 ? '' : 's'}
+				</span>
+			</TooltipTrigger>
+			<TooltipContent side="left" className="max-w-[280px] space-y-1.5 text-left">
+				{pendencias.map((c) => {
+					const meta = PENDENCIAS_META[c];
+					return (
+						<div key={c} className="flex items-start gap-2">
+							<span
+								className={cn(
+									'mt-1 h-2 w-2 shrink-0 rounded-full',
+									meta.severidade === 'critica' ? 'bg-destructive' : 'bg-amber-500',
+								)}
+							/>
+							<div>
+								<div className="text-xs font-semibold">{meta.label}</div>
+								<div className="text-[11px] leading-snug text-muted-foreground">
+									{meta.descricao}
+								</div>
+							</div>
+						</div>
+					);
+				})}
+			</TooltipContent>
+		</Tooltip>
+	);
+}
+
 export function TabelaLista({ processos }: { processos: IProcesso[] }) {
 	const router = useRouter();
 
@@ -70,24 +135,15 @@ export function TabelaLista({ processos }: { processos: IProcesso[] }) {
 				<table className="w-full border-separate border-spacing-0 text-[13.5px]">
 					<thead>
 						<tr>
-							{[
-								'Número do processo',
-								'Tipo',
-								'Interessado',
-								'Status',
-								'Parcelas',
-								'Valor devido',
-								'Entrada',
-								'Ações',
-							].map((col, i) => (
+							{COLUNAS.map((col) => (
 								<th
-									key={col}
+									key={col.label}
 									className={cn(
 										'whitespace-nowrap bg-primary px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground',
-										i === 4 && 'text-center',
-										(i === 5 || i === 7) && 'text-right',
+										col.align === 'center' && 'text-center',
+										col.align === 'right' && 'text-right',
 									)}>
-									{col}
+									{col.label}
 								</th>
 							))}
 						</tr>
@@ -95,7 +151,7 @@ export function TabelaLista({ processos }: { processos: IProcesso[] }) {
 					<tbody>
 						{processos.length === 0 ? (
 							<tr>
-								<td colSpan={8}>
+								<td colSpan={9}>
 									<div className="px-5 py-[60px] text-center text-muted-foreground">
 										Nenhum processo encontrado com os filtros atuais.
 									</div>
@@ -155,6 +211,9 @@ export function TabelaLista({ processos }: { processos: IProcesso[] }) {
 										</td>
 										<td className="border-t border-border px-3.5 py-[13px] text-center align-middle whitespace-nowrap tabular-nums">
 											{formatarDataCivil(p.data_entrada)}
+										</td>
+										<td className="border-t border-border px-3.5 py-[13px] text-center align-middle whitespace-nowrap">
+											<PendenciasCell pendencias={p.pendencias} />
 										</td>
 										<td className="border-t border-border px-3.5 py-[13px] text-right align-middle whitespace-nowrap">
 											<Link

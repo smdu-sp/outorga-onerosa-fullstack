@@ -4,6 +4,12 @@ import { serializarRegistro } from '@/lib/serializar-prisma';
 import { ICreateProcesso } from '@/types/processo';
 import { Prisma, StatusPagamento } from '@prisma/client';
 import { recalcularStatusPagamento } from '@/lib/parcelas-utils';
+import {
+	calcularPendencias,
+	isCodigoPendencia,
+	wherePendencia,
+	wherePendencias,
+} from '@/lib/pendencias-processo';
 
 export const processoDetalheInclude = {
 	parcelas: { orderBy: { num_parcela: 'asc' as const } },
@@ -208,19 +214,25 @@ export async function dashboardProcessos() {
 
 const processoListaInclude = {
 	parcelas: { orderBy: { num_parcela: 'asc' as const } },
-	monitoramento: { select: { proprietario_interessado: true } },
+	monitoramento: {
+		select: {
+			proprietario_interessado: true,
+			enquadramento_urbanistico: {
+				select: {
+					distrito: true,
+					subprefeitura: true,
+					zona_uso_1_18081: true,
+					zona_uso_2_17975: true,
+					zona_uso_3_16402: true,
+					zona_uso_4_16050: true,
+					zona_uso_5_13885: true,
+					zona_uso_6_13885: true,
+				},
+			},
+		},
+	},
 	monitoramento_cota: { select: { proprietario_interessado: true, valor_devido: true } },
 } satisfies Prisma.ProcessoInclude;
-
-function parseValorMonetario(valor?: string | null): number {
-	if (!valor?.trim()) return 0;
-	const normalizado = valor
-		.replace(/[^\d,.-]/g, '')
-		.replace(/\.(?=\d{3}(?:\D|$))/g, '')
-		.replace(',', '.');
-	const n = Number.parseFloat(normalizado);
-	return Number.isFinite(n) ? n : 0;
-}
 
 function mapProcessoLista(
 	processo: Prisma.ProcessoGetPayload<{ include: typeof processoListaInclude }>,
@@ -236,12 +248,18 @@ function mapProcessoLista(
 	let valor_devido = 0;
 	const valorPlanilha = processo.monitoramento_cota?.valor_devido;
 	if (valorPlanilha) {
-		valor_devido = parseValorMonetario(valorPlanilha);
+		valor_devido = Number(valorPlanilha);
 	} else if (processo.status_pagamento !== 'QUITADO') {
 		valor_devido = parcelas
 			.filter((p) => !p.status_quitacao)
 			.reduce((acc, p) => acc + p.valor, 0);
 	}
+
+	const pendencias = calcularPendencias({
+		tipo: processo.tipo ?? null,
+		parcelas,
+		enquadramento: processo.monitoramento?.enquadramento_urbanistico ?? null,
+	});
 
 	return {
 		id: processo.id,
@@ -258,10 +276,17 @@ function mapProcessoLista(
 		valor_devido,
 		parcelas_pagas: pagas,
 		parcelas_total: parcelas.length,
+		pendencias,
 	};
 }
 
-function montarFiltrosProcessos(busca?: string, tipo?: string, status?: string, vencimento?: string) {
+function montarFiltrosProcessos(
+	busca?: string,
+	tipo?: string,
+	status?: string,
+	vencimento?: string,
+	pendencia?: string,
+) {
 	const termo = busca?.trim();
 	const filtros: Prisma.ProcessoWhereInput[] = [];
 
@@ -285,6 +310,11 @@ function montarFiltrosProcessos(busca?: string, tipo?: string, status?: string, 
 
 	if (status && status !== 'TODOS') {
 		filtros.push({ status_pagamento: status as 'EM_PAGAMENTO' | 'QUITADO' | 'QUEBRA' });
+	}
+
+	if (pendencia && pendencia !== 'TODOS') {
+		if (pendencia === 'TODAS') filtros.push(wherePendencias());
+		else if (isCodigoPendencia(pendencia)) filtros.push(wherePendencia(pendencia));
 	}
 
 	if (vencimento === 'MES') {
@@ -323,7 +353,7 @@ export async function buscarEstatisticasProcessos() {
 	// Valor não pago pelos processos em quebra (dinheiro que o município deixou de receber).
 	const valor_quebra = processosQuebra.reduce((acc, processo) => {
 		const valorPlanilha = processo.monitoramento_cota?.valor_devido;
-		if (valorPlanilha) return acc + parseValorMonetario(valorPlanilha);
+		if (valorPlanilha) return acc + Number(valorPlanilha);
 		return (
 			acc +
 			processo.parcelas
@@ -342,9 +372,10 @@ export async function buscarTodosProcessos(
 	tipo?: string,
 	status?: string,
 	vencimento?: string,
+	pendencia?: string,
 ) {
 	[pagina, limite] = verificaPagina(pagina, limite);
-	const where = montarFiltrosProcessos(busca, tipo, status, vencimento);
+	const where = montarFiltrosProcessos(busca, tipo, status, vencimento, pendencia);
 
 	const total = await prisma.processo.count({ where });
 	if (total === 0) return { total: 0, pagina: 0, limite: 0, data: [] };

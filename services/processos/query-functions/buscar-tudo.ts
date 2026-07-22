@@ -13,10 +13,19 @@ export async function buscarTudo(
 	tipo: string = 'TODOS',
 	status: string = 'TODOS',
 	vencimento: string = '',
+	pendencia: string = '',
 ): Promise<IRespostaProcesso> {
 	try {
 		await requireAuth();
-		const data = await buscarTodosProcessos(pagina, limite, busca, tipo, status, vencimento);
+		const data = await buscarTodosProcessos(
+			pagina,
+			limite,
+			busca,
+			tipo,
+			status,
+			vencimento,
+			pendencia,
+		);
 		return { ok: true, error: null, data, status: 200 };
 	} catch (error) {
 		if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error;

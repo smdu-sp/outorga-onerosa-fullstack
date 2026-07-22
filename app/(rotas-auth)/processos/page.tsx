@@ -39,6 +39,7 @@ async function Home({
 	const tipo = (params.tipo as string) ?? 'TODOS';
 	const status = (params.status as string) ?? 'TODOS';
 	const vencimento = (params.vencimento as string) ?? '';
+	const pendencia = (params.pendencia as string) ?? '';
 
 	let dataProcessos: IProcesso[] = [];
 	let total = 0;
@@ -51,7 +52,7 @@ async function Home({
 	};
 
 	const [response, statsResponse] = await Promise.all([
-		buscarTudo(pagina, limite, busca, tipo, status, vencimento),
+		buscarTudo(pagina, limite, busca, tipo, status, vencimento, pendencia),
 		buscarEstatisticas(),
 	]);
 
@@ -123,6 +124,7 @@ async function Home({
 					tipoInicial={tipo}
 					statusInicial={status}
 					vencimentoInicial={vencimento}
+					pendenciaInicial={pendencia}
 				/>
 			</Suspense>
 

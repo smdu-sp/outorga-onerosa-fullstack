@@ -45,6 +45,15 @@ export function GraficoAcumulado({ d }: { d: IRelatorio | null }) {
 		}
 	}
 
+	// Build cumulative previsto (planejado) — a pace do planejado converge para a meta anual.
+	// Realizado acima desta linha = superou o plano (antecipações); abaixo = aquém (quebras/atrasos).
+	let cumPrev = 0;
+	const prevCum: number[] = [];
+	for (let i = 0; i < 12; i++) {
+		cumPrev += d?.d26.prev[i] ?? 0;
+		prevCum.push(+cumPrev.toFixed(1));
+	}
+
 	// Build hist year cumulative (previous year for comparison)
 	const anoAnterior = anoAtual - 1;
 	const histAnterior = d?.hist[anoAnterior];
@@ -55,10 +64,12 @@ export function GraficoAcumulado({ d }: { d: IRelatorio | null }) {
 
 	const keyRealizado = `${anoAtual} Realizado`;
 	const keyProjecao = `${anoAtual} Projeção`;
+	const keyPrevisto = `${anoAtual} Previsto`;
 
 	const data = meses.map((mes, i) => ({
 		mes,
 		[`${anoAnterior}`]: histCum[i] ?? null,
+		[keyPrevisto]: prevCum[i],
 		[keyRealizado]: realCum[i],
 		[keyProjecao]: projCum[i],
 	}));
@@ -106,6 +117,14 @@ export function GraficoAcumulado({ d }: { d: IRelatorio | null }) {
 						type="monotone"
 						dataKey={String(anoAnterior)}
 						stroke="rgba(148,163,184,0.8)"
+						strokeWidth={1.5}
+						dot={false}
+						connectNulls
+					/>
+					<Line
+						type="monotone"
+						dataKey={keyPrevisto}
+						stroke="#d97706"
 						strokeWidth={1.5}
 						dot={false}
 						connectNulls

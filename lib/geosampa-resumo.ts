@@ -33,8 +33,9 @@ function parseNumero(valor?: number | string): number {
 	return Number.isFinite(n) ? n : 0;
 }
 
-function parseFpFs(valor?: string): number {
-	if (!valor) return 1;
+function parseFpFs(valor?: number | string): number {
+	if (valor == null || valor === '') return 1;
+	if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 1;
 	const n = Number.parseFloat(valor.replace(',', '.'));
 	return Number.isFinite(n) ? n : 1;
 }

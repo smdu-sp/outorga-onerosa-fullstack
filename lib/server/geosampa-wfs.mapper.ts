@@ -253,7 +253,7 @@ export function mapOutorgaWfsParaGeoSampa(
 			...base.calculo_outorga,
 			coeficiente_utilizado: parseNumeroBr(props.cd_coeficiente_utilizacao),
 			area_terreno: props.qt_area_terreno ?? base.calculo_outorga?.area_terreno,
-			contrapartida_total: props.qt_valor_contrapartida?.toString(),
+			contrapartida_total: parseNumeroBr(props.qt_valor_contrapartida),
 		},
 		situacao: {
 			...base.situacao,

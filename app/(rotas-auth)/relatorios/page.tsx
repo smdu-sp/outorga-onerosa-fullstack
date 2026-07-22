@@ -1,6 +1,8 @@
 /** @format */
 
 import { Suspense } from 'react';
+import Link from 'next/link';
+import { HeartPulse, LandPlot } from 'lucide-react';
 import { TableSkeleton } from '@/components/data-table';
 import { relatorio } from '@/services/relatorios';
 import { IRelatorio } from '@/types/relatorio';
@@ -78,7 +80,13 @@ async function RelatoriosHome({ params }: { params: Record<string, string | stri
 				</div>
 
 				<ComparativoAnual d={d} />
-				<Top10Processos d={d} filtroTipo={tipo} filtroStatus={status} filtroSub={sub} />
+				<Top10Processos
+					d={d}
+					anosDisponiveis={anosDisponiveis}
+					filtroTipo={tipo}
+					filtroStatus={status}
+					filtroSub={sub}
+				/>
 
 				<div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
 					<CardMapaSubprefeituras d={d} />
@@ -88,6 +96,42 @@ async function RelatoriosHome({ params }: { params: Record<string, string | stri
 				<div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
 					<PdeCota d={d} />
 					<ProjecaoFechamento d={d} />
+				</div>
+
+				<div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+					<Link
+						href="/relatorios/saude-arrecadacao"
+						className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-primary/40 hover:bg-primary/5">
+						<div className="flex items-center gap-3">
+							<HeartPulse className="h-5 w-5 text-primary" />
+							<div>
+								<div className="text-sm font-semibold">Saúde da arrecadação</div>
+								<div className="text-xs text-muted-foreground">
+									Quebra, inadimplência, antecipação e tempo de pagamento por coorte e subprefeitura.
+								</div>
+							</div>
+						</div>
+						<span className="shrink-0 text-xs text-muted-foreground group-hover:text-primary">
+							Ver relatório →
+						</span>
+					</Link>
+
+					<Link
+						href="/relatorios/zonas-uso"
+						className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-primary/40 hover:bg-primary/5">
+						<div className="flex items-center gap-3">
+							<LandPlot className="h-5 w-5 text-primary" />
+							<div>
+								<div className="text-sm font-semibold">Por zona de uso</div>
+								<div className="text-xs text-muted-foreground">
+									Arrecadação de Outorga × Cota por zona de uso (Lei 16.402/2016).
+								</div>
+							</div>
+						</div>
+						<span className="shrink-0 text-xs text-muted-foreground group-hover:text-primary">
+							Ver relatório →
+						</span>
+					</Link>
 				</div>
 
 			</div>

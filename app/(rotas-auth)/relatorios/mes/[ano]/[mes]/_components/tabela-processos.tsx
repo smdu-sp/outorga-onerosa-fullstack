@@ -1,9 +1,18 @@
 'use client';
 
 import { IRelatorioMesProcesso } from '@/types/relatorio';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+
+const ORIGEM_LABEL: Record<string, string> = {
+	SISACOE: 'SISACOE',
+	SEI: 'SEI',
+	APROVA_DIGITAL: 'Aprova Digital',
+	OUTRO: 'Outro',
+};
+
+const fmtOrigem = (v: string | null) => (v ? (ORIGEM_LABEL[v] ?? v) : '—');
 
 const STATUS_LABEL: Record<IRelatorioMesProcesso['status'], string> = {
 	pago_prazo: 'Pago no prazo',
@@ -34,6 +43,16 @@ const PAGE_SIZE = 20;
 export function TabelaProcessosMes({ processos }: { processos: IRelatorioMesProcesso[] }) {
 	const [filtro, setFiltro] = useState<FiltroStatus>('todos');
 	const [pagina, setPagina] = useState(1);
+	const [expandido, setExpandido] = useState<Set<string>>(new Set());
+
+	function toggleExpandido(id: string) {
+		setExpandido((prev) => {
+			const next = new Set(prev);
+			if (next.has(id)) next.delete(id);
+			else next.add(id);
+			return next;
+		});
+	}
 
 	const filtrados = filtro === 'todos' ? processos : processos.filter((p) => p.status === filtro);
 	const totalPaginas = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
@@ -80,6 +99,7 @@ export function TabelaProcessosMes({ processos }: { processos: IRelatorioMesProc
 				<table className="w-full text-sm">
 					<thead>
 						<tr className="border-b border-border text-xs text-muted-foreground">
+							<th className="w-8 px-2 py-3" aria-label="Detalhes"></th>
 							<th className="px-5 py-3 text-left font-medium">Processo</th>
 							<th className="px-4 py-3 text-left font-medium">Interessado</th>
 							<th className="px-4 py-3 text-left font-medium">Tipo</th>
@@ -92,16 +112,34 @@ export function TabelaProcessosMes({ processos }: { processos: IRelatorioMesProc
 					<tbody>
 						{visiveis.length === 0 && (
 							<tr>
-								<td colSpan={7} className="px-5 py-8 text-center text-sm text-muted-foreground">
+								<td colSpan={8} className="px-5 py-8 text-center text-sm text-muted-foreground">
 									Nenhum contrato encontrado
 								</td>
 							</tr>
 						)}
-						{visiveis.map((p) => (
+						{visiveis.map((p) => {
+							const aberto = expandido.has(p.id);
+							return (
+							<Fragment key={p.id}>
 							<tr
-								key={p.id}
-								className="border-b border-border/60 last:border-0 hover:bg-muted/30 transition-colors">
-								<td className="px-5 py-3">
+								onClick={() => toggleExpandido(p.id)}
+								className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30 transition-colors">
+								<td className="px-2 py-3 text-center">
+									<button
+										type="button"
+										onClick={(e) => {
+											e.stopPropagation();
+											toggleExpandido(p.id);
+										}}
+										aria-expanded={aberto}
+										aria-label={aberto ? 'Ocultar detalhes' : 'Ver origem da outorga'}
+										className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+										<ChevronDown
+											className={`h-3.5 w-3.5 transition-transform ${aberto ? 'rotate-180' : ''}`}
+										/>
+									</button>
+								</td>
+								<td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
 									<Link
 										href={`/processos/${p.id}`}
 										className="font-medium text-blue-600 hover:underline dark:text-blue-400">
@@ -132,7 +170,25 @@ export function TabelaProcessosMes({ processos }: { processos: IRelatorioMesProc
 									</span>
 								</td>
 							</tr>
-						))}
+							{aberto && (
+								<tr className="border-b border-border/60 bg-muted/20">
+									<td></td>
+									<td colSpan={7} className="px-5 pb-4 pt-1">
+										<div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+											De onde vem a outorga
+										</div>
+										<div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+											<DetalheItem rotulo="Sistema" valor={fmtOrigem(p.sistema)} />
+											<DetalheItem rotulo="Empreendimento" valor={p.empreendimento ?? '—'} />
+											<DetalheItem rotulo="Distrito" valor={p.distrito ?? '—'} />
+											<DetalheItem rotulo="Subprefeitura" valor={p.subprefeitura ?? '—'} />
+										</div>
+									</td>
+								</tr>
+							)}
+							</Fragment>
+							);
+						})}
 					</tbody>
 				</table>
 			</div>
@@ -191,6 +247,17 @@ export function TabelaProcessosMes({ processos }: { processos: IRelatorioMesProc
 					</div>
 				)}
 			</div>
+		</div>
+	);
+}
+
+function DetalheItem({ rotulo, valor }: { rotulo: string; valor: string }) {
+	return (
+		<div className="min-w-0">
+			<div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+				{rotulo}
+			</div>
+			<div className="mt-0.5 break-words text-sm font-medium text-foreground">{valor}</div>
 		</div>
 	);
 }

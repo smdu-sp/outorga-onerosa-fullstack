@@ -2,9 +2,7 @@
 
 import { auth } from '@/lib/auth/auth';
 import { consultarGeoSampa, GeoSampaConsultaError } from '@/lib/server/geosampa';
-import type { GeoSampaLogEntry, IEnquadramentoResult, IGeoSampaResult } from '@/types/geosampa';
-
-export type { IEnquadramentoResult, IGeoSampaResult };
+import type { GeoSampaLogEntry, IGeoSampaResult } from '@/types/geosampa';
 
 export async function consultarEnquadramento(
 	modo: 'SQL' | 'PROCESSO',

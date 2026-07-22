@@ -16,10 +16,29 @@ export const CAMPOS_DECIMAL = new Set([
 	'area_construida_computavel_total',
 	'estimativa_deposito_fundurb',
 	'valor_calculado_processo',
+	'valor_pago',
+	'valor_devido',
 ]);
 
-/** Decimal apenas em monitoramento_calculo_outorga (na cota é String). */
-export const CAMPOS_DECIMAL_CALCULO = new Set([...CAMPOS_DECIMAL, 'area_habitacao_social']);
+/**
+ * Campos Decimal exclusivos de monitoramento_calculo_outorga: `area_habitacao_social`
+ * (na cota é String) e os campos de fator/área/contrapartida migrados de String→Decimal.
+ */
+export const CAMPOS_DECIMAL_CALCULO = new Set([
+	...CAMPOS_DECIMAL,
+	'area_habitacao_social',
+	'fp_uso_r',
+	'fp_uso_nr',
+	'fs_uso_r',
+	'fs_uso_nr',
+	'area_objeto_uso_r',
+	'area_objeto_uso_nr',
+	'area_total_objeto',
+	'percentual_fachada_ativa',
+	'contrapartida_uso_r',
+	'contrapartida_uso_nr',
+	'contrapartida_total',
+]);
 
 const CAMPOS_DATA = new Set([
 	'criado_em',

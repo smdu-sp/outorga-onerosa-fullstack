@@ -1,4 +1,11 @@
 import { prisma } from '@/lib/prisma';
+import {
+	resolverOrigemOutorga,
+	selectCotaOrigem,
+	selectFichaOrigem,
+} from '@/lib/server/relatorio-origem';
+import { buscarArrecadacaoPorDistrito } from '@/lib/server/relatorios-distritos';
+import { buscarArrecadacaoPorSubprefeitura } from '@/lib/server/relatorios-subprefeituras';
 import { IRelatorioMesDetalhe, IRelatorioMesProcesso } from '@/types/relatorio';
 
 const MESES_NOME = [
@@ -49,8 +56,12 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 						id: true,
 						num_processo: true,
 						tipo: true,
-						monitoramento: { select: { proprietario_interessado: true } },
-						monitoramento_cota: { select: { proprietario_interessado: true } },
+						monitoramento: {
+							select: { proprietario_interessado: true, ...selectFichaOrigem },
+						},
+						monitoramento_cota: {
+							select: { proprietario_interessado: true, ...selectCotaOrigem },
+						},
 					},
 				},
 			},
@@ -120,6 +131,7 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 				existing.quitacao = p.data_quitacao?.toISOString().slice(0, 10) ?? null;
 			}
 		} else {
+			const origem = resolverOrigemOutorga(proc.monitoramento, proc.monitoramento_cota);
 			procMap.set(proc.id, {
 				id: proc.id,
 				num: proc.num_processo,
@@ -130,6 +142,10 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 				status,
 				vencimento: p.vencimento.toISOString().slice(0, 10),
 				quitacao: p.data_quitacao?.toISOString().slice(0, 10) ?? null,
+				sistema: origem.sistema,
+				empreendimento: origem.empreendimento,
+				distrito: origem.distrito,
+				subprefeitura: origem.subprefeitura,
 			});
 		}
 	}
@@ -157,6 +173,22 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 		.map((label, i) => ({ label, previsto: semanasPrev[i], realizado: semanasReal[i] }))
 		.filter((s) => s.previsto > 0 || s.realizado > 0);
 
+	// Arrecadação do mês por subprefeitura e distrito (mes 0-indexado no filtro)
+	const [subprefeiturasDetalhe, distritosDetalhe] = await Promise.all([
+		buscarArrecadacaoPorSubprefeitura({ ano, mes: mesIdx }),
+		buscarArrecadacaoPorDistrito({ ano, mes: mesIdx }),
+	]);
+	const subprefeituras = subprefeiturasDetalhe.map((s) => ({
+		nome: s.nome,
+		valBrl: s.valBrl,
+		proc: s.proc,
+	}));
+	const distritos = distritosDetalhe.map((s) => ({
+		nome: s.nome,
+		valBrl: s.valBrl,
+		proc: s.proc,
+	}));
+
 	return {
 		ano,
 		mes,
@@ -167,6 +199,8 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 		antecipacoes: totalAntec,
 		semanas,
 		processos,
+		subprefeituras,
+		distritos,
 		anoAnterior: {
 			previsto: prevAnt._sum.valor ?? 0,
 			realizado: realAnt._sum.valor ?? 0,

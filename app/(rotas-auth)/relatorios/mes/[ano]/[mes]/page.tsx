@@ -10,6 +10,7 @@ import { KpiMes } from './_components/kpi-mes';
 import { GraficoSemanas } from './_components/grafico-semanas';
 import { StatusComposicao } from './_components/status-composicao';
 import { ComparativoAnoAnterior } from './_components/comparativo-ano-anterior';
+import { ArrecadacaoPorRegiao } from './_components/arrecadacao-regiao';
 import { TabelaProcessosMes } from './_components/tabela-processos';
 
 type Params = Promise<{ ano: string; mes: string }>;
@@ -92,6 +93,8 @@ async function RelatorioMesHome({ anoStr, mesStr }: { anoStr: string; mesStr: st
 				</div>
 
 				<ComparativoAnoAnterior d={d} />
+
+				<ArrecadacaoPorRegiao d={d} />
 
 				<TabelaProcessosMes processos={d.processos} />
 			</div>

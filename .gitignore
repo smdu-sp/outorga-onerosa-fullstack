@@ -43,6 +43,7 @@ next-env.d.ts
 
 # planilhas DEUSO (dados sensíveis — manter local)
 /app/planilhas/
+/public/planilhas/
 
 # resultados dos scripts de manutenção
 /scripts/output/

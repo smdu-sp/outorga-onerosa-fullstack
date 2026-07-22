@@ -87,6 +87,7 @@ export default function FormImportacao() {
         const typeKeyValue: Record<string, string> = {
             "79": "PDE",
             "78": "COTA",
+            "109": "AIU",
             "7022": "PDE",
             "7137": "COTA",
         }

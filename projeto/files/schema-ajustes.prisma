@@ -1,0 +1,204 @@
+// ============================================================================
+// AJUSTES PROPOSTOS AO SCHEMA — sistema de Outorga Onerosa
+// ============================================================================
+// Este arquivo NÃO substitui o schema.prisma original. É um guia de mudanças
+// incrementais, organizadas por prioridade, para aplicar via migrations.
+// ============================================================================
+
+
+// ----------------------------------------------------------------------------
+// 1) HISTÓRICO DE STATUS — necessário para série temporal e forecast
+// ----------------------------------------------------------------------------
+// Sem isso não dá pra saber QUANDO um processo mudou de status, só o estado
+// atual. Toda análise de "taxa de quebra por mês" ou "tempo médio até quitação"
+// depende disso.
+
+enum StatusPagamento {
+  EM_PAGAMENTO
+  QUITADO
+  QUEBRA
+}
+
+model HistoricoStatusProcesso {
+  id           String          @id @default(uuid())
+  processo_id  String
+  processo     Processo        @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  status_anterior StatusPagamento?
+  status_novo     StatusPagamento
+  motivo          String?        @db.Text
+  usuario_id      String?        // quem alterou (FK para Usuario, se aplicável)
+
+  criado_em    DateTime        @default(now())
+
+  @@index([processo_id])
+  @@index([criado_em])
+  @@map("historico_status_processo")
+}
+
+// No model Processo, adicionar:
+//   historico_status  HistoricoStatusProcesso[]
+//
+// Em código: sempre que status_pagamento mudar, gravar uma linha aqui
+// (idealmente via trigger de banco ou middleware do Prisma, para garantir
+// que nenhuma mudança passe sem registro).
+
+
+// ----------------------------------------------------------------------------
+// 2) JUROS/CORREÇÃO NA PARCELA — necessário para relatório de aging real
+// ----------------------------------------------------------------------------
+
+model Parcela {
+  id                String    @id @default(uuid())
+  num_parcela       Int
+  valor             Float
+  vencimento        DateTime  @db.Date
+  data_quitacao     DateTime? @db.Date
+  ano_pagamento     Int?
+  cpf_cnpj          String?
+  status_quitacao   Boolean   @default(false)
+  antecipada        Boolean   @default(false)
+  quebra            Boolean   @default(false)
+  dias_antecipacao  Int?
+  mes_competencia   String?
+  mes_arrecadacao   String?
+
+  // NOVOS CAMPOS:
+  valor_juros       Decimal?  @db.Decimal(14, 2) // multa/juros aplicados no atraso
+  valor_corrigido   Decimal?  @db.Decimal(14, 2) // valor final pago (valor + juros - eventuais descontos)
+  dias_atraso       Int?      // calculável, mas materializar ajuda MUITO na query de aging
+
+  criado_em         DateTime  @default(now())
+  alterado_em       DateTime  @default(now()) @updatedAt
+
+  processo_id       String
+  processo          Processo  @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  @@index([vencimento])
+  @@index([status_quitacao])
+  @@index([processo_id])
+  @@map("parcelas")
+}
+
+
+// ----------------------------------------------------------------------------
+// 3) MIGRAR CAMPOS STRING → DECIMAL (MonitoramentoCalculoOutorga)
+// ----------------------------------------------------------------------------
+// Estes campos hoje são String (herança do import de planilha) e bloqueiam
+// SUM/AVG/agregação numérica. Trocar tipo + rodar script de parse único.
+
+model MonitoramentoCalculoOutorga {
+  id                     String   @id @default(uuid())
+  monitoramento_ficha_id String   @unique
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  fp_uso_r                Decimal? @db.Decimal(10, 4)   // era String
+  fp_uso_nr                Decimal? @db.Decimal(10, 4)   // era String
+  fs_uso_r                 Decimal? @db.Decimal(10, 4)   // era String
+  fs_uso_nr                Decimal? @db.Decimal(10, 4)   // era String
+  area_objeto_uso_r        Decimal? @db.Decimal(14, 2)   // era String
+  area_objeto_uso_nr       Decimal? @db.Decimal(14, 2)   // era String
+  area_total_objeto        Decimal? @db.Decimal(14, 2)   // era String
+  area_nao_computavel           String?  @db.Text // mantém texto (campo composto/observação)
+  area_nao_computavel_incidente String?  @db.Text
+  area_nao_computavel_final     String?  @db.Text
+  percentual_fachada_ativa Decimal? @db.Decimal(5, 2)    // era String
+  area_computavel_total    Decimal? @db.Decimal(14, 2)
+  area_construida_total    Decimal? @db.Decimal(14, 2)
+  contrapartida_uso_r      Decimal? @db.Decimal(14, 2)   // era String — CRÍTICO p/ financeiro
+  contrapartida_uso_nr     Decimal? @db.Decimal(14, 2)   // era String — CRÍTICO p/ financeiro
+  contrapartida_total      Decimal? @db.Decimal(14, 2)   // era String — CRÍTICO p/ financeiro
+  coeficiente_basico       Decimal? @db.Decimal(10, 4)
+  coeficiente_utilizado    Decimal? @db.Decimal(10, 4)
+  area_terreno             Decimal? @db.Decimal(14, 2)
+  valor_m2_quadro14        Decimal? @db.Decimal(14, 2)
+  area_fruicao_publica     Decimal? @db.Decimal(14, 2)
+  area_doacao_melhoramento Decimal? @db.Decimal(14, 2)
+  area_doacao_calcada      Decimal? @db.Decimal(14, 2)
+  area_transferencia       Decimal? @db.Decimal(14, 2)
+  area_habitacao_social    Decimal? @db.Decimal(14, 2)
+
+  @@map("monitoramento_calculo_outorga")
+}
+
+// Mesma lógica vale para MonitoramentoCotaSolidariedade.valor_pago e
+// valor_devido (hoje String? @db.Text) — trocar para Decimal? @db.Decimal(14,2).
+// Script de migração de dados (pseudocódigo):
+//
+//   for each row:
+//     parsed = parseFloat(valor.replace(',', '.').replace(/[^\d.-]/g, ''))
+//     if valor === '-' or valor === null or isNaN(parsed): parsed = null
+//     update row set valor_decimal = parsed
+
+
+// ----------------------------------------------------------------------------
+// 4) LIGAR Sql (do Processo) com MonitoramentoLocalizacaoLote (da Ficha)
+// ----------------------------------------------------------------------------
+// Hoje setor/quadra/lote existem duplicados sem FK entre as duas tabelas.
+// Se a ficha de monitoramento sempre corresponde a um SQL do processo,
+// vale adicionar uma FK opcional para eliminar o join por texto:
+
+model MonitoramentoLocalizacaoLote {
+  id                     String             @id @default(uuid())
+  monitoramento_ficha_id String             @unique
+  ficha                  MonitoramentoFicha @relation(fields: [monitoramento_ficha_id], references: [id], onDelete: Cascade)
+
+  sql_id                 String?            // NOVO — referência direta ao Sql do processo
+  sql                    Sql?               @relation(fields: [sql_id], references: [id])
+
+  setor                  String?
+  quadra                 String?
+  lote_cadastrado        String?            @db.Text
+  lote_atualizado        String?            @db.Text
+  codigo_logradouro      String?
+
+  @@index([sql_id])
+  @@map("monitoramento_localizacao_lote")
+}
+
+// No model Sql, adicionar:
+//   localizacao_monitoramento  MonitoramentoLocalizacaoLote[]
+
+
+// ----------------------------------------------------------------------------
+// 5) ÍNDICES ADICIONAIS (performance dos relatórios)
+// ----------------------------------------------------------------------------
+
+model Processo {
+  // ... campos existentes ...
+
+  @@index([status_pagamento])
+  @@index([tipo])
+  @@index([origem])
+  @@index([data_entrada])
+  @@map("processos")
+}
+
+model MonitoramentoEnquadramentoUrbanistico {
+  // ... campos existentes ...
+
+  @@index([subprefeitura])
+  @@index([distrito])
+  @@index([macrozona])
+  @@map("monitoramento_enquadramento_urbanistico")
+}
+
+
+// ----------------------------------------------------------------------------
+// 6) CAMPO AGREGADO NO PROCESSO (opcional, mas ajuda MUITO no dashboard)
+// ----------------------------------------------------------------------------
+// Em vez de somar Parcela.valor toda vez, materializar (via trigger ou job):
+
+model Processo {
+  // ... campos existentes ...
+
+  valor_total_parcelas   Decimal?  @db.Decimal(16, 2) // soma de todas as parcelas
+  valor_total_pago       Decimal?  @db.Decimal(16, 2) // soma das parcelas quitadas
+  valor_total_em_aberto  Decimal?  @db.Decimal(16, 2) // valor_total_parcelas - valor_total_pago
+
+  @@map("processos")
+}
+
+// Alternativa sem duplicar dado: criar uma VIEW materializada no MySQL
+// (ou tabela de "fato" atualizada via job noturno) especificamente para
+// o dashboard — evita denormalizar o modelo transacional principal.

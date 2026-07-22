@@ -1,10 +1,17 @@
 'use client';
 
+import { ORDEM_PENDENCIAS, PENDENCIAS_META } from '@/lib/pendencias-processo';
 import { cn } from '@/lib/utils';
 import { Search } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
 import { FiltroGrupo } from './filtro-grupo';
+
+const PENDENCIA_OPCOES = [
+	{ value: '', label: 'Completude: todos' },
+	{ value: 'TODAS', label: 'Com pendências' },
+	...ORDEM_PENDENCIAS.map((c) => ({ value: c, label: PENDENCIAS_META[c].label })),
+];
 
 const VENC_CHIPS = [
 	{ value: '', label: 'Todos' },
@@ -17,17 +24,20 @@ export function ToolbarLista({
 	tipoInicial = 'TODOS',
 	statusInicial = 'TODOS',
 	vencimentoInicial = '',
+	pendenciaInicial = '',
 }: {
 	buscaInicial?: string;
 	tipoInicial?: string;
 	statusInicial?: string;
 	vencimentoInicial?: string;
+	pendenciaInicial?: string;
 }) {
 	const router = useRouter();
 	const pathname = usePathname();
 	const searchParams = useSearchParams();
 	const [busca, setBusca] = useState(buscaInicial);
 	const [vencimento, setVencimento] = useState(vencimentoInicial);
+	const [pendencia, setPendencia] = useState(pendenciaInicial);
 
 	const atualizarParams = useCallback(
 		(updates: Record<string, string | null>) => {
@@ -103,6 +113,21 @@ export function ToolbarLista({
 					</button>
 				))}
 			</div>
+
+			<select
+				value={pendencia}
+				onChange={(e) => {
+					setPendencia(e.target.value);
+					atualizarParams({ pendencia: e.target.value || null });
+				}}
+				title="Filtrar por dados faltantes para os relatórios"
+				className="h-[34px] rounded-lg border border-border bg-secondary px-2.5 text-[12.5px] font-medium text-foreground outline-none focus:ring-1 focus:ring-ring">
+				{PENDENCIA_OPCOES.map((opcao) => (
+					<option key={opcao.value} value={opcao.value}>
+						{opcao.label}
+					</option>
+				))}
+			</select>
 		</div>
 	);
 }
