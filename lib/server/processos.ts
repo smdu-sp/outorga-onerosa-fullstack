@@ -4,6 +4,7 @@ import { serializarRegistro } from '@/lib/serializar-prisma';
 import { ICreateProcesso } from '@/types/processo';
 import { Prisma, StatusPagamento } from '@prisma/client';
 import { recalcularStatusPagamento } from '@/lib/parcelas-utils';
+import { parseDataCivil } from '@/lib/datas';
 import {
 	calcularPendencias,
 	isCodigoPendencia,
@@ -57,7 +58,7 @@ function statusInicialProcesso(parcelas: ICreateProcesso['parcelas']): StatusPag
 	);
 }
 
-export async function importarProcessos(createProcessoDto: ICreateProcesso[]) {
+export async function importarProcessos(createProcessoDto: ICreateProcesso[], usuarioId?: string) {
 	const resultado = {
 		erros: [] as { num_processo: string; erro: unknown }[],
 		novos_registros: [] as string[],
@@ -72,6 +73,7 @@ export async function importarProcessos(createProcessoDto: ICreateProcesso[]) {
 						num_processo: processo.num_processo,
 						protocolo_ad: processo.protocolo_ad,
 						data_entrada: processo.data_entrada,
+						criado_por: usuarioId,
 						parcelas: {
 							create: mapParcelasCreate(processo.parcelas),
 						},
@@ -87,7 +89,7 @@ export async function importarProcessos(createProcessoDto: ICreateProcesso[]) {
 	return resultado;
 }
 
-export async function criarProcesso(createProcessoDto: ICreateProcesso) {
+export async function criarProcesso(createProcessoDto: ICreateProcesso, usuarioId?: string) {
 	const { num_processo, parcelas, ...processo } = createProcessoDto;
 	const processoExiste = await prisma.processo.findUnique({
 		where: { num_processo },
@@ -102,7 +104,9 @@ export async function criarProcesso(createProcessoDto: ICreateProcesso) {
 			tipo: processo.tipo as 'PDE' | 'COTA' | undefined,
 			protocolo_ad: processo.protocolo_ad,
 			data_entrada: processo.data_entrada,
+			origem: processo.origem as 'APROVA_DIGITAL' | 'SEI' | 'FISICO' | 'PORTAL' | undefined,
 			status_pagamento: statusInicialProcesso(parcelas),
+			criado_por: usuarioId,
 			...(parcelas &&
 				parcelas.length > 0 && {
 					parcelas: { create: mapParcelasCreate(parcelas) },
@@ -110,6 +114,64 @@ export async function criarProcesso(createProcessoDto: ICreateProcesso) {
 		},
 		include: { parcelas: true },
 	});
+}
+
+export type IAtualizarDadosIniciais = Partial<{
+	tipo: string;
+	codigo: string;
+	num_processo: string;
+	protocolo_ad: string;
+	data_entrada: string | Date;
+}>;
+
+export async function atualizarProcesso(processoId: string, dados: IAtualizarDadosIniciais) {
+	const processo = await prisma.processo.findUnique({ where: { id: processoId } });
+	if (!processo) throw new Error('Processo não encontrado.');
+
+	const data: Prisma.ProcessoUpdateInput = {
+		...(dados.tipo !== undefined && { tipo: dados.tipo as 'PDE' | 'COTA' | 'AIU' }),
+		...(dados.codigo !== undefined && { codigo: dados.codigo }),
+		...(dados.num_processo !== undefined && { num_processo: dados.num_processo }),
+		...(dados.protocolo_ad !== undefined && { protocolo_ad: dados.protocolo_ad }),
+		...(dados.data_entrada !== undefined && { data_entrada: parseDataCivil(dados.data_entrada) }),
+	};
+
+	await prisma.processo.update({ where: { id: processoId }, data });
+	return buscarDetalheProcesso(processoId);
+}
+
+export async function somaParcelasProcesso(processoId: string) {
+	const agregada = await prisma.parcela.aggregate({
+		where: { processo_id: processoId },
+		_sum: { valor: true },
+	});
+	return agregada._sum.valor ?? 0;
+}
+
+export async function atualizarValorTotalParcelas(processoId: string) {
+	const soma = await somaParcelasProcesso(processoId);
+	await prisma.processo.update({
+		where: { id: processoId },
+		data: { valor_total_parcelas: soma },
+	});
+	return soma;
+}
+
+export async function recalcularContrapartidaProcesso(processoId: string) {
+	const processo = await prisma.processo.findUnique({ where: { id: processoId } });
+	if (!processo) throw new Error('Processo não encontrado.');
+
+	const soma = await atualizarValorTotalParcelas(processoId);
+
+	const ficha = await prisma.monitoramentoFicha.findUnique({ where: { processo_id: processoId } });
+	if (ficha) {
+		await prisma.monitoramentoCalculoOutorga.updateMany({
+			where: { monitoramento_ficha_id: ficha.id },
+			data: { contrapartida_total: soma },
+		});
+	}
+
+	return buscarDetalheProcesso(processoId);
 }
 
 export async function buscarDetalheProcesso(id: string) {
@@ -269,6 +331,8 @@ function mapProcessoLista(
 		protocolo_ad: processo.protocolo_ad ?? undefined,
 		data_entrada: processo.data_entrada ?? undefined,
 		status_pagamento: processo.status_pagamento,
+		origem: processo.origem ?? undefined,
+		criado_por: processo.criado_por ?? undefined,
 		parcelas,
 		total_parcelas: parcelas.length,
 		interessado,
@@ -280,15 +344,36 @@ function mapProcessoLista(
 	};
 }
 
+export type FiltroAcessoProcessos = { criadoPor?: string; apenasQuitados?: boolean };
+
+/** Processo criado pelo fluxo do Técnico (origem PORTAL) e ainda sem nenhuma parcela cadastrada pelo CAP. */
+const FILTRO_PROCESSOS_NOVOS: Prisma.ProcessoWhereInput = {
+	origem: 'PORTAL',
+	criado_por: { not: null },
+	parcelas: { none: {} },
+};
+
 function montarFiltrosProcessos(
 	busca?: string,
 	tipo?: string,
 	status?: string,
 	vencimento?: string,
 	pendencia?: string,
+	filtroAcesso?: FiltroAcessoProcessos,
+	novo?: string,
 ) {
 	const termo = busca?.trim();
 	const filtros: Prisma.ProcessoWhereInput[] = [];
+
+	if (filtroAcesso?.criadoPor) {
+		filtros.push({ criado_por: filtroAcesso.criadoPor });
+	}
+	if (filtroAcesso?.apenasQuitados) {
+		filtros.push({ status_pagamento: 'QUITADO' });
+	}
+	if (novo === 'SIM') {
+		filtros.push(FILTRO_PROCESSOS_NOVOS);
+	}
 
 	if (termo) {
 		filtros.push({
@@ -365,6 +450,11 @@ export async function buscarEstatisticasProcessos() {
 	return { total, em_pagamento, quitados, quebras, valor_quebra };
 }
 
+/** Processos enviados pelo Técnico (fluxo de cálculo) que CAP ainda não cadastrou parcela. */
+export async function contarProcessosNovos() {
+	return prisma.processo.count({ where: FILTRO_PROCESSOS_NOVOS });
+}
+
 export async function buscarTodosProcessos(
 	pagina = 1,
 	limite = 10,
@@ -373,9 +463,11 @@ export async function buscarTodosProcessos(
 	status?: string,
 	vencimento?: string,
 	pendencia?: string,
+	filtroAcesso?: FiltroAcessoProcessos,
+	novo?: string,
 ) {
 	[pagina, limite] = verificaPagina(pagina, limite);
-	const where = montarFiltrosProcessos(busca, tipo, status, vencimento, pendencia);
+	const where = montarFiltrosProcessos(busca, tipo, status, vencimento, pendencia, filtroAcesso, novo);
 
 	const total = await prisma.processo.count({ where });
 	if (total === 0) return { total: 0, pagina: 0, limite: 0, data: [] };

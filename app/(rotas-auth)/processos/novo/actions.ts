@@ -1,6 +1,6 @@
 'use server';
 
-import { auth } from '@/lib/auth/auth';
+import { requirePermissao } from '@/lib/auth/session';
 import { consultarGeoSampa, GeoSampaConsultaError } from '@/lib/server/geosampa';
 import type { GeoSampaLogEntry, IGeoSampaResult } from '@/types/geosampa';
 
@@ -15,8 +15,12 @@ export async function consultarEnquadramento(
 	identificadorSalvamento?: string;
 	logs?: GeoSampaLogEntry[];
 }> {
-	const session = await auth();
-	if (!session) return { ok: false, error: 'Sessão expirada. Faça login novamente.' };
+	try {
+		await requirePermissao('processos_criar_geosampa');
+	} catch (error) {
+		if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error;
+		return { ok: false, error: 'Sem permissão para esta operação.' };
+	}
 
 	const entries: GeoSampaLogEntry[] = [];
 	const log = (level: GeoSampaLogEntry['level'], msg: string) =>

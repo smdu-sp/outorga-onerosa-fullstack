@@ -1,13 +1,20 @@
 'use client';
 
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
+import { IPermissoesProcesso } from '@/types/permissoes-processo';
 import { useEffect, useState } from 'react';
 import { DetalheHeader } from './detalhe-header';
 import { DetalhePainel } from './detalhe-painel';
 import { DetalheVnav } from './detalhe-vnav';
 import { filtrarNavPorBusca } from './detalhe-nav';
 
-export default function DetalheLayout({ processo }: { processo: IProcessoDetalhe }) {
+export default function DetalheLayout({
+	processo,
+	permissoes,
+}: {
+	processo: IProcessoDetalhe;
+	permissoes: IPermissoesProcesso;
+}) {
 	const [detalhe, setDetalhe] = useState(processo);
 	const [activeId, setActiveId] = useState('processo');
 	const [busca, setBusca] = useState('');
@@ -42,6 +49,7 @@ export default function DetalheLayout({ processo }: { processo: IProcessoDetalhe
 				busca={busca}
 				onBusca={setBusca}
 				onDetalheAtualizado={setDetalhe}
+				podeRecalcular={permissoes.podeRecalcular}
 			/>
 
 			<div className="flex flex-col gap-5 lg:flex-row lg:items-start">
@@ -55,6 +63,7 @@ export default function DetalheLayout({ processo }: { processo: IProcessoDetalhe
 					secaoId={activeId}
 					detalhe={detalhe}
 					onDetalheAtualizado={setDetalhe}
+					permissoes={permissoes}
 				/>
 			</div>
 		</div>

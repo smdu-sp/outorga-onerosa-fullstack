@@ -1,6 +1,7 @@
 /** @format */
 
 import { TableSkeleton } from '@/components/data-table';
+import { requireAuth, usuarioPermitido } from '@/lib/auth/session';
 import { buscarTudo } from '@/services/processos/query-functions/buscar-tudo';
 import { buscarEstatisticas } from '@/services/processos/query-functions/estatisticas';
 import { IEstatisticasProcessos, IProcesso, IProcessosPaginado } from '@/types/processo';
@@ -40,6 +41,7 @@ async function Home({
 	const status = (params.status as string) ?? 'TODOS';
 	const vencimento = (params.vencimento as string) ?? '';
 	const pendencia = (params.pendencia as string) ?? '';
+	const novo = (params.novo as string) ?? 'TODOS';
 
 	let dataProcessos: IProcesso[] = [];
 	let total = 0;
@@ -51,9 +53,12 @@ async function Home({
 		valor_quebra: 0,
 	};
 
-	const [response, statsResponse] = await Promise.all([
-		buscarTudo(pagina, limite, busca, tipo, status, vencimento, pendencia),
+	const session = await requireAuth();
+	const [response, statsResponse, podeCriar, podeVerFiltroNovo] = await Promise.all([
+		buscarTudo(pagina, limite, busca, tipo, status, vencimento, pendencia, novo),
 		buscarEstatisticas(),
+		usuarioPermitido(session.usuario.sub, 'processos_criar'),
+		usuarioPermitido(session.usuario.sub, 'parcelas_editar'),
 	]);
 
 	const { data, ok } = response;
@@ -79,12 +84,14 @@ async function Home({
 						Consulte, acompanhe e edite os processos de outorga onerosa.
 					</p>
 				</div>
-				<Link
-					href="/processos/novo"
-					className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white no-underline hover:bg-primary/90">
-					<Plus className="h-4 w-4" />
-					Novo processo
-				</Link>
+				{podeCriar && (
+					<Link
+						href="/processos/novo"
+						className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white no-underline hover:bg-primary/90">
+						<Plus className="h-4 w-4" />
+						Novo processo
+					</Link>
+				)}
 			</div>
 
 			<div className="mb-[22px] grid grid-cols-2 gap-3.5 lg:grid-cols-4">
@@ -125,6 +132,8 @@ async function Home({
 					statusInicial={status}
 					vencimentoInicial={vencimento}
 					pendenciaInicial={pendencia}
+					novoInicial={novo}
+					mostrarFiltroNovo={podeVerFiltroNovo}
 				/>
 			</Suspense>
 

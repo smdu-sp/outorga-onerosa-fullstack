@@ -5,4 +5,12 @@ export {
     dashboard
 } from './query-functions';
 
-export { criar, importar, acaoParcela } from './server-functions';
+export {
+	criar,
+	importar,
+	acaoParcela,
+	criarParcela,
+	atualizarParcela,
+	atualizarDadosIniciais,
+	recalcularContrapartida,
+} from './server-functions';

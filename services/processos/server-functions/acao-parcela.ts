@@ -2,8 +2,14 @@
 
 'use server';
 
-import { requireAuth } from '@/lib/auth/session';
-import { aplicarAcaoParcela, type AcaoParcela } from '@/lib/server/parcelas';
+import { requirePermissao } from '@/lib/auth/session';
+import {
+	aplicarAcaoParcela,
+	atualizarParcelaProcesso,
+	criarParcelaProcesso,
+	type AcaoParcela,
+	type IDadosParcela,
+} from '@/lib/server/parcelas';
 import { IProcessoDetalhe, IRespostaProcessoDetalhe } from '@/types/processo-detalhe';
 
 export async function acaoParcela(
@@ -12,7 +18,9 @@ export async function acaoParcela(
 	acao: AcaoParcela,
 ): Promise<IRespostaProcessoDetalhe> {
 	try {
-		await requireAuth();
+		await requirePermissao(
+			acao === 'reverter-antecipacao' ? 'parcelas_reverter_antecipacao' : 'parcelas_editar',
+		);
 		const data = await aplicarAcaoParcela(processoId, parcelaId, acao);
 		return {
 			ok: true,
@@ -20,6 +28,42 @@ export async function acaoParcela(
 			data: data as unknown as IProcessoDetalhe,
 			status: 200,
 		};
+	} catch (error) {
+		return {
+			ok: false,
+			error: error instanceof Error ? error.message : 'Erro ao atualizar parcela.',
+			data: null,
+			status: 400,
+		};
+	}
+}
+
+export async function criarParcela(
+	processoId: string,
+	dados: IDadosParcela,
+): Promise<IRespostaProcessoDetalhe> {
+	try {
+		await requirePermissao('parcelas_editar');
+		const data = await criarParcelaProcesso(processoId, dados);
+		return { ok: true, error: null, data: data as unknown as IProcessoDetalhe, status: 201 };
+	} catch (error) {
+		return {
+			ok: false,
+			error: error instanceof Error ? error.message : 'Erro ao criar parcela.',
+			data: null,
+			status: 400,
+		};
+	}
+}
+
+export async function atualizarParcela(
+	parcelaId: string,
+	dados: IDadosParcela,
+): Promise<IRespostaProcessoDetalhe> {
+	try {
+		await requirePermissao('parcelas_editar');
+		const data = await atualizarParcelaProcesso(parcelaId, dados);
+		return { ok: true, error: null, data: data as unknown as IProcessoDetalhe, status: 200 };
 	} catch (error) {
 		return {
 			ok: false,

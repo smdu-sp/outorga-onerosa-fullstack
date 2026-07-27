@@ -6,7 +6,9 @@ import { ChevronLeft, Download, Keyboard, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRef } from 'react';
 import { cn } from '@/lib/utils';
+import { processoEhNovo } from '@/lib/processo-novo';
 import { BotaoGeoSampa } from './botao-geosampa';
+import { BotaoRecalcular } from './botao-recalcular';
 
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -54,11 +56,13 @@ export function DetalheHeader({
 	busca,
 	onBusca,
 	onDetalheAtualizado,
+	podeRecalcular = false,
 }: {
 	processo: IProcessoDetalhe;
 	busca: string;
 	onBusca: (v: string) => void;
 	onDetalheAtualizado?: (detalhe: IProcessoDetalhe) => void;
+	podeRecalcular?: boolean;
 }) {
 	const buscaRef = useRef<HTMLInputElement>(null);
 	const { valorTotal, valorDevido } = calcularMetricas(processo);
@@ -100,6 +104,11 @@ export function DetalheHeader({
 								{STATUS_PAGAMENTO[status] ?? status}
 							</span>
 						)}
+						{processoEhNovo(processo) && (
+							<span className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary-foreground">
+								Novo
+							</span>
+						)}
 					</div>
 
 					<div className="flex flex-wrap gap-6">
@@ -127,6 +136,9 @@ export function DetalheHeader({
 							numProcesso={processo.num_processo}
 							onAtualizado={onDetalheAtualizado}
 						/>
+					)}
+					{onDetalheAtualizado && podeRecalcular && (
+						<BotaoRecalcular processoId={processo.id} onAtualizado={onDetalheAtualizado} />
 					)}
 					<div className="flex items-center gap-2 rounded-lg border border-border bg-secondary px-2.5 py-1.5">
 						<Search className="h-3.5 w-3.5 text-muted-foreground" />

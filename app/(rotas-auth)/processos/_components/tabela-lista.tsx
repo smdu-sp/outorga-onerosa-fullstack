@@ -2,6 +2,7 @@
 
 import { formatarDataCivil } from '@/lib/datas';
 import { PENDENCIAS_META, type CodigoPendencia } from '@/lib/pendencias-processo';
+import { processoEhNovo } from '@/lib/processo-novo';
 import { cn } from '@/lib/utils';
 import { IProcesso } from '@/types/processo';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -170,6 +171,11 @@ export function TabelaLista({ processos }: { processos: IProcesso[] }) {
 										<td className="border-t border-border px-3.5 py-[13px] align-middle whitespace-nowrap">
 											<Link href={`/processos/${p.id}`} className="block">
 												<span className="font-semibold tabular-nums">{p.num_processo}</span>
+												{processoEhNovo(p) && (
+													<span className="ml-2 inline-flex items-center rounded-full bg-primary px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-primary-foreground">
+														Novo
+													</span>
+												)}
 												{p.protocolo_ad && (
 													<small className="mt-0.5 block text-[11.5px] font-normal text-muted-foreground">
 														{p.protocolo_ad}

@@ -9,8 +9,11 @@ import { IRespostaProcesso, IProcesso } from '@/types/processo';
 
 export async function importar(data: IProcesso[]): Promise<IRespostaProcesso> {
 	try {
-		await requirePermissao('processos_importar');
-		const resultado = await importarProcessos(data as Parameters<typeof importarProcessos>[0]);
+		const session = await requirePermissao('processos_importar');
+		const resultado = await importarProcessos(
+			data as Parameters<typeof importarProcessos>[0],
+			session.usuario.sub,
+		);
 		return { ok: true, error: null, data: resultado, status: 201 };
 	} catch (error) {
 		const message = error instanceof Error ? error.message : 'Erro ao importar processos.';

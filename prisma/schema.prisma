@@ -41,6 +41,8 @@ model Usuario {
   permissoes Permissao[]
   grupos     GrupoPermissao[]
 
+  processos_criados Processo[] @relation("ProcessoCriador")
+
   @@map("usuarios")
 }
 
@@ -87,6 +89,11 @@ model Processo {
   // corrompida por escala). Mantido por prisma/backfill-totais.ts.
   valor_total_parcelas Decimal? @db.Decimal(16, 2)
 
+  // Usuário que abriu o processo (criação ou importação). Usado para restringir
+  // a visibilidade de quem não tem a permissão "processos_ver_todos" (ex.: Técnico).
+  criado_por      String?
+  usuario_criador Usuario? @relation("ProcessoCriador", fields: [criado_por], references: [id], onDelete: SetNull)
+
   criado_em   DateTime @default(now())
   alterado_em DateTime @default(now()) @updatedAt
 
@@ -99,6 +106,7 @@ model Processo {
   @@index([tipo])
   @@index([origem])
   @@index([data_entrada])
+  @@index([criado_por])
   @@map("processos")
 }
 
@@ -428,6 +436,10 @@ model MonitoramentoAnotacaoDeuso {
 
 model Parcela {
   id               String    @id @default(uuid())
+  // Obrigação que esta parcela paga. Um mesmo processo pode ter OODC (PDE/AIU) E
+  // Cota de Solidariedade (COTA) — obrigações independentes, cada uma parcelada.
+  // O cálculo da Cota fica em MonitoramentoCotaSolidariedade.
+  obrigacao        Tipo?
   num_parcela      Int
   valor            Float
   vencimento       DateTime  @db.Date
@@ -453,6 +465,7 @@ model Parcela {
 
   @@index([vencimento])
   @@index([status_quitacao])
+  @@index([processo_id, obrigacao])
   @@map("parcelas")
 }
 

@@ -329,6 +329,20 @@ async function aplicarPayloadGeoSampaNaFicha(
 	}
 }
 
+export async function salvarCotaSolidariedade(processoId: string, payload: Record<string, unknown>) {
+	const processo = await prisma.processo.findUnique({ where: { id: processoId } });
+	if (!processo) throw new Error('Processo não encontrado.');
+
+	const dados = limparRegistro(payload);
+	await prisma.monitoramentoCotaSolidariedade.upsert({
+		where: { processo_id: processoId },
+		create: { processo_id: processoId, ...dados },
+		update: dados,
+	});
+
+	return buscarDetalheProcesso(processoId);
+}
+
 export async function salvarDadosGeoSampaNoProcesso(
 	processoId: string,
 	modo: 'SQL' | 'PROCESSO',

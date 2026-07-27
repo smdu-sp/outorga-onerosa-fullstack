@@ -3,7 +3,13 @@ import { prisma } from '@/lib/prisma';
 import { processoDetalheInclude } from '@/lib/server/processos';
 import type { GeoSampaLogFn, IGeoSampaResult } from '@/types/geosampa';
 import { Prisma } from '@prisma/client';
-import { buscarSqlFilhoPorSqlPaiNoBi, buscarSqlPorProcessoNoBi } from './bi-cadastro';
+import {
+	buscarLicencasPorSqlNoBi,
+	buscarSqlFilhoPorSqlPaiNoBi,
+	buscarSqlPorProcessoNoBi,
+	mesclarLicencasPreferindoExistentes,
+	tiposLicencaFaltantes,
+} from './bi-cadastro';
 import { GeosampaWfsClient } from './geosampa-wfs.client';
 import {
 	mapEnquadramentoFromCamadas,
@@ -11,7 +17,7 @@ import {
 	mapOutorgaWfsParaGeoSampa,
 } from './geosampa-wfs.mapper';
 
-const RE_PROCESSO = /^\d{4}\.\d{4}\/\d{7}-\d$/;
+export const RE_PROCESSO = /^\d{4}\.\d{4}\/\d{7}-\d$/;
 
 export type ConsultaGeoSampaResolvida = {
 	data: IGeoSampaResult;
@@ -89,6 +95,8 @@ export async function consultarGeoSampa(
 			}
 		}
 
+		data = await enriquecerLicencasComplementares(data, { sql: identificador }, log);
+
 		return { data, modoSalvamento: 'SQL', identificadorSalvamento: identificador };
 	}
 
@@ -125,8 +133,14 @@ export async function consultarGeoSampa(
 			}
 		}
 
+		data = await enriquecerLicencasComplementares(
+			{ ...data, num_processo: identificador },
+			{ sql: sqlResolvido, processo: identificador },
+			log,
+		);
+
 		return {
-			data: { ...data, num_processo: identificador },
+			data,
 			modoSalvamento: 'SQL',
 			identificadorSalvamento: sqlResolvido,
 		};
@@ -137,8 +151,13 @@ export async function consultarGeoSampa(
 	const doBanco = await buscarPorProcesso(identificador);
 	if (doBanco) {
 		log('success', 'Dados locais encontrados — retornando sem consulta ao GeoSampa WFS.');
+		const data = await enriquecerLicencasComplementares(
+			doBanco,
+			{ processo: identificador, sql: montarSqlDaLocalizacao(doBanco.localizacao_lote ?? {}) ?? undefined },
+			log,
+		);
 		return {
-			data: doBanco,
+			data,
 			modoSalvamento: 'PROCESSO',
 			identificadorSalvamento: identificador,
 		};
@@ -278,7 +297,17 @@ export async function consultarProcessoNoWfs(processo: string): Promise<IGeoSamp
 			}
 		}
 
-		return resultado;
+		const sql =
+			montarSqlDaLocalizacao(resultado.localizacao_lote ?? {}) ??
+			(loteDto?.localizacao_lote
+				? montarSqlDaLocalizacao(loteDto.localizacao_lote)
+				: null);
+
+		return enriquecerLicencasComplementares(
+			resultado,
+			{ processo, sql: sql ?? undefined, pularOutorga: true },
+			() => {},
+		);
 	} catch (error) {
 		if (error instanceof GeoSampaConsultaError) throw error;
 		throw new GeoSampaConsultaError(
@@ -286,6 +315,64 @@ export async function consultarProcessoNoWfs(processo: string): Promise<IGeoSamp
 			'WFS',
 		);
 	}
+}
+
+/**
+ * Completa licenças que o lote GeoSampa não traz:
+ * 1) camada geoportal:outorga_onerosa (quando há nº de processo)
+ * 2) BI dbo.Assuntos via SQL do lote (aprovação / execução / certificado)
+ * Valores já presentes (GeoSampa ou banco local) têm prioridade.
+ */
+async function enriquecerLicencasComplementares(
+	data: IGeoSampaResult,
+	opts: { sql?: string; processo?: string; pularOutorga?: boolean },
+	log: GeoSampaLogFn,
+): Promise<IGeoSampaResult> {
+	let resultado = data;
+	const faltantes = () => tiposLicencaFaltantes(resultado.licencas);
+
+	if (!opts.pularOutorga && opts.processo && faltantes().length > 0) {
+		log('info', `Licenças incompletas — consultando GeoSampa outorga_onerosa para ${opts.processo}...`);
+		try {
+			const outorga = await wfs.buscarOutorgaPorProcesso(opts.processo);
+			if (outorga) {
+				resultado = mapOutorgaWfsParaGeoSampa(outorga, resultado, opts.processo);
+				log(
+					resultado.licencas?.some((l) => l.numero) ? 'success' : 'warn',
+					resultado.licencas?.some((l) => l.numero)
+						? 'Alvará obtido da camada outorga_onerosa.'
+						: 'outorga_onerosa sem número de alvará.',
+				);
+			} else {
+				log('warn', 'Processo não encontrado em outorga_onerosa.');
+			}
+		} catch (error) {
+			log('warn', `Falha ao consultar outorga_onerosa: ${(error as Error).message}`);
+		}
+	}
+
+	const sql =
+		opts.sql ??
+		montarSqlDaLocalizacao(resultado.localizacao_lote ?? {}) ??
+		undefined;
+
+	if (sql && faltantes().length > 0) {
+		log(
+			'info',
+			`Licenças ainda incompletas (${faltantes().join(', ')}) — consultando BI por SQL ${sql}...`,
+		);
+		const doBi = await buscarLicencasPorSqlNoBi(sql, log);
+		resultado = {
+			...resultado,
+			licencas: mesclarLicencasPreferindoExistentes(resultado.licencas, doBi),
+		};
+	} else if (!faltantes().length) {
+		log('info', 'Licenças já completas — BI não consultado para alvarás.');
+	} else if (!sql) {
+		log('warn', 'Sem SQL para complementar licenças no BI.');
+	}
+
+	return resultado;
 }
 
 async function enriquecerEspacialmente(

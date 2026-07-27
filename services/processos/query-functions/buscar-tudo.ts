@@ -2,7 +2,7 @@
 
 'use server';
 
-import { requireAuth } from '@/lib/auth/session';
+import { requireAuth, usuarioPermitido } from '@/lib/auth/session';
 import { buscarTodosProcessos } from '@/lib/server/processos';
 import { IRespostaProcesso } from '@/types/processo';
 
@@ -14,9 +14,13 @@ export async function buscarTudo(
 	status: string = 'TODOS',
 	vencimento: string = '',
 	pendencia: string = '',
+	novo: string = 'TODOS',
 ): Promise<IRespostaProcesso> {
 	try {
-		await requireAuth();
+		const session = await requireAuth();
+		const userId = session.usuario.sub;
+		const verTodos = await usuarioPermitido(userId, 'processos_ver_todos');
+		const verQuitados = !verTodos && (await usuarioPermitido(userId, 'processos_ver_quitados'));
 		const data = await buscarTodosProcessos(
 			pagina,
 			limite,
@@ -25,6 +29,12 @@ export async function buscarTudo(
 			status,
 			vencimento,
 			pendencia,
+			verTodos
+				? undefined
+				: verQuitados
+					? { apenasQuitados: true }
+					: { criadoPor: userId },
+			novo,
 		);
 		return { ok: true, error: null, data, status: 200 };
 	} catch (error) {

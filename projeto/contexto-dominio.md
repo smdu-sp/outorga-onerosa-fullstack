@@ -42,6 +42,18 @@ contrapartida:
 > Códigos variantes vistos nos dados: `7022`/`7023` (PDE), `7137` (COTA). O `7022`
 > aparece em processos **SLC** (Serviço/Licenciamento) sem `SISTEMA` preenchido.
 
+### Um processo pode ter OODC **e** Cota
+São **obrigações independentes**: um empreendimento acima do coeficiente básico **e**
+acima do limite da Cota paga OODC (PDE/AIU) **e** cumpre a Cota de Solidariedade. É
+comum — na planilha há **10 processos** com códigos 78 e 79 juntos, cada obrigação
+podendo estar parcelada ou à vista, com valores distintos.
+
+Por isso a obrigação vive na **parcela**, não só no processo: `Parcela.obrigacao`
+(`Tipo`) diz qual obrigação cada parcela paga, e um processo pode ter os dois conjuntos
+(OODC parcela 1..N **e** COTA parcela 1..M). `Processo.tipo` continua como tipo
+predominante, mas **não** é fonte de verdade para "tem Cota?" — isso vem das parcelas.
+O **cálculo** da Cota (valor, HIS, área) fica em `MonitoramentoCotaSolidariedade`.
+
 ---
 
 ## 3. Conceitos financeiros
@@ -60,12 +72,13 @@ parcelas (normalmente **10**; nos dados vão de 1 a 20). Cada linha da planilha
 financeira é **uma parcela** — um processo ocupa várias linhas consecutivas, uma por
 parcela. Campos por parcela (modelo `Parcela`):
 
-- `num_parcela` — ordem (1..N)
+- `obrigacao` — qual obrigação paga (`PDE`/OODC, `COTA`, `AIU`); ver §2
+- `num_parcela` — ordem (1..N), reinicia por obrigação
 - `vencimento` — data de vencimento
 - `valor` — valor da parcela (geralmente igual entre as parcelas do mesmo processo)
 - `data_quitacao` / `ano_pagamento` — quando foi paga
 - `status_quitacao` — paga ou não
-- `antecipada` — quitada antes do vencimento
+- `antecipada` — quitada em mês anterior ao planejado (ver **Antecipação** abaixo)
 - `quebra` — ver abaixo
 
 ### Quebra
@@ -75,6 +88,24 @@ parcelas restantes a partir daquele ponto são marcadas como **Quebra**. Exemplo
 foi "quebrado" na 5ª parcela. No enum `StatusPagamento` do processo, `QUEBRA` é o status
 de maior prioridade (um processo com qualquer parcela quebrada é classificado como
 quebra). Uma parcela em quebra **não** conta como arrecadada nem como "a vencer".
+
+### Antecipação
+Pela prática administrativa da SMUL, **pode-se antecipar** o pagamento: quitar uma
+parcela futura, várias, ou todo o saldo. **Não há desconto** — o valor da parcela é o
+mesmo, apenas pago antes; para arrecadação, entra no **mês do pagamento** (não no do
+vencimento).
+
+Nem todo pagamento adiantado é antecipação. A regra canônica está em
+[lib/antecipacao.ts](../lib/antecipacao.ts) (`classificarAntecipacao`):
+
+> **antecipada = o pagamento caiu num mês anterior ao do vencimento E mais de
+> `DIAS_TOLERANCIA_VIRADA_MES` (7) dias antes.**
+
+A tolerância descarta a **virada de mês**: quando o vencimento é no início do mês e o
+pagamento acontece nos últimos dias do mês anterior (ex.: vence 01/07, pago 29/06), é
+pagamento no prazo, não antecipação. Pagamento no mesmo mês do vencimento nunca é
+antecipação (o dinheiro entra no mês planejado). Um único pagamento bem adiantado
+(quitar uma parcela futura) **é** antecipação — não é preciso ser em lote.
 
 ### Status do processo (`StatusPagamento`)
 Derivado do conjunto de parcelas — prioridade `QUEBRA > EM_PAGAMENTO > QUITADO`:
@@ -115,14 +146,17 @@ layouts `ad_dpd` / `ad_dpci` / `fisico` no import.
 Porque "cada um preenche de um jeito", o parsing precisa ser tolerante. Observado nos
 dados reais:
 
-- **Coluna Situação** mistura vocabulário e caixa:
-  `Pago`, `Quitado`, `A Vencer`, `A VENCER`, `Quebra`, `QUEBRA`. Normalizar por
-  *uppercase* + `includes` (é o que o import faz: `QUEBRA`→não quitada, `PAGO`/`QUITADO`
-  →quitada).
-- **Dados vazando para a coluna errada:** ~60 linhas têm uma **data** na coluna Situação
-  (ex.: `Tue Jul 21 2026…`) e ~14 têm objetos (`[object Object]`). Nos processos com
-  código `7022`, a **Data de Pagamento aparece na coluna Situação** e SISTEMA/ Data de
-  Entrada ficam vazios.
+- **Coluna Situação** mistura vocabulário, caixa e formatação:
+  `Pago`, `Quitado`, `à vista`, `A Vencer`, `A VENCER`, `Quebra`, `QUEBRA` — inclusive
+  alguns `Pago` gravados como *rich text* colorido (objeto, não string). Normalizar
+  **sempre** com [`normalizarSituacaoParcela`](../lib/normalizar-status.ts), que
+  desembrulha rich text/fórmula, tira acento e caixa, e classifica em
+  `QUITADO | A_VENCER | QUEBRA | INDEFINIDO`. Distribuição real: 575 QUITADO /
+  516 A_VENCER / 458 QUEBRA / 74 INDEFINIDO.
+- **Dados vazando para a coluna errada:** ~61 linhas têm uma **data** na coluna Situação
+  (às vezes como resultado de fórmula) — viram `INDEFINIDO` na normalização. Nos
+  processos com código `7022`, a **Data de Pagamento aparece na coluna Situação** e
+  SISTEMA / Data de Entrada ficam vazios.
 - **Linhas de continuação em branco:** só a 1ª parcela do processo traz
   Data de Entrada / SISTEMA / Protocolo; as demais herdam (fill-forward). Por isso o
   parser guarda o "processo corrente" e só troca quando aparece novo nº de processo.
@@ -133,6 +167,7 @@ dados reais:
 
 Fontes canônicas de parsing já implementadas (reutilizar, não reinventar):
 [lib/parse-numero-br.ts](../lib/parse-numero-br.ts) (números BR: `1.234,56`),
+[lib/normalizar-status.ts](../lib/normalizar-status.ts) (Situação → status canônico),
 `parseExcelDate`, `cleanText`, `normalizeProcesso` no import.
 
 ---

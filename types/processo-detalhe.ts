@@ -186,6 +186,8 @@ export type IProcessoDetalhe = {
 	protocolo_ad?: string | null;
 	data_entrada?: string | null;
 	status_pagamento?: string;
+	origem?: string | null;
+	criado_por?: string | null;
 	criado_em?: string;
 	alterado_em?: string;
 	parcelas?: IParcela[];

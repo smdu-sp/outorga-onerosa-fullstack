@@ -78,18 +78,20 @@ function valoresIguais(a: unknown, b: unknown): boolean {
 	return valorParaInput('', a).trim() === valorParaInput('', b).trim();
 }
 
-function CampoEditavel({
+export function CampoEditavel({
 	chave,
 	label,
 	valor,
 	onSalvar,
 	salvando,
+	enumOpcoes: enumOpcoesProp,
 }: {
 	chave: string;
 	label: string;
 	valor: unknown;
 	onSalvar: (chave: string, valor: string) => void;
 	salvando: boolean;
+	enumOpcoes?: Record<string, string>;
 }) {
 	const [local, setLocal] = useState(() => valorParaInput(chave, valor));
 	const original = useRef(valorParaInput(chave, valor));
@@ -105,7 +107,7 @@ function CampoEditavel({
 		onSalvar(chave, local);
 	};
 
-	const enumOpcoes = CAMPOS_ENUM[chave];
+	const enumOpcoes = enumOpcoesProp ?? CAMPOS_ENUM[chave];
 	const inputClass =
 		'h-9 rounded-md border border-border bg-background px-3 text-sm shadow-none focus-visible:ring-1';
 

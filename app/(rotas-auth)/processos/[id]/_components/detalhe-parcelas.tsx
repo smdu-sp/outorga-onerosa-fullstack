@@ -5,10 +5,22 @@ import { IParcela } from '@/types/processo';
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
 import { enriquecerParcelas, type IParcelaView } from '@/lib/parcelas-utils';
 import { acaoParcela } from '@/services/processos/server-functions/acao-parcela';
-import { TrendingDown, Undo2, Zap } from 'lucide-react';
+import { RotateCcw, TrendingDown, Undo2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { STATUS_PAGAMENTO } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
+import { ParcelaModal } from './parcela-modal';
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -44,18 +56,25 @@ export function DetalheParcelas({
 	parcelas,
 	statusPagamento,
 	onAtualizado,
+	podeEditar = false,
+	podeReverterAntecipacao = false,
 }: {
 	processoId: string;
 	parcelas: IParcela[];
 	statusPagamento?: string | null;
 	onAtualizado: (detalhe: IProcessoDetalhe) => void;
+	podeEditar?: boolean;
+	podeReverterAntecipacao?: boolean;
 }) {
 	const [pending, startTransition] = useTransition();
 	const parcelasView = enriquecerParcelas(parcelas);
 	const total = parcelas.reduce((s, p) => s + (p.valor ?? 0), 0);
 	const pagas = parcelas.filter((p) => p.status_quitacao).length;
 
-	function executarAcao(parcelaId: string, acao: 'antecipar' | 'quebra' | 'reverter') {
+	function executarAcao(
+		parcelaId: string,
+		acao: 'antecipar' | 'quebra' | 'reverter' | 'reverter-antecipacao',
+	) {
 		startTransition(async () => {
 			const resp = await acaoParcela(processoId, parcelaId, acao);
 			if (!resp.ok || !resp.data) {
@@ -67,6 +86,7 @@ export function DetalheParcelas({
 				antecipar: 'Parcela marcada como antecipada.',
 				quebra: 'Quebra registrada.',
 				reverter: 'Quebra revertida.',
+				'reverter-antecipacao': 'Antecipação desfeita — parcela voltou a pendente.',
 			};
 			toast.success(mensagens[acao]);
 		});
@@ -87,14 +107,17 @@ export function DetalheParcelas({
 					<span className="mr-1 text-base font-bold text-foreground">{fmtBRL(total)}</span>
 					total
 				</div>
-				{statusPagamento && (
-					<div className="ml-auto text-xs">
-						Status do processo:{' '}
-						<span className="font-semibold text-foreground">
-							{STATUS_PAGAMENTO[statusPagamento] ?? statusPagamento}
-						</span>
-					</div>
-				)}
+				<div className="ml-auto flex items-center gap-3.5">
+					{statusPagamento && (
+						<div className="text-xs">
+							Status do processo:{' '}
+							<span className="font-semibold text-foreground">
+								{STATUS_PAGAMENTO[statusPagamento] ?? statusPagamento}
+							</span>
+						</div>
+					)}
+					{podeEditar && <ParcelaModal processoId={processoId} onAtualizado={onAtualizado} />}
+				</div>
 			</div>
 
 			<div className="overflow-x-auto">
@@ -154,17 +177,77 @@ export function DetalheParcelas({
 										</td>
 										<td className="border-t border-border px-3.5 py-3">
 											<div className="flex justify-end gap-1.5">
-												{pendente && (
-													<button
-														type="button"
-														disabled={pending}
-														title="Antecipar — munícipe pagou adiantado"
-														onClick={() => p.id && executarAcao(p.id, 'antecipar')}
-														className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/25 bg-card text-primary transition-colors hover:bg-primary/8 disabled:opacity-50">
-														<Zap className="h-3.5 w-3.5" />
-													</button>
+												{podeEditar && (
+													<ParcelaModal
+														processoId={processoId}
+														parcela={p}
+														onAtualizado={onAtualizado}
+													/>
 												)}
-												{p.quebra ? (
+												{podeEditar && pendente && (
+													<AlertDialog>
+														<AlertDialogTrigger asChild>
+															<button
+																type="button"
+																disabled={pending}
+																title="Antecipar — munícipe pagou adiantado"
+																className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/25 bg-card text-primary transition-colors hover:bg-primary/8 disabled:opacity-50">
+																<Zap className="h-3.5 w-3.5" />
+															</button>
+														</AlertDialogTrigger>
+														<AlertDialogContent>
+															<AlertDialogHeader>
+																<AlertDialogTitle>Confirmar antecipação</AlertDialogTitle>
+																<AlertDialogDescription>
+																	Confirma que a parcela nº {p.num_parcela} foi realmente
+																	antecipada pelo munícipe? Apenas esta parcela será marcada
+																	como quitada — as demais permanecem pendentes e precisam
+																	ser antecipadas individualmente.
+																</AlertDialogDescription>
+															</AlertDialogHeader>
+															<AlertDialogFooter>
+																<AlertDialogCancel>Cancelar</AlertDialogCancel>
+																<AlertDialogAction
+																	onClick={() => p.id && executarAcao(p.id, 'antecipar')}>
+																	Confirmar antecipação
+																</AlertDialogAction>
+															</AlertDialogFooter>
+														</AlertDialogContent>
+													</AlertDialog>
+												)}
+												{podeReverterAntecipacao && p.antecipada && (
+													<AlertDialog>
+														<AlertDialogTrigger asChild>
+															<button
+																type="button"
+																disabled={pending}
+																title="Desfazer antecipação (admin)"
+																className="inline-flex h-8 items-center gap-1 rounded-lg border border-border bg-card px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50">
+																<RotateCcw className="h-3.5 w-3.5" />
+																Desfazer
+															</button>
+														</AlertDialogTrigger>
+														<AlertDialogContent>
+															<AlertDialogHeader>
+																<AlertDialogTitle>Desfazer antecipação</AlertDialogTitle>
+																<AlertDialogDescription>
+																	A parcela nº {p.num_parcela} voltará ao status anterior
+																	(pendente, sem data de quitação). Deseja continuar?
+																</AlertDialogDescription>
+															</AlertDialogHeader>
+															<AlertDialogFooter>
+																<AlertDialogCancel>Cancelar</AlertDialogCancel>
+																<AlertDialogAction
+																	onClick={() =>
+																		p.id && executarAcao(p.id, 'reverter-antecipacao')
+																	}>
+																	Desfazer antecipação
+																</AlertDialogAction>
+															</AlertDialogFooter>
+														</AlertDialogContent>
+													</AlertDialog>
+												)}
+												{podeEditar && p.quebra && (
 													<button
 														type="button"
 														disabled={pending}
@@ -174,7 +257,8 @@ export function DetalheParcelas({
 														<Undo2 className="h-3.5 w-3.5" />
 														Reverter
 													</button>
-												) : !processoQuitado && (
+												)}
+												{podeEditar && !p.quebra && !processoQuitado && (
 													<button
 														type="button"
 														disabled={pending}
@@ -207,6 +291,12 @@ export function DetalheParcelas({
 					<Undo2 className="h-3.5 w-3.5" />
 					Reverter — desfazer quebra registrada
 				</span>
+				{podeReverterAntecipacao && (
+					<span className="inline-flex items-center gap-1.5">
+						<RotateCcw className="h-3.5 w-3.5" />
+						Desfazer — restaura parcela antecipada para pendente (admin)
+					</span>
+				)}
 			</div>
 		</div>
 	);

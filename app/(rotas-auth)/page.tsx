@@ -1,6 +1,8 @@
 /** @format */
 
 import { TableSkeleton } from '@/components/data-table';
+import { requireAuth, usuarioPermitido } from '@/lib/auth/session';
+import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import ValorRecebidoAno from './_components/graficos/valor-recebido-ano';
 import Report from './_components/report';
@@ -28,6 +30,11 @@ async function Home({
 }: {
 	searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+	const session = await requireAuth();
+	if (!(await usuarioPermitido(session.usuario.sub, 'dashboard_ver'))) {
+		redirect('/processos');
+	}
+
 	const { data, ok } = await dashboard();
 	let relatorio: IDashboard | null = null;
 	if (ok) {

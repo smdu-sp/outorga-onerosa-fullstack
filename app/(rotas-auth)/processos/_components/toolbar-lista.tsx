@@ -25,12 +25,16 @@ export function ToolbarLista({
 	statusInicial = 'TODOS',
 	vencimentoInicial = '',
 	pendenciaInicial = '',
+	novoInicial = 'TODOS',
+	mostrarFiltroNovo = false,
 }: {
 	buscaInicial?: string;
 	tipoInicial?: string;
 	statusInicial?: string;
 	vencimentoInicial?: string;
 	pendenciaInicial?: string;
+	novoInicial?: string;
+	mostrarFiltroNovo?: boolean;
 }) {
 	const router = useRouter();
 	const pathname = usePathname();
@@ -92,6 +96,16 @@ export function ToolbarLista({
 						{ value: 'QUEBRA', label: 'Quebra' },
 					]}
 				/>
+				{mostrarFiltroNovo && (
+					<FiltroGrupo
+						valor={novoInicial}
+						onChange={(novo) => atualizarParams({ novo })}
+						opcoes={[
+							{ value: 'TODOS', label: 'Todos' },
+							{ value: 'SIM', label: 'Novos' },
+						]}
+					/>
+				)}
 			</div>
 
 			<div className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary p-1">

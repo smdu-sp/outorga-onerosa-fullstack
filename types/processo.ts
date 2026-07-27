@@ -28,6 +28,8 @@ export type IProcesso = {
 	protocolo_ad?: string;
 	data_entrada?: Date;
 	status_pagamento?: string;
+	origem?: string;
+	criado_por?: string;
 	parcelas?: IParcela[];
 	total_parcelas?: number;
 	interessado?: string | null;
@@ -76,6 +78,7 @@ export type ICreateProcesso = {
 	num_processo: string;
 	protocolo_ad?: string;
 	data_entrada: Date;
+	origem?: string;
 	parcelas?: IParcela[];
 	valor_total: number;
 };

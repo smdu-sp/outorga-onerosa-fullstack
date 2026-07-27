@@ -2,10 +2,12 @@
 
 import { RenderSecao } from '@/app/(rotas-auth)/_components/processo-detalhe-campos';
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
+import { IPermissoesProcesso } from '@/types/permissoes-processo';
 import { Check } from 'lucide-react';
 import { AvisoCalculo, metaSecao } from './detalhe-vnav';
 import { DetalheParcelas } from './detalhe-parcelas';
 import { RenderSecaoMonitoramentoEditavel } from './monitoramento-campos-editaveis';
+import { DadosIniciaisEditavel } from './dados-iniciais-editavel';
 import { SECOES_MONITORAMENTO_DEUSO } from '@/lib/monitoramento-secoes';
 import { secaoPorId, secaoSemRegistro } from './detalhe-nav';
 
@@ -16,10 +18,12 @@ export function DetalhePainel({
 	secaoId,
 	detalhe,
 	onDetalheAtualizado,
+	permissoes,
 }: {
 	secaoId: string;
 	detalhe: IProcessoDetalhe;
 	onDetalheAtualizado: (detalhe: IProcessoDetalhe) => void;
+	permissoes: IPermissoesProcesso;
 }) {
 	const secao = secaoPorId(secaoId);
 	if (!secao) {
@@ -32,7 +36,12 @@ export function DetalhePainel({
 
 	const meta = metaSecao(secaoId, detalhe);
 	const semRegistro = secaoSemRegistro(secao, detalhe);
-	const editavelDeuso = SECOES_MONITORAMENTO_DEUSO.has(secaoId);
+	// "cota" é uma planilha do DEUSO (ver contexto-dominio.md) — mesma permissão das
+	// demais abas de Monitoramento DEUSO, embora fique agrupada em "Processo" na nav.
+	const editavelDeuso =
+		(SECOES_MONITORAMENTO_DEUSO.has(secaoId) || secaoId === 'cota') &&
+		permissoes.podeEditarMonitoramento;
+	const editavelDadosIniciais = secaoId === 'processo' && permissoes.podeEditarDadosIniciais;
 
 	return (
 		<div className="min-h-[60vh] min-w-0 flex-1 rounded-[var(--radius)] border border-border bg-card">
@@ -70,7 +79,11 @@ export function DetalhePainel({
 						parcelas={detalhe.parcelas ?? []}
 						statusPagamento={detalhe.status_pagamento}
 						onAtualizado={onDetalheAtualizado}
+						podeEditar={permissoes.podeEditarParcelas}
+						podeReverterAntecipacao={permissoes.podeReverterAntecipacao}
 					/>
+				) : editavelDadosIniciais ? (
+					<DadosIniciaisEditavel detalhe={detalhe} onAtualizado={onDetalheAtualizado} />
 				) : editavelDeuso ? (
 					<RenderSecaoMonitoramentoEditavel
 						secao={secao}

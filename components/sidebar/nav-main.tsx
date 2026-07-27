@@ -78,6 +78,11 @@ function NavItems({ items }: { items: IMenu[] }) {
 							<Link href={item.url || '#'}>
 								{item.icone && <item.icone />}
 								<span>{item.titulo}</span>
+								{!!item.badge && (
+									<span className="ml-auto inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-destructive px-1 text-[10.5px] font-semibold leading-none text-destructive-foreground">
+										{item.badge}
+									</span>
+								)}
 							</Link>
 						</SidebarMenuButton>
 					</SidebarMenuItem>

@@ -9,11 +9,16 @@ export async function criarPermissao(createPermissaoDto: ICreatePermissao) {
 	const valida = await prisma.permissao.findUnique({ where: { permissao } });
 	if (valida) throw new Error('Essa permissão já está cadastrada.');
 
+	// Toda permissão nova é automaticamente concedida ao grupo "Administrador" (se existir),
+	// para que Admin continue "vendo e alterando tudo" sem depender de atribuição manual.
+	const grupoAdmin = await prisma.grupoPermissao.findUnique({ where: { nome: 'Administrador' } });
+	const idsGrupos = new Set([...(grupos ?? []), ...(grupoAdmin ? [grupoAdmin.id] : [])]);
+
 	return prisma.permissao.create({
 		data: {
 			nome,
 			permissao,
-			grupos: grupos?.length ? { connect: grupos.map((id) => ({ id })) } : {},
+			grupos: idsGrupos.size ? { connect: [...idsGrupos].map((id) => ({ id })) } : {},
 		},
 	});
 }

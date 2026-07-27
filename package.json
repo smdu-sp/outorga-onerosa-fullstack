@@ -19,6 +19,7 @@
     "db:limpar-processos": "tsx prisma/limpar-processos.ts",
     "db:atualizar-processos": "tsx scripts/atualizar-processos-sem-dados.ts",
     "db:normalizar-enquadramento": "tsx scripts/normalizar-enquadramento.ts",
+    "db:seed-permissoes-outorga": "tsx prisma/seed-permissoes-outorga.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

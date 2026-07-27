@@ -1,5 +1,9 @@
 # CLAUDE.md
 
+## Idioma
+
+Responda **sempre em português do Brasil**, independentemente do idioma da pergunta.
+
 Portal de **Outorga Onerosa** da Prefeitura de São Paulo (SMUL / DEUSO). O sistema
 transforma planilhas de controle preenchidas manualmente em banco de dados e
 dashboards/relatórios.

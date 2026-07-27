@@ -1,10 +1,16 @@
 import Main from "@/components/main";
 import { auth } from "@/lib/auth/auth";
-import { sessaoValida } from "@/lib/auth/session";
+import { sessaoValida, usuarioPermitido } from "@/lib/auth/session";
+import { contarProcessosNovos } from "@/lib/server/processos";
 import { redirect } from "next/navigation";
 
 export default async function RotasAuth({children}:{children: React.ReactNode}) {
     const session = await auth();
     if (!sessaoValida(session)) redirect('/login');
-    return <Main>{children}</Main>;
+
+    const userId = session.usuario.sub;
+    const podeVerContadorNovos = await usuarioPermitido(userId, 'parcelas_editar');
+    const processosNovos = podeVerContadorNovos ? await contarProcessosNovos() : 0;
+
+    return <Main processosNovos={processosNovos}>{children}</Main>;
 }

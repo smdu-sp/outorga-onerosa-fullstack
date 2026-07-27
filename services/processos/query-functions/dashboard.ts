@@ -2,13 +2,13 @@
 
 'use server';
 
-import { requireAuth } from '@/lib/auth/session';
+import { requirePermissao } from '@/lib/auth/session';
 import { dashboardProcessos } from '@/lib/server/processos';
 import { IRespostaProcesso } from '@/types/processo';
 
 export async function dashboard(): Promise<IRespostaProcesso> {
 	try {
-		await requireAuth();
+		await requirePermissao('dashboard_ver');
 		const data = await dashboardProcessos();
 		return { ok: true, error: null, data, status: 200 };
 	} catch (error) {

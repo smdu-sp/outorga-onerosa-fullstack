@@ -23,6 +23,7 @@ export interface IMenu {
 	titulo: string;
 	url?: string;
 	permissao?: string;
+	badge?: number;
 	subItens?: ISubMenu[];
 }
 
@@ -31,23 +32,26 @@ export interface ISubMenu {
 	url: string;
 }
 
-const menuUsuario: IMenu[] = [
-	{
-		icone: House,
-		titulo: 'Página Inicial',
-		url: '/',
-	},
-	{
-		icone: FolderOpen,
-		titulo: 'Processos',
-		url: '/processos',
-	},
-	{
-		icone: BarChart3,
-		titulo: 'Relatórios',
-		url: '/relatorios',
-	},
-];
+function montarMenuUsuario(processosNovos: number): IMenu[] {
+	return [
+		{
+			icone: House,
+			titulo: 'Página Inicial',
+			url: '/',
+		},
+		{
+			icone: FolderOpen,
+			titulo: 'Processos',
+			url: '/processos',
+			badge: processosNovos > 0 ? processosNovos : undefined,
+		},
+		{
+			icone: BarChart3,
+			titulo: 'Relatórios',
+			url: '/relatorios',
+		},
+	];
+}
 
 const menuAdmin: IMenu[] = [
 	{
@@ -78,9 +82,11 @@ const menuDev: IMenu[] =
 export default function Main({
 	override = false,
 	children,
+	processosNovos = 0,
 }: {
 	override?: boolean;
 	children?: ReactNode;
+	processosNovos?: number;
 }) {
 	return override ? (
 		children
@@ -88,7 +94,7 @@ export default function Main({
 		<SidebarProvider
 			style={{ '--sidebar-width': '244px' } as CSSProperties}
 			className="min-h-svh bg-app-background">
-			<AppSidebar data={{ menuUsuario, menuAdmin, menuDev }} />
+			<AppSidebar data={{ menuUsuario: montarMenuUsuario(processosNovos), menuAdmin, menuDev }} />
 			<SidebarInset className="bg-app-background">
 				<div className="flex min-h-svh flex-col">
 					<div className="flex items-center border-b border-border bg-app-background px-4 py-3 md:hidden">

@@ -13,6 +13,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
 import { parseNumeroBr } from '../lib/parse-numero-br';
+import {
+  normalizarSituacaoParcela,
+  situacaoEmQuebra,
+} from '../lib/normalizar-status';
+import { classificarAntecipacao } from '../lib/antecipacao';
 
 const prisma = new PrismaClient();
 
@@ -59,7 +64,9 @@ interface ParcelaImport {
   cpf_cnpj?: string;
   status_quitacao: boolean;
   antecipada: boolean;
+  dias_antecipacao?: number;
   quebra?: boolean;
+  obrigacao?: Tipo;
 }
 
 interface ProcessoImport {
@@ -183,20 +190,13 @@ function statusFromSheetName(name: string): StatusPagamento {
   return 'EM_PAGAMENTO';
 }
 
-function parcelaQuitada(
-  situacao: unknown,
-  statusSheet: StatusPagamento,
-  layout: 'ad_dpd' | 'ad_dpci' | 'fisico',
-): boolean {
-  const text = cleanText(situacao)?.toUpperCase() ?? '';
-  if (text.includes('QUEBRA')) return false;
-  if (text.includes('QUITADO') || text === 'PAGO' || text.includes('PAGO')) return true;
-  if (statusSheet === 'QUITADO') return true;
-  // Aprova Digital: abas quitadas não trazem data de pagamento — status pela aba/situação
-  if (layout !== 'fisico' && statusSheet === 'EM_PAGAMENTO' && text.includes('VENCEU')) {
-    return false;
-  }
-  return false;
+function parcelaQuitada(situacao: unknown, statusSheet: StatusPagamento): boolean {
+  const status = normalizarSituacaoParcela(situacao);
+  if (status === 'QUEBRA') return false;
+  if (status === 'QUITADO') return true;
+  if (status === 'A_VENCER') return false;
+  // Situação ilegível (vazia / data ou objeto vazado): decide pelo status da aba.
+  return statusSheet === 'QUITADO';
 }
 
 function readSheetRows(filePath: string, sheetName: string): unknown[][] {
@@ -233,11 +233,13 @@ function mergeProcesso(processo: ProcessoImport) {
     existing.status_pagamento = processo.status_pagamento;
   }
 
-  const parcelasPorNumero = new Map<number, ParcelaImport>();
+  // Chave por obrigação + nº parcela: OODC e COTA podem ter parcela 1, 2, … cada
+  // uma. Sem a obrigação na chave, uma sobrescreveria a outra.
+  const parcelasPorChave = new Map<string, ParcelaImport>();
   for (const parcela of [...existing.parcelas, ...processo.parcelas]) {
-    parcelasPorNumero.set(parcela.num_parcela, parcela);
+    parcelasPorChave.set(`${parcela.obrigacao ?? '?'}#${parcela.num_parcela}`, parcela);
   }
-  existing.parcelas = [...parcelasPorNumero.values()].sort(
+  existing.parcelas = [...parcelasPorChave.values()].sort(
     (a, b) => a.num_parcela - b.num_parcela,
   );
 }
@@ -333,17 +335,26 @@ function parseParcelSheet(
     if (dataEntrada && !current.data_entrada) current.data_entrada = dataEntrada;
     if (protocolo && !current.protocolo_ad) current.protocolo_ad = protocolo;
 
-    const quitada = parcelaQuitada(situacao, statusSheet, layout);
+    const quitada = parcelaQuitada(situacao, statusSheet);
     const dataQuitacaoFinal = layout === 'fisico' ? dataQuitacao : undefined;
     let antecipada = false;
+    let diasAntecipacao: number | undefined;
     if (quitada) {
       if (dataQuitacaoFinal) {
-        antecipada = dataQuitacaoFinal < vencimento;
+        // Fonte única: mês anterior ao vencimento + tolerância de virada de mês.
+        const classif = classificarAntecipacao(vencimento, dataQuitacaoFinal);
+        antecipada = classif.antecipada;
+        diasAntecipacao = classif.antecipada ? classif.diasAntecipacao : undefined;
       } else if (anoPagamento != null) {
+        // Aprova Digital não traz data de quitação; pago em ano anterior ao do
+        // vencimento já é antecipação (meses antes), mas sem dias precisos.
         antecipada = anoPagamento < vencimento.getFullYear();
       }
     }
     current.parcelas.push({
+      // Obrigação da parcela pelo código da linha (78=COTA, 79=OODC/PDE, 109=AIU).
+      // Um processo pode ter as duas — não confundir com current.tipo do processo.
+      obrigacao: parseTipo(codigo) ?? current.tipo,
       num_parcela: numParcela,
       valor,
       vencimento,
@@ -353,7 +364,10 @@ function parseParcelSheet(
       cpf_cnpj: cpfAtual,
       status_quitacao: quitada,
       antecipada,
-      quebra: statusSheet === 'QUEBRA' && !quitada,
+      dias_antecipacao: diasAntecipacao,
+      // Quebra vem da própria Situação da linha (fonte confiável) ou, na falta
+      // dela, da aba dedicada a quebras.
+      quebra: situacaoEmQuebra(situacao) || (statusSheet === 'QUEBRA' && !quitada),
     });
   }
 
@@ -423,6 +437,7 @@ async function upsertProcessos() {
           status_pagamento: processo.status_pagamento,
           parcelas: {
             create: processo.parcelas.map((parcela) => ({
+              obrigacao: parcela.obrigacao,
               num_parcela: parcela.num_parcela,
               valor: parcela.valor,
               vencimento: parcela.vencimento,
@@ -431,6 +446,7 @@ async function upsertProcessos() {
               cpf_cnpj: parcela.cpf_cnpj,
               status_quitacao: parcela.status_quitacao,
               antecipada: parcela.antecipada,
+              dias_antecipacao: parcela.dias_antecipacao,
               quebra: parcela.quebra ?? false,
             })),
           },
@@ -448,6 +464,7 @@ async function upsertProcessos() {
           status_pagamento: processo.status_pagamento,
           parcelas: {
             create: processo.parcelas.map((parcela) => ({
+              obrigacao: parcela.obrigacao,
               num_parcela: parcela.num_parcela,
               valor: parcela.valor,
               vencimento: parcela.vencimento,
@@ -456,6 +473,7 @@ async function upsertProcessos() {
               cpf_cnpj: parcela.cpf_cnpj,
               status_quitacao: parcela.status_quitacao,
               antecipada: parcela.antecipada,
+              dias_antecipacao: parcela.dias_antecipacao,
               quebra: parcela.quebra ?? false,
             })),
           },

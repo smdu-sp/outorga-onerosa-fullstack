@@ -1,6 +1,7 @@
 /** @format */
 
 import { TableSkeleton } from '@/components/data-table';
+import { requireAuth, usuarioPermitido } from '@/lib/auth/session';
 import { buscarDetalhe } from '@/services/processos/query-functions/buscar-detalhe';
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
 import { notFound } from 'next/navigation';
@@ -19,9 +20,37 @@ export default async function ProcessoDetalhePage({
 
 	const processo = data as IProcessoDetalhe;
 
+	const session = await requireAuth();
+	const userId = session.usuario.sub;
+	const [
+		podeVerTodos,
+		podeEditarDadosIniciais,
+		podeEditarParcelas,
+		podeEditarMonitoramento,
+		podeRecalcular,
+		podeReverterAntecipacao,
+	] = await Promise.all([
+		usuarioPermitido(userId, 'processos_ver_todos'),
+		usuarioPermitido(userId, 'processos_editar_dados_iniciais'),
+		usuarioPermitido(userId, 'parcelas_editar'),
+		usuarioPermitido(userId, 'monitoramento_editar'),
+		usuarioPermitido(userId, 'processos_recalcular'),
+		usuarioPermitido(userId, 'parcelas_reverter_antecipacao'),
+	]);
+
 	return (
 		<Suspense fallback={<TableSkeleton />}>
-			<DetalheLayout processo={processo} />
+			<DetalheLayout
+				processo={processo}
+				permissoes={{
+					podeVerTodos,
+					podeEditarDadosIniciais,
+					podeEditarParcelas,
+					podeEditarMonitoramento,
+					podeRecalcular,
+					podeReverterAntecipacao,
+				}}
+			/>
 		</Suspense>
 	);
 }
