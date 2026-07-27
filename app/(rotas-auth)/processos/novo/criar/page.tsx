@@ -14,7 +14,7 @@ export default async function CriarProcessoPage({
 }: {
 	searchParams: Promise<{ modo?: string; id?: string }>;
 }) {
-	const { modo = 'SQL', id = '' } = await searchParams;
+	const { modo = 'PROCESSO', id = '' } = await searchParams;
 
 	const enquadramento = id
 		? await consultarEnquadramento(modo as 'SQL' | 'PROCESSO', id)

@@ -185,6 +185,8 @@ export type IProcessoDetalhe = {
 	num_processo: string;
 	protocolo_ad?: string | null;
 	data_entrada?: string | null;
+	interessado?: string | null;
+	cnpj?: string | null;
 	status_pagamento?: string;
 	origem?: string | null;
 	criado_por?: string | null;

@@ -49,46 +49,6 @@ export function NovoCardHead({
 	);
 }
 
-export function SegControl<T extends string>({
-	options,
-	value,
-	onChange,
-	disabled,
-}: {
-	options: { value: T; label: string; icon: LucideIcon }[];
-	value: T;
-	onChange: (v: T) => void;
-	disabled?: boolean;
-}) {
-	return (
-		<div
-			role="tablist"
-			className="inline-flex gap-[3px] rounded-[9px] border border-border bg-secondary p-[3px]">
-			{options.map((opt) => {
-				const Icon = opt.icon;
-				return (
-					<button
-						key={opt.value}
-						type="button"
-						role="tab"
-						disabled={disabled}
-						aria-selected={value === opt.value}
-						onClick={() => onChange(opt.value)}
-						className={cn(
-							'inline-flex items-center gap-[7px] rounded-[7px] border-none bg-transparent px-4 py-[7px] text-[13px] font-medium text-muted-foreground transition-colors',
-							'hover:text-foreground disabled:opacity-50',
-							value === opt.value &&
-								'bg-card font-semibold text-primary shadow-[0_1px_2px_rgba(0,0,0,0.06)]',
-						)}>
-						<Icon className="h-[15px] w-[15px]" />
-						{opt.label}
-					</button>
-				);
-			})}
-		</div>
-	);
-}
-
 export function CampoKV({
 	label,
 	value,

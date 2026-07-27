@@ -24,15 +24,8 @@ import { resumoEnquadramento, resumoEndereco, resumoParametros } from '@/lib/geo
 import { GeoSampaLogPanel } from '@/app/(rotas-auth)/processos/[id]/_components/geosampa-log-panel';
 import type { GeoSampaLogEntry } from '@/types/geosampa';
 import { TIPOLOGIA_USO_OODC } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
-import {
-	CampoKV,
-	ChipExemplo,
-	NovoCard,
-	NovoCardHead,
-	SegControl,
-} from './novo-processo-ui';
+import { CampoKV, ChipExemplo, NovoCard, NovoCardHead } from './novo-processo-ui';
 
-type Modo = 'SQL' | 'PROCESSO';
 type Fase = 'idle' | 'loading' | 'done' | 'error';
 
 const PIPE_STEPS = [
@@ -43,18 +36,13 @@ const PIPE_STEPS = [
 ];
 
 const PCT = [15, 42, 70, 92];
-const reSQL = /^\d{3}\.\d{3}\.\d{4}-\d$/;
 const reProc = /^\d{4}\.\d{4}\/\d{7}-\d$/;
-
-/** SQL válido no GeoSampa WFS (exemplo real para testes). */
-const EXEMPLO_SQL = { modo: 'SQL' as const, valor: '148.063.0024-0' };
 
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const fmtArea = (n: number) => n.toLocaleString('pt-BR') + ' m²';
 
 export default function FormNovoProcesso() {
-	const [modo, setModo] = useState<Modo>('SQL');
 	const [valor, setValor] = useState('');
 	const [erro, setErro] = useState('');
 	const [fase, setFase] = useState<Fase>('idle');
@@ -72,24 +60,9 @@ export default function FormNovoProcesso() {
 	}
 
 	function validar(v: string) {
-		if (!v.trim()) {
-			return `Informe o ${modo === 'SQL' ? 'SQL do lote' : 'número do processo'}.`;
-		}
-		if (modo === 'SQL' && !reSQL.test(v.trim())) {
-			return 'SQL inválido. Formato esperado: 000.000.0000-0.';
-		}
-		if (modo === 'PROCESSO' && !reProc.test(v.trim())) {
-			return 'Número inválido. Formato esperado: 0000.0000/0000000-0.';
-		}
+		if (!v.trim()) return 'Informe o número do processo.';
+		if (!reProc.test(v.trim())) return 'Número inválido. Formato esperado: 0000.0000/0000000-0.';
 		return '';
-	}
-
-	function trocarModo(m: Modo) {
-		if (fase === 'loading') return;
-		setModo(m);
-		setErro('');
-		setValor('');
-		setTimeout(() => inputRef.current?.focus(), 0);
 	}
 
 	async function handleSubmit(e: React.FormEvent) {
@@ -115,7 +88,7 @@ export default function FormNovoProcesso() {
 		timers.current.push(setTimeout(() => setStep(2), 1350));
 		timers.current.push(setTimeout(() => setStep(3), 2100));
 
-		const resp = await consultarEnquadramento(modo, v);
+		const resp = await consultarEnquadramento('PROCESSO', v);
 		clearTimers();
 
 		if (!resp.ok || !resp.data) {
@@ -132,13 +105,6 @@ export default function FormNovoProcesso() {
 		setTimeout(() => setFase('done'), 300);
 	}
 
-	function usarExemplo(ex: { modo: Modo; valor: string }) {
-		setModo(ex.modo);
-		setValor(ex.valor);
-		setErro('');
-		setTimeout(() => inputRef.current?.focus(), 0);
-	}
-
 	function reiniciar() {
 		setFase('idle');
 		setResultado(null);
@@ -152,9 +118,6 @@ export default function FormNovoProcesso() {
 	const enq = resultado ? resumoEnquadramento(resultado) : null;
 	const par = resultado ? resumoParametros(resultado.calculo_outorga) : null;
 	const endereco = resultado ? resumoEndereco(resultado) : '';
-	const labelInput =
-		modo === 'SQL' ? 'SQL — Setor · Quadra · Lote' : 'Número do processo (SEI)';
-	const placeholder = modo === 'SQL' ? '000.000.0000-0' : '0000.0000/0000000-0';
 
 	return (
 		<div className="flex flex-col gap-5">
@@ -162,26 +125,14 @@ export default function FormNovoProcesso() {
 				<NovoCardHead
 					icon={Search}
 					title="Identificação do imóvel"
-					subtitle="Escolha como deseja localizar o lote"
+					subtitle="Informe o número do processo para localizar o lote"
 				/>
 				<div className="px-[22px] py-5">
-					<div className="mb-[18px]">
-						<SegControl
-							disabled={fase === 'loading'}
-							value={modo}
-							onChange={trocarModo}
-							options={[
-								{ value: 'SQL', label: 'SQL do lote', icon: MapPin },
-								{ value: 'PROCESSO', label: 'Número do processo', icon: Hash },
-							]}
-						/>
-					</div>
-
 					<form onSubmit={handleSubmit}>
 						<label
 							htmlFor="identificador"
 							className="mb-[7px] block text-[11px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">
-							{labelInput}
+							Número do processo (SEI)
 						</label>
 						<div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
 							<div
@@ -189,11 +140,7 @@ export default function FormNovoProcesso() {
 									'flex flex-1 items-center gap-2.5 rounded-[10px] border border-border bg-secondary px-3.5 transition-colors',
 									erro && 'border-destructive',
 								)}>
-								{modo === 'SQL' ? (
-									<MapPin className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
-								) : (
-									<Hash className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
-								)}
+								<Hash className="h-[18px] w-[18px] shrink-0 text-muted-foreground" />
 								<input
 									id="identificador"
 									ref={inputRef}
@@ -202,12 +149,11 @@ export default function FormNovoProcesso() {
 										setValor(e.target.value);
 										if (erro) setErro('');
 									}}
-									placeholder={placeholder}
+									placeholder="0000.0000/0000000-0"
 									disabled={fase === 'loading'}
 									autoFocus
 									spellCheck={false}
 									autoComplete="off"
-									inputMode={modo === 'SQL' ? 'numeric' : 'text'}
 									className="h-12 w-full border-none bg-transparent font-mono text-base outline-none placeholder:text-muted-foreground"
 								/>
 							</div>
@@ -237,32 +183,10 @@ export default function FormNovoProcesso() {
 						) : (
 							<div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
 								<Info className="h-3.5 w-3.5 shrink-0" />
-								{modo === 'SQL' ? (
-									<>
-										Formato{' '}
-										<ChipExemplo>Setor.Quadra.Lote-Dígito</ChipExemplo>
-										<span className="opacity-60">ex.</span>
-										<ChipExemplo onClick={() => usarExemplo(EXEMPLO_SQL)}>
-											148.063.0024-0
-										</ChipExemplo>
-									</>
-								) : (
-									<>
-										Formato SEI: <ChipExemplo>0000.0000/0000000-0</ChipExemplo>
-									</>
-								)}
+								Formato SEI: <ChipExemplo>0000.0000/0000000-0</ChipExemplo>
 							</div>
 						)}
 					</form>
-
-					{fase === 'idle' && modo === 'SQL' && (
-						<div className="mt-4 flex flex-wrap items-center gap-2">
-							<span className="text-xs text-muted-foreground">Exemplo real:</span>
-							<ChipExemplo onClick={() => usarExemplo(EXEMPLO_SQL)}>
-								{EXEMPLO_SQL.valor}
-							</ChipExemplo>
-						</div>
-					)}
 				</div>
 			</NovoCard>
 
@@ -461,7 +385,7 @@ export default function FormNovoProcesso() {
 									Cancelar
 								</Link>
 								<Link
-									href={`/processos/novo/criar?modo=${modo}&id=${encodeURIComponent(usado)}`}
+									href={`/processos/novo/criar?modo=PROCESSO&id=${encodeURIComponent(usado)}`}
 									className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white no-underline hover:bg-primary/90 sm:flex-none">
 									Criar processo
 								</Link>

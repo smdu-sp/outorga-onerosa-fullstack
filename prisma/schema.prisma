@@ -84,6 +84,11 @@ model Processo {
   origem           OrigemProcesso?
   // unidade_licenciamento UnidadesLicenciamento?
 
+  // Interessado (requerente) e CNPJ/CPF da contrapartida — um por processo,
+  // não por parcela (é a mesma pessoa/empresa pagando todas as parcelas).
+  interessado String?
+  cnpj        String?
+
   // Total materializado = SUM(parcelas.valor). Fonte confiável da contrapartida
   // do processo (as parcelas são a verdade; contrapartida_total da planilha é
   // corrompida por escala). Mantido por prisma/backfill-totais.ts.

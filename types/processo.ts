@@ -17,7 +17,7 @@ export type IParcela = {
 	status_quitacao?: boolean;
 	antecipada?: boolean;
 	quebra?: boolean;
-	cpf_cnpj: string;
+	cpf_cnpj?: string | null;
 };
 
 export type IProcesso = {

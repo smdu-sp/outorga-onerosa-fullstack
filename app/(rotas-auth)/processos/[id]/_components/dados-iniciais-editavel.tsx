@@ -12,6 +12,8 @@ const LABELS_DADOS_INICIAIS: Record<string, string> = {
 	num_processo: 'Número do Processo',
 	protocolo_ad: 'Protocolo AD',
 	data_entrada: 'Data de Entrada',
+	interessado: 'Interessado',
+	cnpj: 'CNPJ',
 };
 
 const TIPO_PROCESSO_OPCOES: Record<string, string> = {
@@ -27,6 +29,8 @@ function dadosIniciaisDe(detalhe: IProcessoDetalhe): Record<string, unknown> {
 		num_processo: detalhe.num_processo,
 		protocolo_ad: detalhe.protocolo_ad,
 		data_entrada: detalhe.data_entrada,
+		interessado: detalhe.interessado,
+		cnpj: detalhe.cnpj,
 	};
 }
 

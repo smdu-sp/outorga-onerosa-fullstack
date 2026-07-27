@@ -32,7 +32,6 @@ export function ParcelaModal({
 	const [numParcela, setNumParcela] = useState(String(parcela?.num_parcela ?? ''));
 	const [valor, setValor] = useState(String(parcela?.valor ?? ''));
 	const [vencimento, setVencimento] = useState(dataCivilParaInput(parcela?.vencimento));
-	const [cpfCnpj, setCpfCnpj] = useState(parcela?.cpf_cnpj ?? '');
 	const [pending, startTransition] = useTransition();
 
 	function salvar() {
@@ -40,7 +39,6 @@ export function ParcelaModal({
 			num_parcela: Number(numParcela),
 			valor: Number(valor.replace(',', '.')),
 			vencimento,
-			cpf_cnpj: cpfCnpj || undefined,
 		};
 
 		startTransition(async () => {
@@ -106,10 +104,6 @@ export function ParcelaModal({
 							value={vencimento}
 							onChange={(e) => setVencimento(e.target.value)}
 						/>
-					</div>
-					<div className="flex flex-col gap-1.5">
-						<label className="text-xs font-medium">CPF/CNPJ</label>
-						<Input value={cpfCnpj} onChange={(e) => setCpfCnpj(e.target.value)} />
 					</div>
 				</div>
 				<div className="flex justify-end gap-2 pt-2">

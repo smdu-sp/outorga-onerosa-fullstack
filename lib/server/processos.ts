@@ -122,6 +122,8 @@ export type IAtualizarDadosIniciais = Partial<{
 	num_processo: string;
 	protocolo_ad: string;
 	data_entrada: string | Date;
+	interessado: string;
+	cnpj: string;
 }>;
 
 export async function atualizarProcesso(processoId: string, dados: IAtualizarDadosIniciais) {
@@ -134,6 +136,8 @@ export async function atualizarProcesso(processoId: string, dados: IAtualizarDad
 		...(dados.num_processo !== undefined && { num_processo: dados.num_processo }),
 		...(dados.protocolo_ad !== undefined && { protocolo_ad: dados.protocolo_ad }),
 		...(dados.data_entrada !== undefined && { data_entrada: parseDataCivil(dados.data_entrada) }),
+		...(dados.interessado !== undefined && { interessado: dados.interessado || null }),
+		...(dados.cnpj !== undefined && { cnpj: dados.cnpj || null }),
 	};
 
 	await prisma.processo.update({ where: { id: processoId }, data });
@@ -302,10 +306,11 @@ function mapProcessoLista(
 	const parcelas = processo.parcelas ?? [];
 	const pagas = parcelas.filter((p) => p.status_quitacao).length;
 	const interessado =
+		processo.interessado ??
 		processo.monitoramento?.proprietario_interessado ??
 		processo.monitoramento_cota?.proprietario_interessado ??
 		null;
-	const cpf_cnpj = parcelas.find((p) => p.cpf_cnpj)?.cpf_cnpj ?? null;
+	const cpf_cnpj = processo.cnpj ?? null;
 
 	let valor_devido = 0;
 	const valorPlanilha = processo.monitoramento_cota?.valor_devido;
@@ -380,7 +385,8 @@ function montarFiltrosProcessos(
 			OR: [
 				{ num_processo: { contains: termo } },
 				{ protocolo_ad: { contains: termo } },
-				{ parcelas: { some: { cpf_cnpj: { contains: termo } } } },
+				{ interessado: { contains: termo } },
+				{ cnpj: { contains: termo } },
 				{ monitoramento: { proprietario_interessado: { contains: termo } } },
 				{
 					monitoramento_cota: { proprietario_interessado: { contains: termo } },

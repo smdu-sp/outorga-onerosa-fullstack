@@ -1,15 +1,17 @@
 'use client';
 
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 import { IParcela } from '@/types/processo';
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
 import { enriquecerParcelas, type IParcelaView } from '@/lib/parcelas-utils';
 import { acaoParcela } from '@/services/processos/server-functions/acao-parcela';
-import { RotateCcw, TrendingDown, Undo2, Zap } from 'lucide-react';
+import { CheckCircle2, RotateCcw, TrendingDown, Undo2, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { STATUS_PAGAMENTO } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
 import { ParcelaModal } from './parcela-modal';
+import { ParcelasLoteModal } from './parcelas-lote-modal';
+import { Input } from '@/components/ui/input';
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -25,7 +27,7 @@ import {
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
-import { formatarDataCivil } from '@/lib/datas';
+import { formatarDataCivil, dataCivilHoje, dataCivilParaInput } from '@/lib/datas';
 
 function StatusParcela({ parcela }: { parcela: IParcelaView }) {
 	if (parcela.quebra) {
@@ -48,6 +50,58 @@ function StatusParcela({ parcela }: { parcela: IParcelaView }) {
 		<span className="inline-flex rounded-full bg-secondary px-2.5 py-0.5 text-xs font-semibold text-muted-foreground">
 			Pendente
 		</span>
+	);
+}
+
+function RegistrarQuitacaoDialog({
+	numParcela,
+	pending,
+	onConfirmar,
+}: {
+	numParcela: number;
+	pending: boolean;
+	onConfirmar: (dataQuitacao: string) => void;
+}) {
+	const [dataQuitacao, setDataQuitacao] = useState(() => dataCivilParaInput(dataCivilHoje()));
+
+	return (
+		<AlertDialog>
+			<AlertDialogTrigger asChild>
+				<button
+					type="button"
+					disabled={pending}
+					title="Confirmar pagamento"
+					className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-success/30 bg-card text-success transition-colors hover:bg-success-soft disabled:opacity-50">
+					<CheckCircle2 className="h-3.5 w-3.5" />
+				</button>
+			</AlertDialogTrigger>
+			<AlertDialogContent>
+				<AlertDialogHeader>
+					<AlertDialogTitle>Confirmar pagamento</AlertDialogTitle>
+					<AlertDialogDescription>
+						Informe a data em que a parcela nº {numParcela} foi paga pelo munícipe. Se a
+						data cair num mês anterior ao do vencimento, o sistema marca automaticamente
+						como antecipação.
+					</AlertDialogDescription>
+				</AlertDialogHeader>
+				<div className="flex flex-col gap-1.5 py-2">
+					<label className="text-xs font-medium">Data da quitação</label>
+					<Input
+						type="date"
+						value={dataQuitacao}
+						onChange={(e) => setDataQuitacao(e.target.value)}
+					/>
+				</div>
+				<AlertDialogFooter>
+					<AlertDialogCancel>Cancelar</AlertDialogCancel>
+					<AlertDialogAction
+						disabled={!dataQuitacao}
+						onClick={() => onConfirmar(dataQuitacao)}>
+						Confirmar pagamento
+					</AlertDialogAction>
+				</AlertDialogFooter>
+			</AlertDialogContent>
+		</AlertDialog>
 	);
 }
 
@@ -74,16 +128,17 @@ export function DetalheParcelas({
 	function executarAcao(
 		parcelaId: string,
 		acao: 'antecipar' | 'quebra' | 'reverter' | 'reverter-antecipacao',
+		dataQuitacao?: string,
 	) {
 		startTransition(async () => {
-			const resp = await acaoParcela(processoId, parcelaId, acao);
+			const resp = await acaoParcela(processoId, parcelaId, acao, dataQuitacao);
 			if (!resp.ok || !resp.data) {
 				toast.error(resp.error ?? 'Erro ao atualizar parcela.');
 				return;
 			}
 			onAtualizado(resp.data);
 			const mensagens = {
-				antecipar: 'Parcela marcada como antecipada.',
+				antecipar: 'Pagamento confirmado.',
 				quebra: 'Quebra registrada.',
 				reverter: 'Quebra revertida.',
 				'reverter-antecipacao': 'Antecipação desfeita — parcela voltou a pendente.',
@@ -116,6 +171,13 @@ export function DetalheParcelas({
 							</span>
 						</div>
 					)}
+					{podeEditar && (
+						<ParcelasLoteModal
+							processoId={processoId}
+							parcelas={parcelas}
+							onAtualizado={onAtualizado}
+						/>
+					)}
 					{podeEditar && <ParcelaModal processoId={processoId} onAtualizado={onAtualizado} />}
 				</div>
 			</div>
@@ -124,7 +186,7 @@ export function DetalheParcelas({
 				<table className="w-full border-separate border-spacing-0 text-[13.5px]">
 					<thead>
 						<tr>
-							{['Nº', 'Valor', 'Vencimento', 'Quitação', 'Ano pag.', 'CPF/CNPJ', 'Situação', 'Ações'].map(
+							{['Nº', 'Valor', 'Vencimento', 'Quitação', 'Ano pag.', 'Situação', 'Ações'].map(
 								(col, i) => (
 									<th
 										key={col}
@@ -132,8 +194,8 @@ export function DetalheParcelas({
 											'whitespace-nowrap bg-primary px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground',
 											i === 0 && 'text-center',
 											(i === 2 || i === 3 || i === 4) && 'text-center',
-											i === 6 && 'text-center',
-											i === 7 && 'text-right',
+											i === 5 && 'text-center',
+											i === 6 && 'text-right',
 										)}>
 										{col}
 									</th>
@@ -144,7 +206,7 @@ export function DetalheParcelas({
 					<tbody>
 						{parcelasView.length === 0 ? (
 							<tr>
-								<td colSpan={8} className="px-3 py-6 text-center text-muted-foreground">
+								<td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
 									Nenhuma parcela cadastrada.
 								</td>
 							</tr>
@@ -169,9 +231,6 @@ export function DetalheParcelas({
 										<td className="border-t border-border px-3.5 py-3 text-center tabular-nums">
 											{p.ano_pagamento ?? '—'}
 										</td>
-										<td className="border-t border-border px-3.5 py-3 font-mono text-sm">
-											{p.cpf_cnpj ?? '—'}
-										</td>
 										<td className="border-t border-border px-3.5 py-3 text-center">
 											<StatusParcela parcela={p} />
 										</td>
@@ -185,35 +244,13 @@ export function DetalheParcelas({
 													/>
 												)}
 												{podeEditar && pendente && (
-													<AlertDialog>
-														<AlertDialogTrigger asChild>
-															<button
-																type="button"
-																disabled={pending}
-																title="Antecipar — munícipe pagou adiantado"
-																className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-primary/25 bg-card text-primary transition-colors hover:bg-primary/8 disabled:opacity-50">
-																<Zap className="h-3.5 w-3.5" />
-															</button>
-														</AlertDialogTrigger>
-														<AlertDialogContent>
-															<AlertDialogHeader>
-																<AlertDialogTitle>Confirmar antecipação</AlertDialogTitle>
-																<AlertDialogDescription>
-																	Confirma que a parcela nº {p.num_parcela} foi realmente
-																	antecipada pelo munícipe? Apenas esta parcela será marcada
-																	como quitada — as demais permanecem pendentes e precisam
-																	ser antecipadas individualmente.
-																</AlertDialogDescription>
-															</AlertDialogHeader>
-															<AlertDialogFooter>
-																<AlertDialogCancel>Cancelar</AlertDialogCancel>
-																<AlertDialogAction
-																	onClick={() => p.id && executarAcao(p.id, 'antecipar')}>
-																	Confirmar antecipação
-																</AlertDialogAction>
-															</AlertDialogFooter>
-														</AlertDialogContent>
-													</AlertDialog>
+													<RegistrarQuitacaoDialog
+														numParcela={p.num_parcela}
+														pending={pending}
+														onConfirmar={(dataQuitacao) =>
+															p.id && executarAcao(p.id, 'antecipar', dataQuitacao)
+														}
+													/>
 												)}
 												{podeReverterAntecipacao && p.antecipada && (
 													<AlertDialog>
@@ -280,8 +317,8 @@ export function DetalheParcelas({
 
 			<div className="mt-3 flex flex-wrap gap-5 text-xs text-muted-foreground">
 				<span className="inline-flex items-center gap-1.5">
-					<Zap className="h-3.5 w-3.5 text-primary" />
-					Antecipar — munícipe pagou adiantado
+					<CheckCircle2 className="h-3.5 w-3.5 text-success" />
+					Confirmar pagamento — informa a data em que a parcela foi paga
 				</span>
 				<span className="inline-flex items-center gap-1.5">
 					<TrendingDown className="h-3.5 w-3.5 text-destructive" />
