@@ -47,3 +47,7 @@ next-env.d.ts
 
 # resultados dos scripts de manutenção
 /scripts/output/
+
+# excel
+*.xlsx
+*.xlsm
