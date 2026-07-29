@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/s
 import {
 	BarChart3,
 	BookLock,
+	Calculator,
 	FolderOpen,
 	House,
 	Lock,
@@ -74,19 +75,28 @@ const menuAdmin: IMenu[] = [
 	},
 ];
 
-const menuDev: IMenu[] =
-	process.env.NODE_ENV === 'development'
-		? [{ icone: Terminal, titulo: 'Dev Logs', url: '/dev-logs' }]
-		: [];
+function montarMenuDev(usuarioDev: boolean): IMenu[] {
+	const itens: IMenu[] = [];
+	if (process.env.NODE_ENV === 'development') {
+		itens.push({ icone: Terminal, titulo: 'Dev Logs', url: '/dev-logs' });
+	}
+	// Gate real (não é só NODE_ENV) — o flag Usuario.dev vale em qualquer ambiente.
+	if (usuarioDev) {
+		itens.push({ icone: Calculator, titulo: 'Cálculo OODC (teste)', url: '/dev-calculo-oodc' });
+	}
+	return itens;
+}
 
 export default function Main({
 	override = false,
 	children,
 	processosNovos = 0,
+	usuarioDev = false,
 }: {
 	override?: boolean;
 	children?: ReactNode;
 	processosNovos?: number;
+	usuarioDev?: boolean;
 }) {
 	return override ? (
 		children
@@ -94,7 +104,13 @@ export default function Main({
 		<SidebarProvider
 			style={{ '--sidebar-width': '244px' } as CSSProperties}
 			className="min-h-svh bg-app-background">
-			<AppSidebar data={{ menuUsuario: montarMenuUsuario(processosNovos), menuAdmin, menuDev }} />
+			<AppSidebar
+				data={{
+					menuUsuario: montarMenuUsuario(processosNovos),
+					menuAdmin,
+					menuDev: montarMenuDev(usuarioDev),
+				}}
+			/>
 			<SidebarInset className="bg-app-background">
 				<div className="flex min-h-svh flex-col">
 					<div className="flex items-center border-b border-border bg-app-background px-4 py-3 md:hidden">

@@ -12,5 +12,9 @@ export default async function RotasAuth({children}:{children: React.ReactNode}) 
     const podeVerContadorNovos = await usuarioPermitido(userId, 'parcelas_editar');
     const processosNovos = podeVerContadorNovos ? await contarProcessosNovos() : 0;
 
-    return <Main processosNovos={processosNovos}>{children}</Main>;
+    return (
+        <Main processosNovos={processosNovos} usuarioDev={session.usuario.dev === true}>
+            {children}
+        </Main>
+    );
 }

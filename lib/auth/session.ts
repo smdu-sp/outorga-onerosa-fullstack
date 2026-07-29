@@ -43,6 +43,16 @@ export async function requirePermissao(permissao: string) {
 }
 
 /**
+ * Gate para módulos só de DEV (ex.: `/dev-calculo-oodc`) — usa o flag real por
+ * usuário (`Usuario.dev`), não `NODE_ENV`, então continua valendo em produção.
+ */
+export async function requireDev() {
+	const session = await requireAuth();
+	if (!session.usuario.dev) redirect('/');
+	return session;
+}
+
+/**
  * Garante que o usuário pode acessar um processo específico, em 3 níveis:
  * 1. "processos_ver_todos" (CAP/FUNDURB-GAB/Admin) — libera qualquer processo.
  * 2. "processos_ver_quitados" (DEUSO) — libera só se o processo estiver QUITADO.

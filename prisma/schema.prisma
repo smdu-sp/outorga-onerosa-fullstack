@@ -478,3 +478,22 @@ enum UnidadesLicenciamento {
   RESID
   COMIN
 }
+
+/// Valor de referência (R$/m²) da OODC por setor/quadra/codlog — origem: aba `v` da
+/// planilha oficial oodc-prot-v1.1.0 (~180 mil linhas), importada por
+/// prisma/import-oodc-valor-referencia.ts. Usada pelo módulo DEV de teste de
+/// cálculo (lib/oodc) para achar o V_MÁXIMO de um cenário.
+model OodcValorReferencia {
+  id                   String   @id @default(uuid())
+  setor                String
+  quadra               String
+  codlog               String
+  valor                Decimal  @db.Decimal(14, 4)
+  data_inicio_vigencia DateTime @db.Date
+
+  criado_em DateTime @default(now())
+
+  @@unique([setor, quadra, codlog, data_inicio_vigencia])
+  @@index([setor, quadra, codlog])
+  @@map("oodc_valores_referencia")
+}

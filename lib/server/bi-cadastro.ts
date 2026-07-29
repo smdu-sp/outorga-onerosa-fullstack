@@ -1,4 +1,5 @@
 import { normalizarSql } from '@/lib/geosampa-sql.util';
+import { ID_ASSUNTO_PROJETO_MODIFICATIVO } from '@/lib/oodc/tabelas';
 import type { GeoSampaLogFn, IGeoSampaLicenca } from '@/types/geosampa';
 import sql, { type config as MssqlConfig } from 'mssql';
 
@@ -286,6 +287,81 @@ export async function buscarLicencasPorSqlNoBi(
 		log('error', `Falha ao consultar licenças no BI: ${(error as Error).message}`);
 		return [];
 	}
+}
+
+export interface AssuntoBiEncontrado {
+	assunto: string;
+	numDocumento: string | null;
+	statusDocumento: string | null;
+	dataEmissao?: string;
+}
+
+/**
+ * Busca os assuntos (Cadastros → Assuntos) de um processo no BI. Um mesmo processo
+ * costuma ter mais de um registro (aprovação, execução, certificado...); retorna
+ * todos, do mais recente para o mais antigo, para a UI escolher/conferir.
+ */
+export async function buscarAssuntosPorProcessoNoBi(
+	numProcesso: string,
+	log: GeoSampaLogFn = () => {},
+): Promise<AssuntoBiEncontrado[]> {
+	try {
+		const pool = await getBiPool();
+
+		const result = await pool
+			.request()
+			.input('processo', sql.VarChar(50), `%${numProcesso.trim()}%`)
+			.query<BiAssuntoLicenca>(`
+				SELECT
+					a.Assunto,
+					a.NumDocumento,
+					a.StatusDocumento,
+					a.DtEmissaoDocumento
+				FROM dbo.Cadastros c
+				INNER JOIN dbo.Assuntos a ON a.id_assunto = c.id_assunto
+				WHERE c.processo LIKE @processo
+			`);
+
+		const encontrados: AssuntoBiEncontrado[] = result.recordset
+			.filter((r) => r.Assunto?.trim())
+			.map((r) => ({
+				assunto: r.Assunto!.trim(),
+				numDocumento: r.NumDocumento?.trim() || null,
+				statusDocumento: r.StatusDocumento?.trim() || null,
+				dataEmissao: dataIso(r.DtEmissaoDocumento),
+			}))
+			.sort((a, b) => (b.dataEmissao ?? '').localeCompare(a.dataEmissao ?? ''));
+
+		if (!encontrados.length) {
+			log('warn', `Nenhum assunto encontrado no BI para o processo ${numProcesso}`);
+		} else {
+			log('success', `BI retornou ${encontrados.length} assunto(s) para o processo ${numProcesso}`);
+		}
+
+		return encontrados;
+	} catch (error) {
+		console.error('[BI] Falha ao buscar assuntos por processo:', error);
+		log('error', `Falha ao consultar assuntos no BI: ${(error as Error).message}`);
+		return [];
+	}
+}
+
+/**
+ * Mapeia o texto livre do assunto do BI para o id da aba `assuntos` da planilha
+ * oficial OODC (lib/oodc/tabelas.ts, ASSUNTOS) — mesma ordem de checagem de
+ * `classificarAssuntoComoLicenca`: casos mais específicos primeiro (projeto
+ * modificativo / residência unifamiliar), senão aprovação+execução, aprovação,
+ * execução. `null` quando não há correspondência confiável (ex.: demolição,
+ * certificado de conclusão — que não têm equivalente na lista de assuntos da OODC).
+ */
+export function mapearAssuntoBiParaIdOodc(assuntoBi: string): number | null {
+	const a = normalizarTexto(assuntoBi);
+	if (a.includes('projeto modificativo')) return ID_ASSUNTO_PROJETO_MODIFICATIVO;
+	if (a.includes('residencia unifamiliar') || a.includes('residencial unifamiliar')) return 5;
+	if (a.includes('aprovacao') && a.includes('execucao')) return 2;
+	if (a.includes('aprovacao')) return 1;
+	if (a.includes('execucao')) return 4;
+	return null;
 }
 
 /** Mantém licenças já existentes (ex.: GeoSampa) e completa tipos faltantes com o BI. */

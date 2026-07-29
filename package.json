@@ -15,6 +15,7 @@
     "db:export-seed": "tsx prisma/export-seed.ts",
     "db:import-planilhas": "tsx prisma/import-planilhas.ts",
     "db:import-outorga": "tsx prisma/import-outorga.ts",
+    "db:import-oodc-valores": "tsx prisma/import-oodc-valor-referencia.ts",
     "db:sync-geosampa": "tsx prisma/sync-geosampa-outorga.ts",
     "db:limpar-processos": "tsx prisma/limpar-processos.ts",
     "db:atualizar-processos": "tsx scripts/atualizar-processos-sem-dados.ts",
