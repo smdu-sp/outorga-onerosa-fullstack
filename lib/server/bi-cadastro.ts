@@ -45,7 +45,7 @@ function parseBiDatabaseUrl(): BiConfig | null {
 	};
 }
 
-async function getBiPool(): Promise<sql.ConnectionPool> {
+export async function getBiPool(): Promise<sql.ConnectionPool> {
 	if (!poolPromise) {
 		const config = parseBiDatabaseUrl();
 		console.log('[BI] config parsed:', JSON.stringify({ ...config, password: config?.password ? `(${config.password.length} chars)` : null }));

@@ -162,6 +162,52 @@ export const ZONAS: ItemTabela[] = [
 	{ id: 59, nome: 'ZCLp - Zona de centralidade linear de proteção ambiental' },
 ];
 
+/**
+ * CA básico/máximo por zona (Quadro 3 da Lei 16.402/2016, consolidado com as
+ * alterações da Lei 18.081/2024 e da Lei 18.177/2024) — extraído da aba "Parâmetros
+ * de ocupação" de `public/planilhas/OODC_-_Campos_-_revisada.xlsx`. Cobre só os `id`
+ * de `ZONAS` que constam do Quadro 3 (1-26, 28-34); zonas fora do quadro (ZOE — regime
+ * por PIU/CTLU — e as variantes de outro sistema de zoneamento, ids 35+) ficam de fora
+ * de propósito. `observacao` registra condicionantes que dependem de área do lote ou
+ * de artigo específico e não podem virar um número fixo sozinhas — checar manualmente
+ * quando presente.
+ */
+export const PARAMETROS_OCUPACAO: { idZona: number; caBasico: number; caMaximo: number; observacao?: string }[] = [
+	{ idZona: 1, caBasico: 1, caMaximo: 4 }, // ZEU
+	{ idZona: 2, caBasico: 1, caMaximo: 2 }, // ZEUa
+	{ idZona: 3, caBasico: 1, caMaximo: 2, observacao: 'CA máximo = 4 se atendido o art. 83 do PDE (recepciona ZEU)' }, // ZEUP
+	{ idZona: 4, caBasico: 1, caMaximo: 1, observacao: 'CA máximo = 2 se atendido o art. 83 do PDE (recepciona ZEUa)' }, // ZEUPa
+	{ idZona: 5, caBasico: 1, caMaximo: 2, observacao: 'CA máximo = 4 nos casos do art. 8º, § 1º da LPUOS' }, // ZEM
+	{ idZona: 6, caBasico: 1, caMaximo: 2, observacao: 'CA máximo = 4 nos casos do art. 8º, §§ 2º e 4º da LPUOS' }, // ZEMP
+	{ idZona: 7, caBasico: 1, caMaximo: 2 }, // ZC
+	{ idZona: 8, caBasico: 1, caMaximo: 1 }, // ZCa
+	{ idZona: 9, caBasico: 1, caMaximo: 2 }, // ZC-ZEIS
+	{ idZona: 10, caBasico: 1, caMaximo: 1 }, // ZCOR-1
+	{ idZona: 11, caBasico: 1, caMaximo: 1 }, // ZCOR-2
+	{ idZona: 12, caBasico: 1, caMaximo: 1 }, // ZCOR-3
+	{ idZona: 13, caBasico: 1, caMaximo: 1 }, // ZCORa
+	{ idZona: 14, caBasico: 1, caMaximo: 2 }, // ZM
+	{ idZona: 15, caBasico: 1, caMaximo: 1 }, // ZMa
+	{ idZona: 16, caBasico: 1, caMaximo: 2 }, // ZMIS
+	{ idZona: 17, caBasico: 1, caMaximo: 1 }, // ZMISa
+	{ idZona: 18, caBasico: 1, caMaximo: 2.5, observacao: 'CA máximo = 2 se o lote for menor que 1.000 m²' }, // ZEIS-1
+	{ idZona: 19, caBasico: 1, caMaximo: 4, observacao: 'CA máximo = 2 se o lote for menor que 1.000 m²' }, // ZEIS-2
+	{ idZona: 20, caBasico: 1, caMaximo: 4, observacao: 'CA máximo = 2 se o lote for menor que 500 m²' }, // ZEIS-3
+	{ idZona: 21, caBasico: 1, caMaximo: 2, observacao: 'CA máximo = 1 se o lote for menor que 1.000 m²' }, // ZEIS-4
+	{ idZona: 22, caBasico: 1, caMaximo: 4, observacao: 'CA máximo = 2 se o lote for menor que 1.000 m²' }, // ZEIS-5
+	{ idZona: 23, caBasico: 1, caMaximo: 2 }, // ZDE-1
+	{ idZona: 24, caBasico: 1, caMaximo: 2 }, // ZDE-2
+	{ idZona: 25, caBasico: 1, caMaximo: 1.5 }, // ZPI-1
+	{ idZona: 26, caBasico: 1, caMaximo: 1.5 }, // ZPI-2
+	{ idZona: 28, caBasico: 1, caMaximo: 1 }, // ZPR
+	{ idZona: 29, caBasico: 1, caMaximo: 1 }, // ZER-1
+	{ idZona: 30, caBasico: 1, caMaximo: 1 }, // ZER-2
+	{ idZona: 31, caBasico: 1, caMaximo: 1 }, // ZERa
+	{ idZona: 32, caBasico: 1, caMaximo: 1 }, // ZPDS
+	{ idZona: 33, caBasico: 0.2, caMaximo: 0.2 }, // ZPDSr
+	{ idZona: 34, caBasico: 0.1, caMaximo: 0.1 }, // ZEPAM
+];
+
 /** aba `tipologias` (tbl_tpl): classe + descrição. Ids 1-8 = classe Habitacional. */
 export const TIPOLOGIAS: { id: number; classe: string; descricao: string }[] = [
 	{ id: 1, classe: 'Habitacional', descricao: 'Habitação de interesse social – HIS' },

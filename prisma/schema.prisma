@@ -41,7 +41,8 @@ model Usuario {
   permissoes Permissao[]
   grupos     GrupoPermissao[]
 
-  processos_criados Processo[] @relation("ProcessoCriador")
+  processos_criados      Processo[]            @relation("ProcessoCriador")
+  memoriais_oodc_criados OodcMemorialCalculo[] @relation("OodcMemorialCriador")
 
   @@map("usuarios")
 }
@@ -106,6 +107,7 @@ model Processo {
   sqls               Sql[]
   monitoramento      MonitoramentoFicha?
   monitoramento_cota MonitoramentoCotaSolidariedade?
+  memoriais_oodc     OodcMemorialCalculo[]
 
   @@index([status_pagamento])
   @@index([tipo])
@@ -496,4 +498,122 @@ model OodcValorReferencia {
   @@unique([setor, quadra, codlog, data_inicio_vigencia])
   @@index([setor, quadra, codlog])
   @@map("oodc_valores_referencia")
+}
+
+/// Memorial de cálculo da OODC gerado pela tela `processos/[id]/calculo-oodc`
+/// (preenchimento automático a partir do GeoSampa/BI/banco + confirmação manual).
+/// Um processo pode ter várias linhas (histórico); a mais recente (`criado_em`) é a
+/// vigente. Espelha `EntradaCalculoOodc` + `ResultadoCalculoOodc` de `lib/oodc/tipos.ts`.
+model OodcMemorialCalculo {
+  id          String   @id @default(uuid())
+  processo_id String
+  processo    Processo @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  id_assunto     Int
+  id_legislacao  Int
+  /// 'SUGERIDA' quando veio de `sugerirLegislacao` sem o usuário trocar; 'MANUAL' caso o usuário tenha escolhido/sobrescrito.
+  legislacao_origem     String
+  legislacao_observacao String? @db.Text
+  id_macrozona          Int
+  id_macroarea          Int
+  id_zona               Int
+  id_area_aiu           Int?
+
+  area_res_fruicao_m2         Decimal @db.Decimal(14, 2)
+  base_legal_frui_id          Int
+  area_doacao_verde_m2        Decimal @db.Decimal(14, 2)
+  area_doacao_melhoramento_m2 Decimal @db.Decimal(14, 2)
+  base_legal_mel_id           Int
+  area_reserva_praca_m2       Decimal @db.Decimal(14, 2)
+  area_doacao_calcada_m2      Decimal @db.Decimal(14, 2)
+  base_legal_cal_id           Int
+  /// area_res_cal — fundamento legal fixo (art. 37 da Lei 18.081/2024), não entra na fórmula do benefício
+  area_reserva_calcada_m2         Decimal @db.Decimal(14, 2)
+  /// area_des_mel — dropdown próprio (reaproveita a tabela base_mel), não entra na fórmula do benefício
+  area_desapropriacao_melhoramento_m2 Decimal @db.Decimal(14, 2)
+  base_legal_des_mel_id               Int
+
+  cota_parte_maxima_m2 Decimal @db.Decimal(14, 2)
+
+  outorga_projeto_anterior_rs     Decimal @db.Decimal(14, 2)
+  incentivo_certificacao_rs       Decimal @db.Decimal(14, 2)
+  incentivo_cota_ambiental_rs     Decimal @db.Decimal(14, 2)
+  outorga_projeto_modificativo_rs Decimal @db.Decimal(14, 2)
+  outorga_apoio_urbano_sul_rs     Decimal @db.Decimal(14, 2)
+
+  id_classificacao_empreendimento Int
+
+  /// Confirmações manuais exigidas pela sugestão de legislação (não existem em nenhuma fonte).
+  opcao_expressa_regime_novo Boolean @default(false)
+  despacho_decisorio_emitido Boolean @default(false)
+
+  data_referencia DateTime @db.Date
+
+  v_max                     Decimal? @db.Decimal(14, 4)
+  soma_terreno_m2           Decimal  @db.Decimal(14, 2)
+  soma_computavel_m2        Decimal  @db.Decimal(14, 2)
+  soma_tdc_m2               Decimal  @db.Decimal(14, 2)
+  soma_outorga_adquirida_m2 Decimal  @db.Decimal(14, 2)
+  soma_beneficio_m2         Decimal  @db.Decimal(14, 2)
+  soma_outorga_m2           Decimal  @db.Decimal(14, 2)
+  valor_total_bruto_rs      Decimal  @db.Decimal(14, 2)
+  deducao_ehis_ezeis_rs     Decimal  @db.Decimal(14, 2)
+  valor_total_recolhido_rs  Decimal  @db.Decimal(14, 2)
+  valor_total_liquido_rs    Decimal  @db.Decimal(14, 2)
+  dentro_da_vigencia        Boolean
+
+  criado_por String?
+  usuario    Usuario? @relation("OodcMemorialCriador", fields: [criado_por], references: [id], onDelete: SetNull)
+  criado_em  DateTime @default(now())
+
+  enderecos  OodcMemorialEndereco[]
+  tipologias OodcMemorialTipologia[]
+
+  @@index([processo_id])
+  @@map("oodc_memorial_calculo")
+}
+
+/// Até 10 endereços (setor/quadra/codlog) usados na busca do V/V_MÁXIMO de um memorial.
+model OodcMemorialEndereco {
+  id          String              @id @default(uuid())
+  memorial_id String
+  memorial    OodcMemorialCalculo @relation(fields: [memorial_id], references: [id], onDelete: Cascade)
+
+  ordem  Int
+  setor  String
+  quadra String
+  codlog String
+
+  valor_encontrado Decimal?  @db.Decimal(14, 4)
+  data_vigencia    DateTime? @db.Date
+
+  @@unique([memorial_id, ordem])
+  @@map("oodc_memorial_enderecos")
+}
+
+/// Até 7 tipologias (entrada + resultado calculado) de um memorial.
+model OodcMemorialTipologia {
+  id          String              @id @default(uuid())
+  memorial_id String
+  memorial    OodcMemorialCalculo @relation(fields: [memorial_id], references: [id], onDelete: Cascade)
+
+  ordem                Int
+  id_tipologia         Int
+  ca_basico            Decimal @db.Decimal(10, 4)
+  ca_maximo            Decimal @db.Decimal(10, 4)
+  terreno_m2           Decimal @db.Decimal(14, 2)
+  computavel_m2        Decimal @db.Decimal(14, 2)
+  tdc_m2               Decimal @db.Decimal(14, 2)
+  outorga_adquirida_m2 Decimal @db.Decimal(14, 2)
+
+  fp                Decimal @db.Decimal(10, 4)
+  fs                Decimal @db.Decimal(10, 4)
+  ca_adicional      Decimal @db.Decimal(10, 4)
+  beneficio_m2      Decimal @db.Decimal(14, 2)
+  objeto_outorga_m2 Decimal @db.Decimal(14, 2)
+  c_rs_m2           Decimal @db.Decimal(14, 4)
+  valor_rs          Decimal @db.Decimal(14, 2)
+
+  @@unique([memorial_id, ordem])
+  @@map("oodc_memorial_tipologias")
 }

@@ -2,7 +2,7 @@
 
 import { STATUS_PAGAMENTO } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
-import { ChevronLeft, Download, Keyboard, Search } from 'lucide-react';
+import { Calculator, ChevronLeft, Download, Keyboard, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRef } from 'react';
 import { cn } from '@/lib/utils';
@@ -57,12 +57,14 @@ export function DetalheHeader({
 	onBusca,
 	onDetalheAtualizado,
 	podeRecalcular = false,
+	isDev = false,
 }: {
 	processo: IProcessoDetalhe;
 	busca: string;
 	onBusca: (v: string) => void;
 	onDetalheAtualizado?: (detalhe: IProcessoDetalhe) => void;
 	podeRecalcular?: boolean;
+	isDev?: boolean;
 }) {
 	const buscaRef = useRef<HTMLInputElement>(null);
 	const { valorTotal, valorDevido } = calcularMetricas(processo);
@@ -139,6 +141,15 @@ export function DetalheHeader({
 					)}
 					{onDetalheAtualizado && podeRecalcular && (
 						<BotaoRecalcular processoId={processo.id} onAtualizado={onDetalheAtualizado} />
+					)}
+					{isDev && (
+						<Link
+							href={`/processos/${processo.id}/calculo-oodc`}
+							title="Cálculo da OODC com preenchimento automático (dev)"
+							className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground no-underline hover:bg-secondary">
+							<Calculator className="h-4 w-4" />
+							Cálculo OODC (dev)
+						</Link>
 					)}
 					<div className="flex items-center gap-2 rounded-lg border border-border bg-secondary px-2.5 py-1.5">
 						<Search className="h-3.5 w-3.5 text-muted-foreground" />

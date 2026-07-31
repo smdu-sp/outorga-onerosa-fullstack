@@ -16,16 +16,35 @@ export interface ValorUnitarioEncontrado extends EnderecoValorUnitario {
 	dataVigencia: string | null; // ISO yyyy-mm-dd
 }
 
-/** Bloco "PARÂMETROS QUALIFICADORES DA OCUPAÇÃO" — benefícios de área e suas bases legais. */
+/**
+ * Bloco "PARÂMETROS QUALIFICADORES DA OCUPAÇÃO" — benefícios de área e suas bases
+ * legais. Ordem e nomes conferidos linha a linha contra o quadro PARÂMETRO/
+ * FUNDAMENTO LEGAL/VALOR (M2) da aba `oodc` da planilha oficial:
+ *
+ * 1. Área de doação para alargamento de passeio público — base legal selecionável (tbl_base_cal)
+ * 2. Área de reserva para alargamento de passeio público — base legal FIXA: art. 37 da Lei 18.081/2024
+ * 3. Área de reserva para fruição pública — base legal selecionável (tbl_base_frui)
+ * 4. Área de reserva para praça pública — base legal FIXA: art. 82-A da Lei 17.975/2023
+ * 5. Área de desapropriação para melhoramento viário — base legal selecionável (reaproveita tbl_base_mel)
+ * 6. Área de doação para melhoramento viário — base legal selecionável (tbl_base_mel)
+ * 7. Área de doação de áreas verdes — base legal FIXA: art. 12 da Lei 17.844/2022
+ *
+ * As linhas 2 e 5 (`area_res_cal`/`area_des_mel`) são named ranges órfãos na
+ * planilha oficial — capturados no memorial, mas não entram na fórmula do
+ * benefício (`calcularBeneficio`), igual na planilha original.
+ */
 export interface ParametrosQualificadores {
-	areaResFruicaoM2: number; // area_res_frui
-	baseLegalFruiId: number; // id_base_legal_frui (tbl_base_frui)
-	areaDoacaoVerdeM2: number; // area_doa_ver (sempre usa CA adicional, sem base legal selecionável)
-	areaDoacaoMelhoramentoM2: number; // area_doa_mel
-	baseLegalMelId: number; // id_base_legal_mel (tbl_base_mel) — 0 = nenhuma
-	areaReservaPracaM2: number; // area_res_pra (base legal fixa: art. 82-A da Lei 17.975/2023)
 	areaDoacaoCalcadaM2: number; // area_doa_cal
 	baseLegalCalId: number; // id_base_legal_cal (tbl_base_cal) — 0 = nenhuma
+	areaReservaCalcadaM2: number; // area_res_cal — base legal fixa: art. 37 da Lei 18.081/2024
+	areaResFruicaoM2: number; // area_res_frui
+	baseLegalFruiId: number; // id_base_legal_frui (tbl_base_frui)
+	areaReservaPracaM2: number; // area_res_pra — base legal fixa: art. 82-A da Lei 17.975/2023
+	areaDesapropriacaoMelhoramentoM2: number; // area_des_mel
+	baseLegalDesMelId: number; // dropdown próprio, reaproveita tbl_base_mel — 0 = nenhuma
+	areaDoacaoMelhoramentoM2: number; // area_doa_mel
+	baseLegalMelId: number; // id_base_legal_mel (tbl_base_mel) — 0 = nenhuma
+	areaDoacaoVerdeM2: number; // area_doa_ver — base legal fixa: art. 12 da Lei 17.844/2022
 }
 
 /** Bloco "PARÂMETROS DA OCUPAÇÃO DO SOLO". */

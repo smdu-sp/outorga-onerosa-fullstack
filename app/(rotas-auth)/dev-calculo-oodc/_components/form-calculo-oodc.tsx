@@ -61,14 +61,17 @@ function enderecoVazio(): EnderecoValorUnitario {
 
 function qualificadoresVazios(): ParametrosQualificadores {
 	return {
-		areaResFruicaoM2: 0,
-		baseLegalFruiId: 0,
-		areaDoacaoVerdeM2: 0,
-		areaDoacaoMelhoramentoM2: 0,
-		baseLegalMelId: 0,
-		areaReservaPracaM2: 0,
 		areaDoacaoCalcadaM2: 0,
 		baseLegalCalId: 0,
+		areaReservaCalcadaM2: 0,
+		areaResFruicaoM2: 0,
+		baseLegalFruiId: 0,
+		areaReservaPracaM2: 0,
+		areaDesapropriacaoMelhoramentoM2: 0,
+		baseLegalDesMelId: 0,
+		areaDoacaoMelhoramentoM2: 0,
+		baseLegalMelId: 0,
+		areaDoacaoVerdeM2: 0,
 	};
 }
 
