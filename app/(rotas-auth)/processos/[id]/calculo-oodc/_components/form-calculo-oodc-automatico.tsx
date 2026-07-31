@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -186,6 +186,7 @@ export function FormCalculoOodcAutomatico({
 	const piuCentral = (IDS_LEGISLACAO_PIU_CENTRAL as readonly number[]).includes(entrada.idLegislacao);
 	const idAssuntoSugerido = rascunho.assuntoCandidatos.find((c) => c.idSugerido != null)?.idSugerido ?? null;
 	const qtdEnderecosAuto = rascunho.entrada.enderecos.filter((e) => e.setor && e.quadra).length;
+	const resultadoRef = useRef<HTMLDivElement>(null);
 
 	const resultado = useMemo(
 		() => calcularMemorial(entrada, vMax, valoresEncontrados),
@@ -298,6 +299,28 @@ export function FormCalculoOodcAutomatico({
 				...prev,
 			]);
 		});
+	}
+
+	// O cálculo já é reativo (useMemo abaixo recalcula a cada mudança) — este botão
+	// existe para dar um ponto de ação físico no fim da página: rola até o resultado
+	// e confirma o total atual, sem precisar voltar pro topo pra conferir.
+	function recalcular() {
+		resultadoRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		toast.success(`Recalculado — valor líquido: ${fmtBRL(resultado.valorTotalLiquidoRs)}`);
+	}
+
+	const motivosValorZerado: string[] = [];
+	if (resultado.valorTotalLiquidoRs === 0 && entrada.tipologias.length > 0) {
+		if (!entrada.idLegislacao) motivosValorZerado.push('Legislação não selecionada');
+		if (!entrada.idMacroarea) motivosValorZerado.push('Macroárea não selecionada (afeta o Fp)');
+		if (!entrada.idZona) motivosValorZerado.push('Zona de uso não selecionada (afeta o Fp)');
+		if (entrada.tipologias.some((t) => !t.idTipologia))
+			motivosValorZerado.push(
+				'Alguma tipologia sem "Classe — Descrição" selecionada — o BI sugere o Computável (m²), mas nem sempre dá pra inferir a tipologia exata (ex.: HMP até 50m² ou 51-70m²); sem ela, Fp e Fs ficam zerados',
+			);
+		if (vMax == null) motivosValorZerado.push('V_MÁXIMO não encontrado — busque o V nos endereços');
+		if (entrada.tipologias.every((t) => t.terrenoM2 <= 0)) motivosValorZerado.push('Terreno (m²) zerado em todas as tipologias');
+		if (entrada.tipologias.every((t) => t.computavelM2 <= 0)) motivosValorZerado.push('Computável (m²) zerado em todas as tipologias');
 	}
 
 	return (
@@ -618,7 +641,7 @@ export function FormCalculoOodcAutomatico({
 				</CardContent>
 			</Card>
 
-			<Card>
+			<Card ref={resultadoRef}>
 				<CardHeader>
 					<CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">Resultado</CardTitle>
 					{!resultado.dentroDaVigencia && (
@@ -628,6 +651,16 @@ export function FormCalculoOodcAutomatico({
 					)}
 				</CardHeader>
 				<CardContent className="flex flex-col gap-4">
+					{motivosValorZerado.length > 0 && (
+						<div className="flex flex-col gap-1.5 rounded-lg border border-warning/30 bg-warning-soft/40 p-3 text-xs">
+							<p className="font-semibold text-foreground">Valor líquido está em R$ 0,00 — possíveis causas:</p>
+							{motivosValorZerado.map((motivo, idx) => (
+								<p key={idx} className="text-muted-foreground">
+									• {motivo}
+								</p>
+							))}
+						</div>
+					)}
 					<div className="overflow-x-auto">
 						<Table>
 							<TableHeader>
@@ -722,6 +755,11 @@ export function FormCalculoOodcAutomatico({
 					</CardContent>
 				</Card>
 			)}
+
+			<Button type="button" variant="outline" onClick={recalcular} className="w-fit self-center">
+				<RefreshCw className="mr-2 h-4 w-4" />
+				Recalcular
+			</Button>
 		</div>
 	);
 }

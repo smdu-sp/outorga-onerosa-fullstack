@@ -35,6 +35,7 @@ import {
 	CONSTA_DOCUMENTO,
 	INCIDENCIA_COTA,
 	ORIGEM_MONITORAMENTO,
+	ORIGEM_PROCESSO,
 	SITUACAO_MONITORAMENTO,
 	STATUS_PAGAMENTO,
 	TIPO_LICENCA,
@@ -46,6 +47,8 @@ const CAMPOS_IGNORADOS = new Set([
 	'processo_id',
 	'monitoramento_ficha_id',
 	'parcelas',
+	'multa',
+	'sqls',
 	'monitoramento',
 	'monitoramento_cota',
 	'coordenada',
@@ -57,6 +60,8 @@ const CAMPOS_IGNORADOS = new Set([
 	'situacao',
 	'licencas',
 	'anotacoes_deuso',
+	'usuario_criador',
+	'memoriais_oodc',
 ]);
 
 function formatarValor(
@@ -91,7 +96,7 @@ function formatarValor(
 		return SITUACAO_MONITORAMENTO[valor] ?? valor;
 	}
 	if (chave === 'origem' && typeof valor === 'string') {
-		return ORIGEM_MONITORAMENTO[valor] ?? valor;
+		return ORIGEM_PROCESSO[valor] ?? ORIGEM_MONITORAMENTO[valor] ?? valor;
 	}
 	if (
 		(chave === 'planilha_calculo_cota' || chave === 'termo_compromisso_portaria') &&

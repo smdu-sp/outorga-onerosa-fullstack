@@ -16,8 +16,9 @@ import {
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import type { IGeoSampaResult } from '@/types/geosampa';
-import { consultarCalculo, confirmarProcessoTecnico } from '../actions-tecnico';
+import { consultarCalculo, confirmarProcessoTecnico, type TipoNovoProcesso } from '../actions-tecnico';
 import { resumoEnquadramento, resumoEndereco, resumoParametros } from '@/lib/geosampa-resumo';
+import { parseNumeroBr } from '@/lib/parse-numero-br';
 import { TIPOLOGIA_USO_OODC } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
 import { CampoKV, NovoCard, NovoCardHead } from './novo-processo-ui';
 
@@ -29,17 +30,42 @@ const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 const fmtArea = (n: number) => n.toLocaleString('pt-BR') + ' m²';
 
+const TIPO_OPCOES: { valor: TipoNovoProcesso; label: string; hint: string }[] = [
+	{ valor: 'OUTORGA', label: 'Outorga', hint: 'Calcula pela API da Antares' },
+	{ valor: 'COTA', label: 'Cota', hint: 'Valor digitado manualmente' },
+	{ valor: 'OUTORGA_COTA', label: 'Outorga/Cota', hint: 'Calcula a Outorga e depois pede o valor da Cota' },
+	{ valor: 'AIU', label: 'AIU', hint: 'Outorga em Área de Intervenção Urbana (Antares)' },
+];
+
 export default function FormNovoProcessoTecnico() {
+	const [tipo, setTipo] = useState<TipoNovoProcesso>('OUTORGA');
 	const [valor, setValor] = useState('');
+	const [areaComputavel, setAreaComputavel] = useState('');
+	const [areaTerreno, setAreaTerreno] = useState('');
+	const [valorCota, setValorCota] = useState('');
+	const [incluirMulta, setIncluirMulta] = useState(false);
+	const [valorMulta, setValorMulta] = useState('');
 	const [erro, setErro] = useState('');
 	const [fase, setFase] = useState<Fase>('idle');
 	const [resultado, setResultado] = useState<IGeoSampaResult | null>(null);
 	const [erroApi, setErroApi] = useState('');
 	const inputRef = useRef<HTMLInputElement>(null);
 
-	function validar(v: string) {
+	const cotaValida = (parseNumeroBr(valorCota) ?? 0) > 0;
+	const multaValida = !incluirMulta || (parseNumeroBr(valorMulta) ?? 0) > 0;
+
+	function trocarTipo(novoTipo: TipoNovoProcesso) {
+		setTipo(novoTipo);
+		setErro('');
+		setErroApi('');
+	}
+
+	function validar(v: string, computavel: number, terreno: number) {
 		if (!v.trim()) return 'Informe o número do processo.';
 		if (!reProc.test(v.trim())) return 'Número inválido. Formato esperado: 0000.0000/0000000-0.';
+		if (tipo === 'COTA') return '';
+		if (!(computavel > 0)) return 'Informe a área computável (m²).';
+		if (!(terreno > 0)) return 'Informe a área do terreno (m²).';
 		return '';
 	}
 
@@ -47,19 +73,33 @@ export default function FormNovoProcessoTecnico() {
 		e.preventDefault();
 		if (fase === 'loading') return;
 		const v = valor.trim();
-		const msg = validar(v);
+		const computavel = parseNumeroBr(areaComputavel) ?? 0;
+		const terreno = parseNumeroBr(areaTerreno) ?? 0;
+		const msg = validar(v, computavel, terreno);
 		if (msg) {
 			setErro(msg);
 			inputRef.current?.focus();
 			return;
 		}
+		if (tipo === 'COTA' && !cotaValida) {
+			setErro('Informe o valor da Cota de Solidariedade.');
+			return;
+		}
 
 		setErro('');
 		setErroApi('');
+
+		if (tipo === 'COTA') {
+			// Sem Antares — o valor já foi digitado, só falta confirmar a criação.
+			setResultado(null);
+			setFase('done');
+			return;
+		}
+
 		setResultado(null);
 		setFase('loading');
 
-		const resp = await consultarCalculo(v);
+		const resp = await consultarCalculo(v, computavel, terreno);
 		if (!resp.ok || !resp.data) {
 			setFase('error');
 			setErroApi(resp.error ?? 'Erro inesperado ao consultar a API de cálculo.');
@@ -75,13 +115,32 @@ export default function FormNovoProcessoTecnico() {
 		setResultado(null);
 		setErroApi('');
 		setValor('');
+		setAreaComputavel('');
+		setAreaTerreno('');
+		setValorCota('');
+		setIncluirMulta(false);
+		setValorMulta('');
 		setTimeout(() => inputRef.current?.focus(), 0);
 	}
 
 	async function confirmar() {
-		if (!resultado) return;
+		if (tipo !== 'COTA' && !resultado) return;
+		if ((tipo === 'COTA' || tipo === 'OUTORGA_COTA') && !cotaValida) {
+			setErroApi('Informe o valor da Cota de Solidariedade.');
+			return;
+		}
+		if (incluirMulta && !multaValida) {
+			setErroApi('Informe o valor da multa.');
+			return;
+		}
 		setFase('confirmando');
-		const resp = await confirmarProcessoTecnico(valor.trim(), resultado);
+		const resp = await confirmarProcessoTecnico(
+			valor.trim(),
+			tipo,
+			resultado ?? undefined,
+			tipo === 'COTA' || tipo === 'OUTORGA_COTA' ? parseNumeroBr(valorCota) : undefined,
+			incluirMulta ? parseNumeroBr(valorMulta) : undefined,
+		);
 		if (!resp.ok) {
 			setFase('done');
 			setErroApi(resp.error ?? 'Erro ao confirmar o processo.');
@@ -121,9 +180,45 @@ export default function FormNovoProcessoTecnico() {
 		<div className="flex flex-col gap-5">
 			<NovoCard>
 				<NovoCardHead
+					icon={Calculator}
+					title="Tipo de obrigação"
+					subtitle="Define o que este processo vai cobrar do interessado"
+				/>
+				<div className="grid grid-cols-1 gap-3 px-[22px] py-5 sm:grid-cols-3">
+					{TIPO_OPCOES.map((opcao) => (
+						<button
+							key={opcao.valor}
+							type="button"
+							disabled={fase === 'loading'}
+							onClick={() => trocarTipo(opcao.valor)}
+							className={cn(
+								'flex flex-col items-start gap-1 rounded-[10px] border px-4 py-3 text-left transition-colors',
+								tipo === opcao.valor
+									? 'border-primary bg-primary-soft'
+									: 'border-border bg-card hover:border-primary/40',
+							)}>
+							<span
+								className={cn(
+									'text-sm font-semibold',
+									tipo === opcao.valor ? 'text-primary' : 'text-foreground',
+								)}>
+								{opcao.label}
+							</span>
+							<span className="text-[11.5px] text-muted-foreground">{opcao.hint}</span>
+						</button>
+					))}
+				</div>
+			</NovoCard>
+
+			<NovoCard>
+				<NovoCardHead
 					icon={Search}
 					title="Número do processo"
-					subtitle="Informe o número do processo para consultar o cálculo da outorga"
+					subtitle={
+						tipo === 'COTA'
+							? 'Informe o número do processo e o valor da Cota de Solidariedade'
+							: 'Informe o número do processo para consultar o cálculo da outorga'
+					}
 				/>
 				<div className="px-[22px] py-5">
 					<form onSubmit={handleSubmit}>
@@ -167,11 +262,80 @@ export default function FormNovoProcessoTecnico() {
 								) : (
 									<>
 										<Calculator className="h-4 w-4" />
-										Calcular
+										{tipo === 'COTA' ? 'Continuar' : 'Calcular'}
 									</>
 								)}
 							</button>
 						</div>
+
+						{tipo === 'COTA' ? (
+							<div className="mt-4">
+								<label
+									htmlFor="valorCota"
+									className="mb-[7px] block text-[11px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">
+									Valor da Cota de Solidariedade (R$)
+								</label>
+								<input
+									id="valorCota"
+									type="text"
+									inputMode="decimal"
+									value={valorCota}
+									onChange={(e) => {
+										setValorCota(e.target.value);
+										if (erro) setErro('');
+									}}
+									placeholder="0,00"
+									disabled={fase === 'loading'}
+									autoComplete="off"
+									className="h-11 w-full rounded-[10px] border border-border bg-secondary px-3.5 text-sm outline-none placeholder:text-muted-foreground"
+								/>
+							</div>
+						) : (
+							<div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+								<div>
+									<label
+										htmlFor="areaComputavel"
+										className="mb-[7px] block text-[11px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">
+										Área computável (m²)
+									</label>
+									<input
+										id="areaComputavel"
+										type="text"
+										inputMode="decimal"
+										value={areaComputavel}
+										onChange={(e) => {
+											setAreaComputavel(e.target.value);
+											if (erro) setErro('');
+										}}
+										placeholder="0"
+										disabled={fase === 'loading'}
+										autoComplete="off"
+										className="h-11 w-full rounded-[10px] border border-border bg-secondary px-3.5 text-sm outline-none placeholder:text-muted-foreground"
+									/>
+								</div>
+								<div>
+									<label
+										htmlFor="areaTerreno"
+										className="mb-[7px] block text-[11px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">
+										Área do terreno (m²)
+									</label>
+									<input
+										id="areaTerreno"
+										type="text"
+										inputMode="decimal"
+										value={areaTerreno}
+										onChange={(e) => {
+											setAreaTerreno(e.target.value);
+											if (erro) setErro('');
+										}}
+										placeholder="0"
+										disabled={fase === 'loading'}
+										autoComplete="off"
+										className="h-11 w-full rounded-[10px] border border-border bg-secondary px-3.5 text-sm outline-none placeholder:text-muted-foreground"
+									/>
+								</div>
+							</div>
+						)}
 
 						{erro ? (
 							<div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-medium text-destructive">
@@ -211,7 +375,7 @@ export default function FormNovoProcessoTecnico() {
 				</NovoCard>
 			)}
 
-			{(fase === 'done' || fase === 'confirmando') && resultado && (
+			{tipo !== 'COTA' && (fase === 'done' || fase === 'confirmando') && resultado && (
 				<NovoCard className="animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-hidden">
 					<NovoCardHead
 						icon={Building}
@@ -280,17 +444,81 @@ export default function FormNovoProcessoTecnico() {
 											Parâmetros para cálculo da contrapartida
 										</p>
 										<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-x-[26px]">
-											<CampoKV label="Coeficiente Básico" value={par.coeficiente_basico} highlight />
+											<CampoKV label="Área do Terreno" value={fmtArea(par.area_terreno)} />
+											<CampoKV label="Área Computável" value={fmtArea(par.area_computavel)} />
+											<CampoKV label="Valor m² (Quadro 14)" value={fmtBRL(par.valor_m2_quadro14)} />
 											<CampoKV
-												label="Área do Terreno"
-												value={fmtArea(par.area_terreno)}
-											/>
-											<CampoKV
-												label="Valor m² (Quadro 14)"
-												value={fmtBRL(par.valor_m2_quadro14)}
+												label="Contrapartida calculada"
+												value={fmtBRL(par.valor_calculado_total)}
+												highlight
+												full
 											/>
 										</div>
 									</>
+								)}
+
+								{tipo === 'OUTORGA_COTA' && (
+									<>
+										<div className="my-5 h-px bg-border" />
+										<label
+											htmlFor="valorCotaOutorga"
+											className="mb-[7px] block text-[11px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">
+											Valor da Cota de Solidariedade (R$)
+										</label>
+										<input
+											id="valorCotaOutorga"
+											type="text"
+											inputMode="decimal"
+											value={valorCota}
+											onChange={(e) => setValorCota(e.target.value)}
+											placeholder="0,00"
+											disabled={fase === 'confirmando'}
+											autoComplete="off"
+											className="h-11 w-full rounded-[10px] border border-border bg-secondary px-3.5 text-sm outline-none placeholder:text-muted-foreground"
+										/>
+									</>
+								)}
+
+								<div className="my-5 h-px bg-border" />
+								{!incluirMulta ? (
+									<button
+										type="button"
+										onClick={() => setIncluirMulta(true)}
+										disabled={fase === 'confirmando'}
+										className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-60">
+										Incluir Multa
+									</button>
+								) : (
+									<div className="space-y-2">
+										<div className="flex items-center justify-between gap-3">
+											<label
+												htmlFor="valorMultaOutorga"
+												className="text-[11px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">
+												Valor da Multa (R$)
+											</label>
+											<button
+												type="button"
+												onClick={() => {
+													setIncluirMulta(false);
+													setValorMulta('');
+												}}
+												disabled={fase === 'confirmando'}
+												className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+												Remover
+											</button>
+										</div>
+										<input
+											id="valorMultaOutorga"
+											type="text"
+											inputMode="decimal"
+											value={valorMulta}
+											onChange={(e) => setValorMulta(e.target.value)}
+											placeholder="0,00"
+											disabled={fase === 'confirmando'}
+											autoComplete="off"
+											className="h-11 w-full rounded-[10px] border border-border bg-secondary px-3.5 text-sm outline-none placeholder:text-muted-foreground"
+										/>
+									</div>
 								)}
 							</>
 						)}
@@ -312,7 +540,103 @@ export default function FormNovoProcessoTecnico() {
 							<button
 								type="button"
 								onClick={confirmar}
+								disabled={
+									fase === 'confirmando' ||
+									(tipo === 'OUTORGA_COTA' && !cotaValida) ||
+									!multaValida
+								}
+								className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-70 sm:flex-none">
+								{fase === 'confirmando' ? (
+									<>
+										<Loader2 className="h-4 w-4 animate-spin" />
+										Confirmando…
+									</>
+								) : (
+									'Confirmar'
+								)}
+							</button>
+						</div>
+					</div>
+				</NovoCard>
+			)}
+
+			{tipo === 'COTA' && (fase === 'done' || fase === 'confirmando') && (
+				<NovoCard className="animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-hidden">
+					<NovoCardHead
+						icon={Building}
+						title="Confirmar Cota de Solidariedade"
+						subtitle={
+							<>
+								Processo <b className="font-mono text-xs">{valor}</b> — valor digitado
+								manualmente, sem consulta à API
+							</>
+						}
+					/>
+					<div className="px-6 py-5 space-y-4">
+						<CampoKV
+							label="Valor da Cota de Solidariedade"
+							value={fmtBRL(parseNumeroBr(valorCota) ?? 0)}
+							highlight
+							full
+						/>
+						{!incluirMulta ? (
+							<button
+								type="button"
+								onClick={() => setIncluirMulta(true)}
 								disabled={fase === 'confirmando'}
+								className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-60">
+								Incluir Multa
+							</button>
+						) : (
+							<div className="space-y-2">
+								<div className="flex items-center justify-between gap-3">
+									<label
+										htmlFor="valorMultaCota"
+										className="text-[11px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">
+										Valor da Multa (R$)
+									</label>
+									<button
+										type="button"
+										onClick={() => {
+											setIncluirMulta(false);
+											setValorMulta('');
+										}}
+										disabled={fase === 'confirmando'}
+										className="text-xs text-muted-foreground underline-offset-2 hover:underline">
+										Remover
+									</button>
+								</div>
+								<input
+									id="valorMultaCota"
+									type="text"
+									inputMode="decimal"
+									value={valorMulta}
+									onChange={(e) => setValorMulta(e.target.value)}
+									placeholder="0,00"
+									disabled={fase === 'confirmando'}
+									autoComplete="off"
+									className="h-11 w-full rounded-[10px] border border-border bg-secondary px-3.5 text-sm outline-none placeholder:text-muted-foreground"
+								/>
+							</div>
+						)}
+					</div>
+					<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-[22px] py-[18px] sm:flex-row sm:items-center">
+						<p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
+							<Check className="h-3.5 w-3.5 shrink-0" />
+							Só grava no banco se você confirmar.
+						</p>
+						<div className="flex w-full gap-2.5 sm:w-auto">
+							<button
+								type="button"
+								onClick={reiniciar}
+								disabled={fase === 'confirmando'}
+								className="inline-flex flex-1 items-center justify-center rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-background disabled:opacity-60 sm:flex-none">
+								Cancelar
+							</button>
+							<button
+								type="button"
+								onClick={confirmar}
+								disabled={fase === 'confirmando' || !multaValida}
 								className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-70 sm:flex-none">
 								{fase === 'confirmando' ? (
 									<>

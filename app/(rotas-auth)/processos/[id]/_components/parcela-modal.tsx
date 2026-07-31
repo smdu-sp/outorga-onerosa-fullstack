@@ -21,10 +21,12 @@ import { toast } from 'sonner';
 export function ParcelaModal({
 	processoId,
 	parcela,
+	obrigacao,
 	onAtualizado,
 }: {
 	processoId: string;
 	parcela?: IParcela;
+	obrigacao: 'PDE' | 'COTA';
 	onAtualizado: (detalhe: IProcessoDetalhe) => void;
 }) {
 	const isEditing = Boolean(parcela?.id);
@@ -39,6 +41,7 @@ export function ParcelaModal({
 			num_parcela: Number(numParcela),
 			valor: Number(valor.replace(',', '.')),
 			vencimento,
+			obrigacao,
 		};
 
 		startTransition(async () => {
@@ -77,7 +80,9 @@ export function ParcelaModal({
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>{isEditing ? 'Editar parcela' : 'Nova parcela'}</DialogTitle>
-					<DialogDescription>Dados da parcela da contrapartida.</DialogDescription>
+					<DialogDescription>
+						Dados da parcela de {obrigacao === 'COTA' ? 'Cota de Solidariedade' : 'Outorga'}.
+					</DialogDescription>
 				</DialogHeader>
 				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 					<div className="flex flex-col gap-1.5">

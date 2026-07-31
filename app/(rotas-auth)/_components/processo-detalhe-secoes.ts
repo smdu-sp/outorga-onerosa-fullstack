@@ -13,7 +13,6 @@ import {
 	LABELS_MONITORAMENTO_FICHA,
 	LABELS_PARCELA,
 	LABELS_PROCESSO,
-	LABELS_SITUACAO,
 	LABELS_SUBCATEGORIA_USO,
 } from './processo-detalhe-labels';
 
@@ -47,11 +46,46 @@ export const SECOES_PROCESSO_DETALHE: SecaoDetalhe[] = [
 		getDados: (d) => d as unknown as Record<string, unknown>,
 	},
 	{
+		tipo: 'grid',
+		id: 'valores',
+		titulo: 'Valores',
+		tabela: 'monitoramento_calculo_outorga / monitoramento_cota_solidariedade',
+		labels: { outorga: 'Outorga', cota: 'Cota de Solidariedade' },
+		getDados: (d) => ({
+			outorga: d.monitoramento?.calculo_outorga?.contrapartida_total,
+			cota: d.monitoramento_cota?.valor_calculado_processo,
+		}),
+	},
+	{
 		tipo: 'parcelas',
-		id: 'parcelas',
-		titulo: 'Parcelas',
+		id: 'parcelas-outorga',
+		titulo: 'Parcela Outorga',
 		tabela: 'parcelas',
-		getLista: (d) => (d.parcelas ?? []) as unknown as Record<string, unknown>[],
+		getLista: (d) =>
+			((d.parcelas ?? []).filter((p) => (p.obrigacao ?? 'PDE') !== 'COTA')) as unknown as Record<
+				string,
+				unknown
+			>[],
+	},
+	{
+		tipo: 'parcelas',
+		id: 'parcelas-cota',
+		titulo: 'Parcela Cota',
+		tabela: 'parcelas',
+		getLista: (d) =>
+			((d.parcelas ?? []).filter((p) => p.obrigacao === 'COTA')) as unknown as Record<string, unknown>[],
+	},
+	{
+		tipo: 'grid',
+		id: 'multa',
+		titulo: 'Multa',
+		tabela: 'multas',
+		labels: {
+			valor: 'Valor',
+			status_quitacao: 'Paga',
+			data_quitacao: 'Data do pagamento',
+		},
+		getDados: (d) => d.multa as unknown as Record<string, unknown>,
 	},
 	{
 		tipo: 'grid',
@@ -116,14 +150,6 @@ export const SECOES_PROCESSO_DETALHE: SecaoDetalhe[] = [
 		labels: LABELS_CALCULO_OUTORGA,
 		getDados: (d) =>
 			d.monitoramento?.calculo_outorga as unknown as Record<string, unknown>,
-	},
-	{
-		tipo: 'grid',
-		id: 'situacao',
-		titulo: 'Situação',
-		tabela: 'monitoramento_situacao',
-		labels: LABELS_SITUACAO,
-		getDados: (d) => d.monitoramento?.situacao as unknown as Record<string, unknown>,
 	},
 	{
 		tipo: 'licencas',

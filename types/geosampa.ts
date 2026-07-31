@@ -100,6 +100,9 @@ export type IGeoSampaAnotacoesDeuso = {
 /** Payload completo da consulta GeoSampa. */
 export type IGeoSampaResult = {
 	num_processo?: string;
+	data_autuacao?: string;
+	sql_incra?: string;
+	sql_formatado?: string;
 	responsavel_preenchimento?: string;
 	proposta_oodc_id?: string;
 	numero_proposta?: string;

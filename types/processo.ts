@@ -18,6 +18,7 @@ export type IParcela = {
 	antecipada?: boolean;
 	quebra?: boolean;
 	cpf_cnpj?: string | null;
+	obrigacao?: 'PDE' | 'COTA' | 'AIU' | null;
 };
 
 export type IProcesso = {

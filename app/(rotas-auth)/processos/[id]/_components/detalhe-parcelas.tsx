@@ -108,6 +108,7 @@ function RegistrarQuitacaoDialog({
 export function DetalheParcelas({
 	processoId,
 	parcelas,
+	obrigacao,
 	statusPagamento,
 	onAtualizado,
 	podeEditar = false,
@@ -115,6 +116,7 @@ export function DetalheParcelas({
 }: {
 	processoId: string;
 	parcelas: IParcela[];
+	obrigacao: 'PDE' | 'COTA';
 	statusPagamento?: string | null;
 	onAtualizado: (detalhe: IProcessoDetalhe) => void;
 	podeEditar?: boolean;
@@ -175,10 +177,13 @@ export function DetalheParcelas({
 						<ParcelasLoteModal
 							processoId={processoId}
 							parcelas={parcelas}
+							obrigacao={obrigacao}
 							onAtualizado={onAtualizado}
 						/>
 					)}
-					{podeEditar && <ParcelaModal processoId={processoId} onAtualizado={onAtualizado} />}
+					{podeEditar && (
+						<ParcelaModal processoId={processoId} obrigacao={obrigacao} onAtualizado={onAtualizado} />
+					)}
 				</div>
 			</div>
 
@@ -207,7 +212,7 @@ export function DetalheParcelas({
 						{parcelasView.length === 0 ? (
 							<tr>
 								<td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">
-									Nenhuma parcela cadastrada.
+									Nenhuma parcela de {obrigacao === 'COTA' ? 'Cota de Solidariedade' : 'Outorga'} cadastrada.
 								</td>
 							</tr>
 						) : (
@@ -240,6 +245,7 @@ export function DetalheParcelas({
 													<ParcelaModal
 														processoId={processoId}
 														parcela={p}
+														obrigacao={obrigacao}
 														onAtualizado={onAtualizado}
 													/>
 												)}

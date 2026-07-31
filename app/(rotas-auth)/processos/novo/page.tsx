@@ -5,7 +5,6 @@ import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
-import FormNovoProcesso from './_components/form-novo-processo';
 import FormNovoProcessoTecnico from './_components/form-novo-processo-tecnico';
 
 export const metadata = {
@@ -36,13 +35,14 @@ export default async function NovoProcessoPage() {
 			<div className="mb-[22px]">
 				<h1 className="m-0 text-[30px] font-bold tracking-[-0.01em]">Novo processo</h1>
 				<p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-					{podeGeosampa
-						? 'Informe o número do processo. O sistema consulta a base cartográfica e calcula automaticamente o enquadramento urbanístico e os parâmetros de outorga.'
-						: 'Informe o número do processo. O sistema consulta a API de cálculo da outorga — você confirma ou cancela antes de qualquer gravação.'}
+					Informe o número do processo e as áreas do projeto. O sistema consulta a API de
+					cálculo da outorga — você confirma ou cancela antes de qualquer gravação.
 				</p>
 			</div>
 
-			<Suspense>{podeGeosampa ? <FormNovoProcesso /> : <FormNovoProcessoTecnico />}</Suspense>
+			<Suspense>
+				<FormNovoProcessoTecnico />
+			</Suspense>
 		</div>
 	);
 }

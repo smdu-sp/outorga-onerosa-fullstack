@@ -1,8 +1,18 @@
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { recalcularStatusPagamento } from '@/lib/parcelas-utils';
 import { parseDataCivil, dataCivilHoje } from '@/lib/datas';
 import { classificarAntecipacao } from '@/lib/antecipacao';
 import { atualizarValorTotalParcelas, buscarDetalheProcesso } from './processos';
+
+/**
+ * Parcelas gravadas antes desta feature não têm `obrigacao` preenchida — contam
+ * como Outorga (ver contexto-dominio.md: obrigação predominante é PDE). Cota
+ * nunca tem esse fallback: só conta o que foi explicitamente marcado COTA.
+ */
+function whereObrigacao(obrigacao: 'PDE' | 'COTA'): Prisma.ParcelaWhereInput {
+	return obrigacao === 'COTA' ? { obrigacao: 'COTA' } : { OR: [{ obrigacao: 'PDE' }, { obrigacao: null }] };
+}
 
 export type AcaoParcela = 'antecipar' | 'quebra' | 'reverter' | 'reverter-antecipacao';
 
@@ -10,6 +20,7 @@ export type IDadosParcela = {
 	num_parcela: number;
 	valor: number;
 	vencimento: string | Date;
+	obrigacao?: 'PDE' | 'COTA';
 };
 
 export type IDadosParcelasEmLote = {
@@ -17,6 +28,7 @@ export type IDadosParcelasEmLote = {
 	num_parcela_inicial: number;
 	valor: number;
 	vencimento_inicial: string | Date;
+	obrigacao: 'PDE' | 'COTA';
 };
 
 /** Soma `meses` à data preservando o dia (com ajuste para meses mais curtos). */
@@ -50,6 +62,7 @@ export async function criarParcelaProcesso(processoId: string, dados: IDadosParc
 			num_parcela: dados.num_parcela,
 			valor: dados.valor,
 			vencimento,
+			obrigacao: dados.obrigacao,
 		},
 	});
 
@@ -77,10 +90,14 @@ export async function criarParcelasEmLote(processoId: string, dados: IDadosParce
 	const vencimentoInicial = parseDataCivil(dados.vencimento_inicial);
 	if (!vencimentoInicial) throw new Error('Vencimento inválido.');
 
-	// Gerar em lote SUBSTITUI o plano de parcelas do processo (não soma a um lote
-	// anterior). Protege parcelas com histórico real — quitação ou quebra não podem
-	// ser apagadas automaticamente.
-	const existentes = await prisma.parcela.findMany({ where: { processo_id: processoId } });
+	// Gerar em lote SUBSTITUI o plano de parcelas do processo para a obrigação
+	// informada (não soma a um lote anterior, e não mexe nas parcelas da outra
+	// obrigação — um processo pode ter Outorga e Cota em paralelo, ver
+	// contexto-dominio.md). Protege parcelas com histórico real — quitação ou
+	// quebra não podem ser apagadas automaticamente.
+	const existentes = await prisma.parcela.findMany({
+		where: { processo_id: processoId, ...whereObrigacao(dados.obrigacao) },
+	});
 	if (existentes.some((p) => p.status_quitacao || p.quebra)) {
 		throw new Error(
 			'Este processo já tem parcela quitada ou em quebra — não é possível gerar um novo lote automaticamente, pois isso apagaria histórico de pagamento. Edite as parcelas manualmente.',
@@ -88,13 +105,16 @@ export async function criarParcelasEmLote(processoId: string, dados: IDadosParce
 	}
 
 	await prisma.$transaction([
-		prisma.parcela.deleteMany({ where: { processo_id: processoId } }),
+		prisma.parcela.deleteMany({
+			where: { processo_id: processoId, ...whereObrigacao(dados.obrigacao) },
+		}),
 		prisma.parcela.createMany({
 			data: Array.from({ length: dados.quantidade }, (_, i) => ({
 				processo_id: processoId,
 				num_parcela: dados.num_parcela_inicial + i,
 				valor: dados.valor,
 				vencimento: adicionarMeses(vencimentoInicial, i),
+				obrigacao: dados.obrigacao,
 			})),
 		}),
 	]);

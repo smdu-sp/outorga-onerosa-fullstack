@@ -1,6 +1,7 @@
 'use client';
 
 import { CampoEditavel } from './monitoramento-campos-editaveis';
+import { ORIGEM_PROCESSO } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
 import { atualizarDadosIniciais } from '@/services/processos/server-functions/atualizar';
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
@@ -12,13 +13,17 @@ const LABELS_DADOS_INICIAIS: Record<string, string> = {
 	num_processo: 'Número do Processo',
 	protocolo_ad: 'Protocolo AD',
 	data_entrada: 'Data de Entrada',
+	data_autuacao: 'Data de Autuação',
 	interessado: 'Interessado',
 	cnpj: 'CNPJ',
+	sql_incra: 'SQL/INCRA',
+	sql_formatado: 'SQL formatado',
+	origem: 'Sistema de origem',
 };
 
 const TIPO_PROCESSO_OPCOES: Record<string, string> = {
-	PDE: 'PDE',
-	COTA: 'COTA',
+	PDE: 'Outorga',
+	COTA: 'Cota',
 	AIU: 'AIU',
 };
 
@@ -29,8 +34,12 @@ function dadosIniciaisDe(detalhe: IProcessoDetalhe): Record<string, unknown> {
 		num_processo: detalhe.num_processo,
 		protocolo_ad: detalhe.protocolo_ad,
 		data_entrada: detalhe.data_entrada,
+		data_autuacao: detalhe.data_autuacao,
 		interessado: detalhe.interessado,
 		cnpj: detalhe.cnpj,
+		sql_incra: detalhe.sql_incra,
+		sql_formatado: detalhe.sql_formatado,
+		origem: detalhe.origem,
 	};
 }
 
@@ -88,7 +97,13 @@ export function DadosIniciaisEditavel({
 					valor={valores[chave]}
 					onSalvar={handleSalvar}
 					salvando={pending}
-					enumOpcoes={chave === 'tipo' ? TIPO_PROCESSO_OPCOES : undefined}
+					enumOpcoes={
+						chave === 'tipo'
+							? TIPO_PROCESSO_OPCOES
+							: chave === 'origem'
+								? ORIGEM_PROCESSO
+								: undefined
+					}
 				/>
 			))}
 		</div>

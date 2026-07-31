@@ -1,6 +1,7 @@
 /** Colunas @db.Date — data civil, sem hora. */
 export const CAMPOS_DATA_CIVIL = new Set([
 	'data_entrada',
+	'data_autuacao',
 	'data_informacao_dmus',
 	'ficha_revisada_em',
 	'data_expedicao',

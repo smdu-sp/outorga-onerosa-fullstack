@@ -249,11 +249,11 @@ export interface IRelatorio {
 	aiu: IRelatorioPdeCota;
 	/**
 	 * Arrecadado no ano por tipo (em milhões), mesma base do d26.real.
-	 * FUNDURB = outorga + cota; AIU é arrecadado à parte (fora do FUNDURB).
+	 * FUNDURB = outorga + cota + multa; AIU é arrecadado à parte (fora do FUNDURB).
 	 */
-	arrecadadoTipo: { outorga: number; cota: number; aiu: number };
+	arrecadadoTipo: { outorga: number; cota: number; aiu: number; multa: number };
 	/**
-	 * KPIs de gestão do FUNDURB (Outorga + Cota, excluindo AIU). Valores em milhões,
+	 * KPIs de gestão do FUNDURB (Outorga + Cota + Multa, excluindo AIU). Valores em milhões,
 	 * exceto `processos`. Base consistente com d26 (capado no mês corrente).
 	 */
 	fundurb: {

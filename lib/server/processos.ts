@@ -18,6 +18,7 @@ export const processoDetalheInclude = {
 		orderBy: { criado_em: 'asc' as const },
 		include: { enderecos: { orderBy: { ordem: 'asc' as const } } },
 	},
+	multa: true,
 	monitoramento: {
 		include: {
 			coordenada: true,
@@ -69,7 +70,7 @@ export async function importarProcessos(createProcessoDto: ICreateProcesso[], us
 			try {
 				await prisma.processo.create({
 					data: {
-						tipo: processo.tipo as 'PDE' | 'COTA' | undefined,
+						tipo: processo.tipo as 'PDE' | 'COTA' | 'AIU' | undefined,
 						num_processo: processo.num_processo,
 						protocolo_ad: processo.protocolo_ad,
 						data_entrada: processo.data_entrada,
@@ -101,7 +102,7 @@ export async function criarProcesso(createProcessoDto: ICreateProcesso, usuarioI
 	return prisma.processo.create({
 		data: {
 			num_processo,
-			tipo: processo.tipo as 'PDE' | 'COTA' | undefined,
+			tipo: processo.tipo as 'PDE' | 'COTA' | 'AIU' | undefined,
 			protocolo_ad: processo.protocolo_ad,
 			data_entrada: processo.data_entrada,
 			origem: processo.origem as 'APROVA_DIGITAL' | 'SEI' | 'FISICO' | 'PORTAL' | undefined,
@@ -122,8 +123,12 @@ export type IAtualizarDadosIniciais = Partial<{
 	num_processo: string;
 	protocolo_ad: string;
 	data_entrada: string | Date;
+	data_autuacao: string | Date;
 	interessado: string;
 	cnpj: string;
+	sql_incra: string;
+	sql_formatado: string;
+	origem: string;
 }>;
 
 export async function atualizarProcesso(processoId: string, dados: IAtualizarDadosIniciais) {
@@ -136,8 +141,14 @@ export async function atualizarProcesso(processoId: string, dados: IAtualizarDad
 		...(dados.num_processo !== undefined && { num_processo: dados.num_processo }),
 		...(dados.protocolo_ad !== undefined && { protocolo_ad: dados.protocolo_ad }),
 		...(dados.data_entrada !== undefined && { data_entrada: parseDataCivil(dados.data_entrada) }),
+		...(dados.data_autuacao !== undefined && { data_autuacao: parseDataCivil(dados.data_autuacao) }),
 		...(dados.interessado !== undefined && { interessado: dados.interessado || null }),
 		...(dados.cnpj !== undefined && { cnpj: dados.cnpj || null }),
+		...(dados.sql_incra !== undefined && { sql_incra: dados.sql_incra || null }),
+		...(dados.sql_formatado !== undefined && { sql_formatado: dados.sql_formatado || null }),
+		...(dados.origem !== undefined && {
+			origem: (dados.origem || null) as 'APROVA_DIGITAL' | 'SEI' | 'FISICO' | 'PORTAL' | null,
+		}),
 	};
 
 	await prisma.processo.update({ where: { id: processoId }, data });
@@ -165,13 +176,27 @@ export async function recalcularContrapartidaProcesso(processoId: string) {
 	const processo = await prisma.processo.findUnique({ where: { id: processoId } });
 	if (!processo) throw new Error('Processo não encontrado.');
 
-	const soma = await atualizarValorTotalParcelas(processoId);
+	// valor_total_parcelas continua somando tudo (Outorga + Cota, quando houver as
+	// duas — regra de ouro do domínio). Já contrapartida_total é campo exclusivo de
+	// Outorga (monitoramento_calculo_outorga) — não pode incluir parcelas de Cota.
+	await atualizarValorTotalParcelas(processoId);
+
+	// OR explícito (em vez de `obrigacao: { not: 'COTA' }`) para não depender de como
+	// o Prisma trata NULL em filtros de negação num enum opcional — parcela sem
+	// obrigacao (legada) precisa continuar contando como Outorga, sem ambiguidade.
+	const somaOutorga = await prisma.parcela.aggregate({
+		where: {
+			processo_id: processoId,
+			OR: [{ obrigacao: 'PDE' }, { obrigacao: 'AIU' }, { obrigacao: null }],
+		},
+		_sum: { valor: true },
+	});
 
 	const ficha = await prisma.monitoramentoFicha.findUnique({ where: { processo_id: processoId } });
 	if (ficha) {
 		await prisma.monitoramentoCalculoOutorga.updateMany({
 			where: { monitoramento_ficha_id: ficha.id },
-			data: { contrapartida_total: soma },
+			data: { contrapartida_total: somaOutorga._sum.valor ?? 0 },
 		});
 	}
 

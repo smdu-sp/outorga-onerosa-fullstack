@@ -31,10 +31,12 @@ import { toast } from 'sonner';
 export function ParcelasLoteModal({
 	processoId,
 	parcelas,
+	obrigacao,
 	onAtualizado,
 }: {
 	processoId: string;
 	parcelas: IParcela[];
+	obrigacao: 'PDE' | 'COTA';
 	onAtualizado: (detalhe: IProcessoDetalhe) => void;
 }) {
 	const [open, setOpen] = useState(false);
@@ -61,6 +63,7 @@ export function ParcelasLoteModal({
 			num_parcela_inicial: Number(numParcelaInicial),
 			valor: Number(valor.replace(',', '.')),
 			vencimento_inicial: vencimentoInicial,
+			obrigacao,
 		};
 
 		startTransition(async () => {
@@ -85,14 +88,16 @@ export function ParcelasLoteModal({
 			</DialogTrigger>
 			<DialogContent>
 				<DialogHeader>
-					<DialogTitle>Gerar parcelas em lote</DialogTitle>
+					<DialogTitle>Gerar parcelas em lote — {obrigacao === 'COTA' ? 'Cota de Solidariedade' : 'Outorga'}</DialogTitle>
 					<DialogDescription>
 						Informe o número total de parcelas e o valor — o mesmo valor é aplicado a todas.
 						Os vencimentos seguem mensalmente a partir da 1ª parcela.
 						{parcelas.length > 0 && (
 							<span className="mt-1.5 block font-medium text-destructive">
-								Este processo já tem {parcelas.length} parcela(s) cadastrada(s) — gerar um novo
-								lote vai substituí-las.
+								Este processo já tem {parcelas.length} parcela(s) de{' '}
+								{obrigacao === 'COTA' ? 'Cota' : 'Outorga'} cadastrada(s) — gerar um novo lote vai
+								substituí-las (as de {obrigacao === 'COTA' ? 'Outorga' : 'Cota'}, se houver, não
+								são afetadas).
 							</span>
 						)}
 					</DialogDescription>

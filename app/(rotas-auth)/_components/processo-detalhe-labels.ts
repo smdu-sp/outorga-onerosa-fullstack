@@ -17,11 +17,22 @@ export const LABELS_PROCESSO: Record<string, string> = {
 	num_processo: 'Número do Processo',
 	protocolo_ad: 'Protocolo AD',
 	data_entrada: 'Data de Entrada',
+	data_autuacao: 'Data de Autuação',
 	interessado: 'Interessado',
 	cnpj: 'CNPJ',
+	sql_incra: 'SQL/INCRA',
+	sql_formatado: 'SQL formatado',
+	origem: 'Sistema de origem',
 	status_pagamento: 'Status de Pagamento',
 	criado_em: 'Criado em',
 	alterado_em: 'Alterado em',
+};
+
+export const ORIGEM_PROCESSO: Record<string, string> = {
+	APROVA_DIGITAL: 'Aprova Digital',
+	SEI: 'SEI',
+	FISICO: 'Físico',
+	PORTAL: 'Portal',
 };
 
 export const LABELS_PARCELA: Record<string, string> = {
@@ -195,8 +206,9 @@ export const CONSTA_DOCUMENTO: Record<string, string> = {
 };
 
 export const TIPO_PROCESSO: Record<string, string> = {
-	PDE: 'PDE',
-	COTA: 'COTA',
+	PDE: 'Outorga',
+	COTA: 'Cota',
+	AIU: 'AIU',
 };
 
 export const TIPOLOGIA_USO_OODC: Record<string, string> = {

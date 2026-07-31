@@ -49,7 +49,7 @@ import { z } from 'zod';
 
 const formSchema = z.object({
 	processo: z.string(),
-	type: z.enum(['PDE', 'COTA']),
+	type: z.enum(['PDE', 'COTA', 'AIU']),
 	protocolo: z.string().optional(),
 	valor_total: z.number(),
 	qtd_parcelas: z.number(),
@@ -190,8 +190,9 @@ export default function FormProcessos() {
 											</SelectTrigger>
 										</FormControl>
 										<SelectContent>
-											<SelectItem value='PDE'>PDE</SelectItem>
-											<SelectItem value='COTA'>COTA</SelectItem>
+											<SelectItem value='PDE'>Outorga</SelectItem>
+											<SelectItem value='COTA'>Cota</SelectItem>
+											<SelectItem value='AIU'>AIU</SelectItem>
 										</SelectContent>
 									</Select>
 									<FormMessage />

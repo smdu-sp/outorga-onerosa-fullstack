@@ -82,8 +82,9 @@ export function ToolbarLista({
 					onChange={(tipo) => atualizarParams({ tipo })}
 					opcoes={[
 						{ value: 'TODOS', label: 'Todos os tipos' },
-						{ value: 'PDE', label: 'PDE' },
-						{ value: 'COTA', label: 'COTA' },
+						{ value: 'PDE', label: 'Outorga' },
+						{ value: 'COTA', label: 'Cota' },
+						{ value: 'AIU', label: 'AIU' },
 					]}
 				/>
 				<FiltroGrupo

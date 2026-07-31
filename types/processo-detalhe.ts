@@ -185,8 +185,11 @@ export type IProcessoDetalhe = {
 	num_processo: string;
 	protocolo_ad?: string | null;
 	data_entrada?: string | null;
+	data_autuacao?: string | null;
 	interessado?: string | null;
 	cnpj?: string | null;
+	sql_incra?: string | null;
+	sql_formatado?: string | null;
 	status_pagamento?: string;
 	origem?: string | null;
 	criado_por?: string | null;
@@ -194,8 +197,18 @@ export type IProcessoDetalhe = {
 	alterado_em?: string;
 	parcelas?: IParcela[];
 	sqls?: ISql[];
+	multa?: IMulta | null;
 	monitoramento?: IMonitoramentoFicha | null;
 	monitoramento_cota?: IMonitoramentoCotaSolidariedade | null;
+};
+
+export type IMulta = {
+	id: string;
+	valor: number | string;
+	status_quitacao: boolean;
+	data_quitacao?: string | null;
+	criado_em?: string;
+	alterado_em?: string;
 };
 
 export type IRespostaProcessoDetalhe = {

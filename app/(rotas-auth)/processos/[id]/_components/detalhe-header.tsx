@@ -24,7 +24,20 @@ const STATUS_CLASS: Record<string, string> = {
 const TIPO_CLASS: Record<string, string> = {
 	PDE: 'bg-primary-soft text-primary',
 	COTA: 'bg-orange-50 text-orange-700',
+	AIU: 'bg-violet-50 text-violet-700',
 };
+
+function labelTipo(processo: IProcessoDetalhe): string {
+	const tipo = processo.tipo ?? '';
+	const temCota =
+		processo.monitoramento_cota?.valor_calculado_processo != null ||
+		(processo.parcelas ?? []).some((p) => p.obrigacao === 'COTA');
+	if ((tipo === 'PDE' || tipo === 'AIU') && temCota) return 'Outorga/Cota';
+	if (tipo === 'PDE') return 'Outorga';
+	if (tipo === 'COTA') return 'Cota';
+	if (tipo === 'AIU') return 'AIU';
+	return tipo;
+}
 
 function parseValorMonetario(valor?: string | null): number {
 	if (!valor?.trim()) return 0;
@@ -48,7 +61,17 @@ export function calcularMetricas(processo: IProcessoDetalhe) {
 			.filter((p) => !p.status_quitacao)
 			.reduce((s, p) => s + p.valor, 0);
 	}
-	return { valorTotal, valorDevido };
+	const valorOutorga = parseValorMonetario(
+		processo.monitoramento?.calculo_outorga?.contrapartida_total != null
+			? String(processo.monitoramento.calculo_outorga.contrapartida_total)
+			: null,
+	);
+	const valorCota = parseValorMonetario(
+		processo.monitoramento_cota?.valor_calculado_processo != null
+			? String(processo.monitoramento_cota.valor_calculado_processo)
+			: null,
+	);
+	return { valorTotal, valorDevido, valorOutorga, valorCota };
 }
 
 export function DetalheHeader({
@@ -67,9 +90,10 @@ export function DetalheHeader({
 	isDev?: boolean;
 }) {
 	const buscaRef = useRef<HTMLInputElement>(null);
-	const { valorTotal, valorDevido } = calcularMetricas(processo);
+	const { valorTotal, valorDevido, valorOutorga, valorCota } = calcularMetricas(processo);
 	const status = processo.status_pagamento ?? '';
 	const tipo = processo.tipo ?? '';
+	const tipoLabel = labelTipo(processo);
 
 	return (
 		<div className="mb-5 space-y-4">
@@ -94,7 +118,7 @@ export function DetalheHeader({
 									'inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold',
 									TIPO_CLASS[tipo] ?? 'bg-secondary text-muted-foreground',
 								)}>
-								{tipo}
+								{tipoLabel}
 							</span>
 						)}
 						{status && (
@@ -115,6 +139,8 @@ export function DetalheHeader({
 
 					<div className="flex flex-wrap gap-6">
 						<Metrica label="Valor total" value={fmtBRL(valorTotal)} />
+						<Metrica label="Valor da Outorga" value={fmtBRL(valorOutorga)} />
+						<Metrica label="Valor da Cota" value={fmtBRL(valorCota)} />
 						<Metrica
 							label="Valor devido"
 							value={fmtBRL(valorDevido)}

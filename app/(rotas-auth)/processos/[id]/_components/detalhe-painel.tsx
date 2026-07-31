@@ -6,6 +6,8 @@ import { IPermissoesProcesso } from '@/types/permissoes-processo';
 import { Check } from 'lucide-react';
 import { AvisoCalculo, metaSecao } from './detalhe-vnav';
 import { DetalheParcelas } from './detalhe-parcelas';
+import { DetalheMulta } from './detalhe-multa';
+import { DetalheValores } from './detalhe-valores';
 import { RenderSecaoMonitoramentoEditavel } from './monitoramento-campos-editaveis';
 import { DadosIniciaisEditavel } from './dados-iniciais-editavel';
 import { SECOES_MONITORAMENTO_DEUSO } from '@/lib/monitoramento-secoes';
@@ -73,14 +75,26 @@ export function DetalhePainel({
 					<p className="text-sm text-muted-foreground">
 						Sem registro nesta tabela para este processo.
 					</p>
-				) : secao.id === 'parcelas' ? (
+				) : secao.id === 'valores' ? (
+					<DetalheValores detalhe={detalhe} />
+				) : secao.id === 'parcelas-outorga' || secao.id === 'parcelas-cota' ? (
 					<DetalheParcelas
 						processoId={detalhe.id}
-						parcelas={detalhe.parcelas ?? []}
+						parcelas={(detalhe.parcelas ?? []).filter((p) =>
+							secao.id === 'parcelas-cota' ? p.obrigacao === 'COTA' : (p.obrigacao ?? 'PDE') !== 'COTA',
+						)}
+						obrigacao={secao.id === 'parcelas-cota' ? 'COTA' : 'PDE'}
 						statusPagamento={detalhe.status_pagamento}
 						onAtualizado={onDetalheAtualizado}
 						podeEditar={permissoes.podeEditarParcelas}
 						podeReverterAntecipacao={permissoes.podeReverterAntecipacao}
+					/>
+				) : secao.id === 'multa' ? (
+					<DetalheMulta
+						processoId={detalhe.id}
+						multa={detalhe.multa}
+						onAtualizado={onDetalheAtualizado}
+						podeEditar={permissoes.podeEditarParcelas}
 					/>
 				) : editavelDadosIniciais ? (
 					<DadosIniciaisEditavel detalhe={detalhe} onAtualizado={onDetalheAtualizado} />

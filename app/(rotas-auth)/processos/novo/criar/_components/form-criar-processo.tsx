@@ -79,7 +79,7 @@ export default function FormCriarProcesso({
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 	const [numProcesso, setNumProcesso] = useState(modo === 'PROCESSO' ? identificador : '');
-	const [tipo, setTipo] = useState<'PDE' | 'COTA'>('PDE');
+	const [tipo, setTipo] = useState<'PDE' | 'COTA' | 'AIU'>('PDE');
 	const [protocolo, setProtocolo] = useState('');
 	const [erro, setErro] = useState('');
 
@@ -249,11 +249,12 @@ export default function FormCriarProcesso({
 							<select
 								id="tipo"
 								value={tipo}
-								onChange={(e) => setTipo(e.target.value as 'PDE' | 'COTA')}
+								onChange={(e) => setTipo(e.target.value as 'PDE' | 'COTA' | 'AIU')}
 								disabled={isPending}
 								className="h-11 w-full rounded-lg border border-border bg-secondary px-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20">
-								<option value="PDE">PDE</option>
-								<option value="COTA">COTA</option>
+								<option value="PDE">Outorga</option>
+								<option value="COTA">Cota</option>
+								<option value="AIU">AIU</option>
 							</select>
 						</CampoForm>
 

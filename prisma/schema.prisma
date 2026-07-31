@@ -81,6 +81,7 @@ model Processo {
   num_processo     String          @unique
   protocolo_ad     String?
   data_entrada     DateTime?       @db.Date
+  data_autuacao    DateTime?       @db.Date
   status_pagamento StatusPagamento @default(EM_PAGAMENTO)
   origem           OrigemProcesso?
   // unidade_licenciamento UnidadesLicenciamento?
@@ -89,6 +90,10 @@ model Processo {
   // não por parcela (é a mesma pessoa/empresa pagando todas as parcelas).
   interessado String?
   cnpj        String?
+
+  // SQL/INCRA bruto (inteiro/string da API) e formato cadastral SSS.QQQ.LLLL-D.
+  sql_incra     String?
+  sql_formatado String?
 
   // Total materializado = SUM(parcelas.valor). Fonte confiável da contrapartida
   // do processo (as parcelas são a verdade; contrapartida_total da planilha é
@@ -105,6 +110,7 @@ model Processo {
 
   parcelas           Parcela[]
   sqls               Sql[]
+  multa              Multa?
   monitoramento      MonitoramentoFicha?
   monitoramento_cota MonitoramentoCotaSolidariedade?
   memoriais_oodc     OodcMemorialCalculo[]
@@ -115,6 +121,22 @@ model Processo {
   @@index([data_entrada])
   @@index([criado_por])
   @@map("processos")
+}
+
+/// Multa vinculada ao processo (1:1). Compõe a arrecadação do Fundurb quando quitada.
+model Multa {
+  id              String    @id @default(uuid())
+  processo_id     String    @unique
+  processo        Processo  @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+  valor           Decimal   @db.Decimal(16, 2)
+  status_quitacao Boolean   @default(false)
+  data_quitacao   DateTime? @db.Date
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  @@index([status_quitacao])
+  @@map("multas")
 }
 
 /// SQL (Setor/Quadra/Lote) — cada processo pode ter um ou mais SQLs

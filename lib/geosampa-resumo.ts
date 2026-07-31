@@ -45,9 +45,11 @@ export function resumoParametros(c?: IGeoSampaCalculoOutorga) {
 		coeficiente_basico: parseNumero(c?.coeficiente_basico),
 		coeficiente_maximo: parseNumero(c?.coeficiente_utilizado),
 		area_terreno: parseNumero(c?.area_terreno),
+		area_computavel: parseNumero(c?.area_computavel_total),
 		valor_m2_quadro14: parseNumero(c?.valor_m2_quadro14),
 		fator_planejamento: parseFpFs(c?.fp_uso_r),
 		fator_social: parseFpFs(c?.fs_uso_r),
+		valor_calculado_total: parseNumero(c?.contrapartida_total),
 	};
 }
 

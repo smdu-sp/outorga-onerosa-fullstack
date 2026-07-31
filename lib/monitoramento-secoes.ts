@@ -5,7 +5,6 @@ export const SECOES_MONITORAMENTO_DEUSO = new Set([
 	'enderecos',
 	'enquadramento',
 	'subcategorias',
-	'situacao',
 	'licencas',
 	'anotacoes',
 ]);

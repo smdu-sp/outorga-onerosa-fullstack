@@ -19,8 +19,10 @@ export const NAV_DETALHE: NavDetalheGrupo[] = [
 		grupo: 'Processo',
 		itens: [
 			{ id: 'processo', label: 'Dados do Processo' },
-			{ id: 'parcelas', label: 'Parcelas' },
-			{ id: 'cota', label: 'Cota de Solidariedade' },
+			{ id: 'valores', label: 'Valores' },
+			{ id: 'parcelas-outorga', label: 'Parcela Outorga' },
+			{ id: 'parcelas-cota', label: 'Parcela Cota' },
+			{ id: 'multa', label: 'Multa' },
 		],
 	},
 	{
@@ -33,7 +35,7 @@ export const NAV_DETALHE: NavDetalheGrupo[] = [
 			{ id: 'enquadramento', label: 'Enquadramento Urbanístico' },
 			{ id: 'subcategorias', label: 'Subcategorias de Uso' },
 			{ id: 'calculo', label: 'Cálculo da Outorga', locked: true },
-			{ id: 'situacao', label: 'Situação' },
+			{ id: 'cota', label: 'Cota de Solidariedade', locked: true },
 			{ id: 'licencas', label: 'Licenças' },
 			{ id: 'anotacoes', label: 'Anotações DEUSO' },
 		],
@@ -90,6 +92,10 @@ export function badgeNav(secao: SecaoDetalhe, detalhe: IProcessoDetalhe): number
 }
 
 export function secaoSemRegistro(secao: SecaoDetalhe, detalhe: IProcessoDetalhe): boolean {
+	// "valores" agrega dois registros (calculo_outorga + monitoramento_cota) e tem
+	// seu próprio componente/mensagem de vazio — nunca cai no aviso genérico.
+	if (secao.id === 'valores') return false;
+	if (secao.id === 'multa') return false;
 	if (secao.id === 'cota') return !detalhe.monitoramento_cota;
 	if (secao.tabela.startsWith('monitoramento_') && secao.id !== 'cota') {
 		return !detalhe.monitoramento;

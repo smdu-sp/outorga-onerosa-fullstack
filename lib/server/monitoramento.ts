@@ -355,6 +355,20 @@ export async function salvarDadosGeoSampaNoProcesso(
 	const payload = mapGeoSampaParaMonitoramento(geosampa, { modo, identificador });
 
 	await prisma.$transaction(async (tx) => {
+		const camposProcesso: Prisma.ProcessoUpdateInput = {};
+		if (geosampa.data_autuacao) {
+			camposProcesso.data_autuacao = parseDataCivil(geosampa.data_autuacao);
+		}
+		if (geosampa.sql_incra !== undefined) {
+			camposProcesso.sql_incra = geosampa.sql_incra || null;
+		}
+		if (geosampa.sql_formatado !== undefined) {
+			camposProcesso.sql_formatado = geosampa.sql_formatado || null;
+		}
+		if (Object.keys(camposProcesso).length > 0) {
+			await tx.processo.update({ where: { id: processoId }, data: camposProcesso });
+		}
+
 		const ficha = await tx.monitoramentoFicha.upsert({
 			where: { processo_id: processoId },
 			create: { processo_id: processoId },

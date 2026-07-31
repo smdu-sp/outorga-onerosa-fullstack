@@ -61,9 +61,9 @@ export function KpiCards({ d }: { d: IRelatorio | null }) {
 	const mesAtual = d?.mesAtual ?? new Date().getMonth();
 	const meses = d?.meses ?? ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-	// Arrecadado por tipo — FUNDURB (Outorga + Cota) e AIU (à parte, fora do FUNDURB)
-	const arr = d?.arrecadadoTipo ?? { outorga: 0, cota: 0, aiu: 0 };
-	const arrFundurb = arr.outorga + arr.cota;
+	// Arrecadado por tipo — FUNDURB (Outorga + Cota + Multa) e AIU (à parte, fora do FUNDURB)
+	const arr = d?.arrecadadoTipo ?? { outorga: 0, cota: 0, aiu: 0, multa: 0 };
+	const arrFundurb = arr.outorga + arr.cota + (arr.multa ?? 0);
 	const arrAiu = arr.aiu;
 	const arrGeral = arrFundurb + arrAiu;
 
@@ -98,7 +98,7 @@ export function KpiCards({ d }: { d: IRelatorio | null }) {
 		{
 			label: 'Arrecadado FUNDURB',
 			value: fmtM(arrFundurb, 0),
-			sub: 'Outorga + Cota',
+			sub: 'Outorga + Cota + Multa',
 			icon: <BarChart3 className="h-3 w-3" />,
 			color: 'green',
 		},

@@ -166,14 +166,22 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 		parcelaArrecadadaNoPeriodo(p, { ano: anoAtual }),
 	);
 
+	const multasPagas = await prisma.multa.findMany({
+		where: {
+			status_quitacao: true,
+			data_quitacao: { gte: inicioAno, lt: fimAno },
+		},
+		select: { valor: true, data_quitacao: true },
+	});
+
 	// ── D26: mensal do ano atual ──
 	const prev: (number | null)[] = Array(12).fill(null);
 	const real: (number | null)[] = Array(12).fill(null);
 	const quebras: (number | null)[] = Array(12).fill(null);
 	const antec: (number | null)[] = Array(12).fill(null);
 
-	// Arrecadado no ano por tipo (mesma base do real[]): FUNDURB = outorga + cota; AIU à parte
-	const arrecTipoBrl = { outorga: 0, cota: 0, aiu: 0 };
+	// Arrecadado no ano por tipo (mesma base do real[]): FUNDURB = outorga + cota + multa; AIU à parte
+	const arrecTipoBrl = { outorga: 0, cota: 0, aiu: 0, multa: 0 };
 
 	// Métricas FUNDURB (exclui AIU) para os KPIs de gestão do fundo
 	let quebrasFundurbBrl = 0;
@@ -187,8 +195,11 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 			const pagamento = dataPagamentoParcela(p);
 			return pagamento != null && pagamento.getMonth() === m;
 		});
+		const temMultaNoMes = multasPagas.some(
+			(multa) => multa.data_quitacao != null && multa.data_quitacao.getMonth() === m,
+		);
 
-		if (vencNoMes.length === 0 && pagoNoMes.length === 0) continue;
+		if (vencNoMes.length === 0 && pagoNoMes.length === 0 && !temMultaNoMes) continue;
 
 		const vencNoMesFundurb = vencNoMes.filter(naoAiu);
 		const pagoNoMesFundurb = pagoNoMes.filter(naoAiu);
@@ -200,7 +211,10 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 		}
 
 		const totalPrev = vencNoMes.reduce((s, p) => s + p.valor, 0);
-		const totalReal = pagoNoMes.reduce((s, p) => s + p.valor, 0);
+		const multaNoMes = multasPagas
+			.filter((multa) => multa.data_quitacao != null && multa.data_quitacao.getMonth() === m)
+			.reduce((s, multa) => s + Number(multa.valor), 0);
+		const totalReal = pagoNoMes.reduce((s, p) => s + p.valor, 0) + (m <= mesAtual ? multaNoMes : 0);
 		const totalQuebra = vencNoMes
 			.filter((p) => p.quebra)
 			.reduce((s, p) => s + p.valor, 0);
@@ -219,6 +233,7 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 				else if (tipo === 'AIU') arrecTipoBrl.aiu += p.valor;
 				else arrecTipoBrl.outorga += p.valor; // PDE ou sem tipo → Outorga
 			}
+			arrecTipoBrl.multa += multaNoMes;
 		}
 	}
 
@@ -226,6 +241,7 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 		outorga: +(arrecTipoBrl.outorga / BRL_TO_M).toFixed(1),
 		cota: +(arrecTipoBrl.cota / BRL_TO_M).toFixed(1),
 		aiu: +(arrecTipoBrl.aiu / BRL_TO_M).toFixed(1),
+		multa: +(arrecTipoBrl.multa / BRL_TO_M).toFixed(1),
 	};
 
 	// ── Histórico anos anteriores ──
@@ -234,16 +250,27 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 
 	await Promise.all(
 		anosHist.map(async (ano) => {
-			const parcelas = await prisma.parcela.findMany({
-				where: { status_quitacao: true },
-				select: {
-					valor: true,
-					vencimento: true,
-					data_quitacao: true,
-					ano_pagamento: true,
-					status_quitacao: true,
-				},
-			});
+			const inicio = new Date(ano, 0, 1);
+			const fim = new Date(ano + 1, 0, 1);
+			const [parcelas, multas] = await Promise.all([
+				prisma.parcela.findMany({
+					where: { status_quitacao: true },
+					select: {
+						valor: true,
+						vencimento: true,
+						data_quitacao: true,
+						ano_pagamento: true,
+						status_quitacao: true,
+					},
+				}),
+				prisma.multa.findMany({
+					where: {
+						status_quitacao: true,
+						data_quitacao: { gte: inicio, lt: fim },
+					},
+					select: { valor: true, data_quitacao: true },
+				}),
+			]);
 
 			const mensal = Array(12).fill(0) as number[];
 			for (const p of parcelas) {
@@ -251,6 +278,10 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 				const pagamento = dataPagamentoParcela(p);
 				if (!pagamento) continue;
 				mensal[pagamento.getMonth()] += p.valor;
+			}
+			for (const multa of multas) {
+				if (!multa.data_quitacao) continue;
+				mensal[multa.data_quitacao.getMonth()] += Number(multa.valor);
 			}
 			hist[ano] = mensal.map((v) => +(v / BRL_TO_M).toFixed(1));
 		}),
@@ -282,9 +313,9 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 	const cota = agruparTipo(todosProcessos.filter((p) => p.tipo === 'COTA'));
 	const aiu = agruparTipo(todosProcessos.filter((p) => p.tipo === 'AIU'));
 
-	// KPIs FUNDURB (Outorga + Cota, exclui AIU)
+	// KPIs FUNDURB (Outorga + Cota + Multa, exclui AIU)
 	const fundurb = {
-		arrecadado: +((arrecTipoBrl.outorga + arrecTipoBrl.cota) / BRL_TO_M).toFixed(1),
+		arrecadado: +((arrecTipoBrl.outorga + arrecTipoBrl.cota + arrecTipoBrl.multa) / BRL_TO_M).toFixed(1),
 		quebras: +(quebrasFundurbBrl / BRL_TO_M).toFixed(1),
 		antecipacoes: +(antecFundurbBrl / BRL_TO_M).toFixed(1),
 		prevRestante: +(prevRestanteFundurbBrl / BRL_TO_M).toFixed(1),
