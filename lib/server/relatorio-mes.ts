@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { resolverNomeInteressado } from '@/lib/interessado';
 import {
 	resolverOrigemOutorga,
 	selectCotaOrigem,
@@ -55,6 +56,8 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 					select: {
 						id: true,
 						num_processo: true,
+						interessado: true,
+						cnpj: true,
 						tipo: true,
 						monitoramento: {
 							select: { proprietario_interessado: true, ...selectFichaOrigem },
@@ -115,10 +118,7 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 	const procMap = new Map<string, IRelatorioMesProcesso & { _valorBrl: number }>();
 	for (const p of parcelasVenc) {
 		const proc = p.processo;
-		const interessado =
-			proc.monitoramento?.proprietario_interessado ??
-			proc.monitoramento_cota?.proprietario_interessado ??
-			proc.num_processo;
+		const interessado = resolverNomeInteressado(proc);
 		const status = resolverStatus(p);
 
 		const existing = procMap.get(proc.id);

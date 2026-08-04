@@ -1,8 +1,12 @@
 import type { IParcela } from '@/types/processo';
+import { dataCivilDiasAtras, dataCivilHoje } from '@/lib/datas';
 
 export type IParcelaView = IParcela;
 
 export type StatusPagamentoParcelas = 'EM_PAGAMENTO' | 'QUITADO' | 'QUEBRA';
+
+/** Dias usados quando a parcela não tem vencimento informado. */
+export const VENCIMENTO_FALLBACK_DIAS = 30;
 
 /** Parcela com campos usados para classificar arrecadação por período. */
 export type ParcelaArrecadacao = {
@@ -19,20 +23,33 @@ export type FiltroArrecadacao = {
 	mes?: number;
 };
 
+/** Vencimento efetivo: o informado ou, se ausente, hoje − 30 dias. */
+export function vencimentoEfetivo(
+	vencimento?: Date | null,
+	referencia: Date = dataCivilDiasAtras(VENCIMENTO_FALLBACK_DIAS),
+): Date {
+	return vencimento ?? referencia;
+}
+
 /**
  * Data em que o valor entrou (pagamento efetivo).
- * Quando data_quitacao está preenchida, usa ela.
- * Quando só ano_pagamento está disponível (dados importados sem data precisa),
- * usa o vencimento da parcela como proxy — assume pagamento no prazo.
+ *
+ * Regra: parcela quitada sem `data_quitacao` → considera a data de vencimento
+ * como data de pagamento, **exceto se o vencimento estiver no futuro** (não
+ * inventar pagamento futuro). Sem vencimento utilizável → hoje − 30 dias.
  */
 export function dataPagamentoParcela(p: ParcelaArrecadacao): Date | null {
 	if (!p.status_quitacao) return null;
-	if (p.data_quitacao) return p.data_quitacao;
-	if (p.ano_pagamento != null && p.vencimento) return p.vencimento;
+	const hoje = dataCivilHoje();
+	if (p.data_quitacao && p.data_quitacao.getTime() <= hoje.getTime()) {
+		return p.data_quitacao;
+	}
+	const venc = vencimentoEfetivo(p.vencimento);
+	if (venc.getTime() <= hoje.getTime()) return venc;
 	return null;
 }
 
-/** Ano de arrecadação: data_quitacao ou, se ausente, ano_pagamento. */
+/** Ano de arrecadação a partir da data de pagamento efetiva (ou proxy no vencimento). */
 export function anoArrecadacaoParcela(p: ParcelaArrecadacao): number | null {
 	const pagamento = dataPagamentoParcela(p);
 	if (pagamento) return pagamento.getFullYear();
@@ -40,15 +57,16 @@ export function anoArrecadacaoParcela(p: ParcelaArrecadacao): number | null {
 	return null;
 }
 
-/** Mês de arrecadação (0–11); exige data_quitacao. */
+/** Mês de arrecadação (0–11) a partir da data de pagamento efetiva (ou proxy no vencimento). */
 export function mesArrecadacaoParcela(p: ParcelaArrecadacao): number | null {
 	const pagamento = dataPagamentoParcela(p);
 	return pagamento ? pagamento.getMonth() : null;
 }
 
 /**
- * Parcela quitada entra no período pela data de pagamento, não pelo vencimento.
- * Filtro por mês exige data_quitacao; filtro só por ano aceita ano_pagamento.
+ * Parcela quitada entra no período pela data de pagamento, não pelo vencimento
+ * contratual — salvo quando a data de quitação falta, caso em que o vencimento
+ * (ou hoje − 30 dias, se também faltar) é o proxy.
  */
 export function parcelaArrecadadaNoPeriodo(
 	p: ParcelaArrecadacao,

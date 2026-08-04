@@ -76,6 +76,7 @@ export function FiltrosRelatorio({ subprefeituras, anosDisponiveis }: FiltrosRel
 
 			<span className={labelCls}>Ano</span>
 			<select className={selectCls} value={ano} onChange={(e) => update('ano', e.target.value, String(anoAtual))}>
+				<option value="todos">Todos</option>
 				{anosDisponiveis.map((y) => (
 					<option key={y} value={String(y)}>
 						{y}

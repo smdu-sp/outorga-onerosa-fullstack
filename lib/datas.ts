@@ -60,6 +60,12 @@ export function dataCivilHoje(): Date {
 	return new Date(Date.UTC(agora.getFullYear(), agora.getMonth(), agora.getDate()));
 }
 
+/** Data civil de `n` dias atrás (meia-noite UTC). */
+export function dataCivilDiasAtras(n: number): Date {
+	const hoje = dataCivilHoje();
+	return new Date(Date.UTC(hoje.getUTCFullYear(), hoje.getUTCMonth(), hoje.getUTCDate() - n));
+}
+
 export function ehCampoDataCivil(chave: string): boolean {
 	return CAMPOS_DATA_CIVIL.has(chave);
 }

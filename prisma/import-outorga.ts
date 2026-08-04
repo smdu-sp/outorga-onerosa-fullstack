@@ -7,6 +7,8 @@ import {
 import * as fs from 'fs';
 import * as path from 'path';
 import * as XLSX from 'xlsx';
+import { dataCivilDiasAtras } from '../lib/datas';
+import { VENCIMENTO_FALLBACK_DIAS } from '../lib/parcelas-utils';
 
 const prisma = new PrismaClient();
 
@@ -206,21 +208,27 @@ function agruparParcelas(
   for (const row of parcelas) {
     const numProcesso = normalizeProcesso(row.num_processo);
     const numParcela = parseIntSafe(row.num_parcela);
-    const vencimento = parseExcelDate(row.vencimento);
+    const vencimento =
+      parseExcelDate(row.vencimento) ?? dataCivilDiasAtras(VENCIMENTO_FALLBACK_DIAS);
     const valor = parseNumber(row.valor);
-    if (!numProcesso || numParcela === undefined || !vencimento || valor === undefined) {
+    if (!numProcesso || numParcela === undefined || valor === undefined) {
       continue;
     }
 
     const ant = antecipadasMap.get(chaveParcela(numProcesso, numParcela));
+    const statusQuitacao = parseBool(row.status_quitacao);
+    const dataQuitacao =
+      parseExcelDate(row.data_quitacao) ??
+      parseExcelDate(ant?.data_quitacao) ??
+      (statusQuitacao ? vencimento : undefined);
     const parcela: ParcelaImport = {
       num_parcela: numParcela,
       valor,
       vencimento,
-      data_quitacao: parseExcelDate(row.data_quitacao) ?? parseExcelDate(ant?.data_quitacao),
+      data_quitacao: dataQuitacao,
       ano_pagamento: parseIntSafe(row.ano_pagamento),
       cpf_cnpj: cleanText(row.cpf_cnpj) ?? cleanText(ant?.cpf_cnpj),
-      status_quitacao: parseBool(row.status_quitacao),
+      status_quitacao: statusQuitacao,
       antecipada: parseBool(row.antecipada) || !!ant,
       quebra: parseBool(row.quebra),
       dias_antecipacao: parseIntSafe(ant?.dias_antecipacao),

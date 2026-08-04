@@ -94,49 +94,69 @@ export async function buscarSqlFilhoPorSqlPaiNoBi(
 	}
 }
 
-/** Busca o SQL do lote na view dbo.cadastro do BI pelo número do processo. */
+/** Busca o SQL do lote em dbo.cadastros do BI pelo número do processo. */
 export async function buscarSqlPorProcessoNoBi(
 	numProcesso: string,
 	log: GeoSampaLogFn = () => {},
 ): Promise<string | null> {
 	try {
 		const pool = await getBiPool();
+		const proc = numProcesso.trim();
+		const digits = proc.replace(/\D/g, '');
 
-		// Primeiro verifica se o processo existe, independente do sql_incra
-		const existeResult = await pool
-			.request()
-			.input('processo', sql.VarChar(50), `%${numProcesso.trim()}%`)
-			.query<{ total: number }>(`
-				SELECT COUNT(*) AS total
-				FROM dbo.cadastros
-				WHERE processo LIKE @processo
-			`);
-
-		const total = existeResult.recordset[0]?.total ?? 0;
-		if (total === 0) {
-			log('warn', `Processo não encontrado na tabela dbo.cadastros do BI: ${numProcesso}`);
-			return null;
-		}
-
-		// Processo existe — agora busca o sql_incra preenchido
+		// Preferir SQL no formato 000.000.0000-0 e Sistema AprovaDigital.
 		const result = await pool
 			.request()
-			.input('processo', sql.VarChar(50), `%${numProcesso.trim()}%`)
-			.query<{ sql_incra: string | null }>(`
-				SELECT TOP 1 sql_incra
+			.input('processo', sql.VarChar(50), `%${proc}%`)
+			.input('digits', sql.VarChar(30), digits)
+			.query<{ SQL_Incra: string | null; Sistema: string | null }>(`
+				SELECT TOP 5 SQL_Incra, Sistema
 				FROM dbo.cadastros
-				WHERE processo LIKE @processo
-					AND sql_incra IS NOT NULL
-					AND LTRIM(RTRIM(sql_incra)) <> ''
+				WHERE (
+					Processo LIKE @processo
+					OR REPLACE(REPLACE(REPLACE(REPLACE(Processo, '.', ''), '/', ''), '-', ''), ' ', '') = @digits
+				)
+					AND SQL_Incra IS NOT NULL
+					AND LTRIM(RTRIM(SQL_Incra)) <> ''
+					AND SQL_Incra LIKE '%.%.%-%'
+				ORDER BY
+					CASE WHEN Sistema = 'AprovaDigital' THEN 0 ELSE 1 END,
+					CASE WHEN TipoSQL_Incra = 'SQL' THEN 0 ELSE 1 END
 			`);
 
-		const bruto = result.recordset[0]?.sql_incra;
+		const bruto = result.recordset[0]?.SQL_Incra;
 		if (!bruto) {
-			log('warn', `Processo encontrado no BI mas sem SQL do lote (sql_incra) preenchido: ${numProcesso}`);
+			const existe = await pool
+				.request()
+				.input('processo', sql.VarChar(50), `%${proc}%`)
+				.input('digits', sql.VarChar(30), digits)
+				.query<{ total: number }>(`
+					SELECT COUNT(*) AS total
+					FROM dbo.cadastros
+					WHERE Processo LIKE @processo
+						OR REPLACE(REPLACE(REPLACE(REPLACE(Processo, '.', ''), '/', ''), '-', ''), ' ', '') = @digits
+				`);
+			if ((existe.recordset[0]?.total ?? 0) === 0) {
+				log('warn', `Processo não encontrado na tabela dbo.cadastros do BI: ${numProcesso}`);
+			} else {
+				log(
+					'warn',
+					`Processo encontrado no BI mas sem SQL do lote no formato 000.000.0000-0: ${numProcesso}`,
+				);
+			}
 			return null;
 		}
 
-		return normalizarSql(bruto);
+		const normalizado = normalizarSql(bruto);
+		if (!normalizado) {
+			log('warn', `SQL do BI inválido para ${numProcesso}: ${bruto}`);
+			return null;
+		}
+		log(
+			'success',
+			`BI retornou SQL ${normalizado} para ${numProcesso} (${result.recordset[0]?.Sistema ?? '?'})`,
+		);
+		return normalizado;
 	} catch (error) {
 		console.error('[BI] Falha ao buscar SQL por processo:', error);
 		log('error', `Falha ao consultar o banco BI: ${(error as Error).message}`);

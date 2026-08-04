@@ -177,6 +177,12 @@ Fontes canônicas de parsing já implementadas (reutilizar, não reinventar):
 1. **Total de contrapartida = soma das parcelas.** Nunca usar a contrapartida da
    planilha de monitoramento (corrompida por escala).
 2. **Arrecadado** = parcelas com `status_quitacao = true`. **Não** inclui quebra.
+   Quitada sem `data_quitacao` → considerar a data de **vencimento** como pagamento
+   (`dataPagamentoParcela` em `lib/parcelas-utils.ts`), **desde que o vencimento não
+   esteja no futuro** (nunca inventar data de pagamento futura). Na Aprova Digital,
+   a coluna "Data/Ano de PAGTO" pode trazer data completa — usar como `data_quitacao`.
+   Data de pagamento futura na fonte: se o vencimento já passou, proxy no vencimento;
+   se ainda não venceu, tratar como a vencer.
 3. **Quebra ≠ a vencer ≠ vencido não pago.** São estados distintos.
 4. **Tipo vem do código**, não de texto livre: `79 → PDE`, `78 → COTA`, `109 → AIU`.
 5. Ao ler qualquer célula, assumir que **pode estar na coluna errada ou com caixa/

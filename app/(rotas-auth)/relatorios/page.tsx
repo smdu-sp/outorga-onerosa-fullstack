@@ -37,7 +37,10 @@ async function RelatoriosHome({ params }: { params: Record<string, string | stri
 		return typeof v === 'string' ? v : undefined;
 	};
 
-	const ano = get('ano') ? Number(get('ano')) : undefined;
+	const anoRaw = get('ano');
+	/** null = todos os anos; undefined = ano corrente (padrão sem query) */
+	const ano: number | null | undefined =
+		anoRaw === 'todos' ? null : anoRaw ? Number(anoRaw) : undefined;
 	const tipo = get('tipo') ?? 'todos';
 	const status = get('status') ?? 'todos';
 	const sub = get('sub') ?? 'todas';
@@ -49,6 +52,7 @@ async function RelatoriosHome({ params }: { params: Record<string, string | stri
 	const anoMaximo = Math.max(anoAtual, new Date().getFullYear());
 	const anosDisponiveis = Array.from({ length: 5 }, (_, i) => anoMaximo - 4 + i);
 	const subprefeituras = d?.subs.map((s) => s.nome) ?? [];
+	const periodoLabel = anoRaw === 'todos' ? 'Todo o período' : `Ano ${anoAtual}`;
 
 	return (
 		<div className="mx-auto w-full px-4 py-7 pb-[60px] sm:px-8">
@@ -56,7 +60,7 @@ async function RelatoriosHome({ params }: { params: Record<string, string | stri
 				<div>
 					<h1 className="text-[28px] font-bold tracking-tight">Relatórios de Arrecadação</h1>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Outorga Onerosa do Direito de Construir — São Paulo · Ano {anoAtual}
+						Outorga Onerosa do Direito de Construir — São Paulo · {periodoLabel}
 					</p>
 				</div>
 			</div>

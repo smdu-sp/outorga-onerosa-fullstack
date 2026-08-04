@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { normalizarDistrito, tituloDistrito } from '@/lib/geo/normalizar-distrito';
+import { resolverNomeInteressado } from '@/lib/interessado';
 import {
 	anoArrecadacaoParcela,
 	parcelaArrecadadaNoPeriodo,
@@ -26,6 +27,8 @@ type ParcelaDistrito = ParcelaArrecadacao & { valor: number };
 type ProcessoComDistrito = {
 	id: string;
 	num_processo: string;
+	interessado: string | null;
+	cnpj: string | null;
 	parcelas: ParcelaDistrito[];
 	monitoramento: {
 		proprietario_interessado: string | null;
@@ -52,10 +55,7 @@ function mapearProcessosPorDistrito(
 			const pago = somarParcelasPagas(p.parcelas, filtro);
 			if (pago <= 0) return null;
 
-			const interessado =
-				p.monitoramento?.proprietario_interessado ??
-				p.monitoramento_cota?.proprietario_interessado ??
-				p.num_processo;
+			const interessado = resolverNomeInteressado(p);
 
 			return {
 				id: p.id,
@@ -72,6 +72,8 @@ function mapearProcessosPorDistrito(
 const processoSelect = {
 	id: true,
 	num_processo: true,
+	interessado: true,
+	cnpj: true,
 	parcelas: {
 		select: {
 			valor: true,

@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { dataPagamentoParcela, parcelaArrecadadaNoPeriodo } from '@/lib/parcelas-utils';
+import { resolverNomeInteressado } from '@/lib/interessado';
 import { resumirDistritosDeProcessos } from '@/lib/server/relatorios-distritos';
 import {
 	resolverOrigemOutorga,
@@ -23,6 +24,8 @@ export type FiltroPeriodoRanking = {
 const processoRankingSelect = {
 	id: true,
 	num_processo: true,
+	interessado: true,
+	cnpj: true,
 	tipo: true,
 	status_pagamento: true,
 	parcelas: {
@@ -76,10 +79,7 @@ function mapearRankingProcessos(
 					: p.status_pagamento === 'QUEBRA'
 						? 'quebra'
 						: 'andamento';
-			const interessado =
-				p.monitoramento?.proprietario_interessado ??
-				p.monitoramento_cota?.proprietario_interessado ??
-				p.num_processo;
+			const interessado = resolverNomeInteressado(p);
 			const subprefeitura =
 				p.monitoramento?.enquadramento_urbanistico?.subprefeitura ?? '';
 			const origem = resolverOrigemOutorga(p.monitoramento, p.monitoramento_cota);
@@ -119,13 +119,18 @@ export async function buscarRankingProcessos(
 	return mapearRankingProcessos(processos, filtro, new Date());
 }
 
-export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): Promise<IRelatorio> {
+export async function buscarRelatorio(
+	/** `null` = todos os anos; `undefined` = ano corrente */
+	anoFiltro?: number | null,
+	mesFiltro?: number,
+): Promise<IRelatorio> {
 	const hoje = new Date();
-	const anoAtual = anoFiltro ?? hoje.getFullYear();
+	const todosAnos = anoFiltro === null;
+	const anoAtual = todosAnos ? hoje.getFullYear() : (anoFiltro ?? hoje.getFullYear());
 	const mesAtual =
 		mesFiltro != null
 			? mesFiltro - 1
-			: anoFiltro == null || anoFiltro === hoje.getFullYear()
+			: todosAnos || anoFiltro == null || anoFiltro === hoje.getFullYear()
 				? hoje.getMonth()
 				: anoFiltro < hoje.getFullYear()
 					? 11
@@ -134,9 +139,9 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 	const inicioAno = new Date(anoAtual, 0, 1);
 	const fimAno = new Date(anoAtual + 1, 0, 1);
 
-	// ── Previsto: vencimentos no ano ──
+	// ── Previsto: vencimentos no ano (ou todos, se filtro "Todos") ──
 	const parcelasVencimentoAno = await prisma.parcela.findMany({
-		where: { vencimento: { gte: inicioAno, lt: fimAno } },
+		where: todosAnos ? undefined : { vencimento: { gte: inicioAno, lt: fimAno } },
 		select: {
 			valor: true,
 			vencimento: true,
@@ -162,25 +167,43 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 		},
 	});
 
-	const parcelasArrecadadasAno = parcelasPagasAno.filter((p) =>
-		parcelaArrecadadaNoPeriodo(p, { ano: anoAtual }),
-	);
+	const parcelasArrecadadasAno = todosAnos
+		? parcelasPagasAno
+		: parcelasPagasAno.filter((p) => parcelaArrecadadaNoPeriodo(p, { ano: anoAtual }));
 
 	const multasPagas = await prisma.multa.findMany({
 		where: {
 			status_quitacao: true,
-			data_quitacao: { gte: inicioAno, lt: fimAno },
+			...(todosAnos ? {} : { data_quitacao: { gte: inicioAno, lt: fimAno } }),
 		},
 		select: { valor: true, data_quitacao: true },
 	});
 
-	// ── D26: mensal do ano atual ──
+	// ── D26: mensal do ano de referência (calendário/gráficos mensais) ──
+	// Com "Todos", o calendário mensal continua no ano corrente; KPIs usam a base completa acima.
+	const parcelasVencimentoD26 = todosAnos
+		? parcelasVencimentoAno.filter(
+				(p) => p.vencimento >= inicioAno && p.vencimento < fimAno,
+			)
+		: parcelasVencimentoAno;
+	const parcelasArrecadadasD26 = todosAnos
+		? parcelasPagasAno.filter((p) => parcelaArrecadadaNoPeriodo(p, { ano: anoAtual }))
+		: parcelasArrecadadasAno;
+	const multasPagasD26 = todosAnos
+		? multasPagas.filter(
+				(m) =>
+					m.data_quitacao != null &&
+					m.data_quitacao >= inicioAno &&
+					m.data_quitacao < fimAno,
+			)
+		: multasPagas;
+
 	const prev: (number | null)[] = Array(12).fill(null);
 	const real: (number | null)[] = Array(12).fill(null);
 	const quebras: (number | null)[] = Array(12).fill(null);
 	const antec: (number | null)[] = Array(12).fill(null);
 
-	// Arrecadado no ano por tipo (mesma base do real[]): FUNDURB = outorga + cota + multa; AIU à parte
+	// Arrecadado no período por tipo (mesma base do real[] / KPIs)
 	const arrecTipoBrl = { outorga: 0, cota: 0, aiu: 0, multa: 0 };
 
 	// Métricas FUNDURB (exclui AIU) para os KPIs de gestão do fundo
@@ -190,12 +213,12 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 	const naoAiu = (p: { processo?: { tipo: string | null } | null }) => p.processo?.tipo !== 'AIU';
 
 	for (let m = 0; m < 12; m++) {
-		const vencNoMes = parcelasVencimentoAno.filter((p) => p.vencimento.getMonth() === m);
-		const pagoNoMes = parcelasArrecadadasAno.filter((p) => {
+		const vencNoMes = parcelasVencimentoD26.filter((p) => p.vencimento.getMonth() === m);
+		const pagoNoMes = parcelasArrecadadasD26.filter((p) => {
 			const pagamento = dataPagamentoParcela(p);
 			return pagamento != null && pagamento.getMonth() === m;
 		});
-		const temMultaNoMes = multasPagas.some(
+		const temMultaNoMes = multasPagasD26.some(
 			(multa) => multa.data_quitacao != null && multa.data_quitacao.getMonth() === m,
 		);
 
@@ -211,7 +234,7 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 		}
 
 		const totalPrev = vencNoMes.reduce((s, p) => s + p.valor, 0);
-		const multaNoMes = multasPagas
+		const multaNoMes = multasPagasD26
 			.filter((multa) => multa.data_quitacao != null && multa.data_quitacao.getMonth() === m)
 			.reduce((s, multa) => s + Number(multa.valor), 0);
 		const totalReal = pagoNoMes.reduce((s, p) => s + p.valor, 0) + (m <= mesAtual ? multaNoMes : 0);
@@ -234,6 +257,32 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 				else arrecTipoBrl.outorga += p.valor; // PDE ou sem tipo → Outorga
 			}
 			arrecTipoBrl.multa += multaNoMes;
+		}
+	}
+
+	// KPIs de tipo no modo "Todos": soma de todo o período (não só o D26 do ano corrente)
+	if (todosAnos) {
+		arrecTipoBrl.outorga = 0;
+		arrecTipoBrl.cota = 0;
+		arrecTipoBrl.aiu = 0;
+		arrecTipoBrl.multa = 0;
+		quebrasFundurbBrl = 0;
+		antecFundurbBrl = 0;
+		prevRestanteFundurbBrl = 0;
+		for (const p of parcelasArrecadadasAno) {
+			const tipo = p.processo?.tipo;
+			if (tipo === 'COTA') arrecTipoBrl.cota += p.valor;
+			else if (tipo === 'AIU') arrecTipoBrl.aiu += p.valor;
+			else arrecTipoBrl.outorga += p.valor;
+			if (naoAiu(p) && p.antecipada) antecFundurbBrl += p.valor;
+		}
+		for (const multa of multasPagas) {
+			arrecTipoBrl.multa += Number(multa.valor);
+		}
+		for (const p of parcelasVencimentoAno) {
+			if (!naoAiu(p)) continue;
+			if (p.quebra) quebrasFundurbBrl += p.valor;
+			else if (!p.status_quitacao) prevRestanteFundurbBrl += p.valor;
 		}
 	}
 
@@ -290,10 +339,14 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 	// ── Top processos por valor total ──
 	const processos = await carregarProcessosRanking();
 
-	const todosProcessos = mapearRankingProcessos(processos, { ano: anoAtual }, hoje);
+	const todosProcessos = mapearRankingProcessos(
+		processos,
+		todosAnos ? {} : { ano: anoAtual },
+		hoje,
+	);
 	const topAno = todosProcessos.slice(0, 10);
 	const topMes =
-		mesAtual >= 0
+		!todosAnos && mesAtual >= 0
 			? mapearRankingProcessos(processos, { ano: anoAtual, mes: mesAtual }, hoje).slice(0, 10)
 			: [];
 	const topTodo = mapearRankingProcessos(processos, {}, hoje).slice(0, 10);
@@ -358,6 +411,8 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 				select: {
 					tipo: true,
 					num_processo: true,
+					interessado: true,
+					cnpj: true,
 					monitoramento: { select: { proprietario_interessado: true } },
 					monitoramento_cota: { select: { proprietario_interessado: true } },
 				},
@@ -369,10 +424,7 @@ export async function buscarRelatorio(anoFiltro?: number, mesFiltro?: number): P
 		const dias = Math.ceil(
 			(p.vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
 		);
-		const interessado =
-			p.processo.monitoramento?.proprietario_interessado ??
-			p.processo.monitoramento_cota?.proprietario_interessado ??
-			p.processo.num_processo;
+		const interessado = resolverNomeInteressado(p.processo);
 		return {
 			num: p.processo.num_processo,
 			int: interessado,

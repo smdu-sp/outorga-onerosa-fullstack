@@ -9,7 +9,8 @@ import {
 import { IRelatorio, IRelatorioTop10 } from '@/types/relatorio';
 
 export async function relatorio(
-	ano?: number,
+	/** `null` = todos os anos; `undefined` = ano corrente */
+	ano?: number | null,
 	mes?: number,
 ): Promise<{ ok: boolean; data: IRelatorio | null; error: string | null }> {
 	try {

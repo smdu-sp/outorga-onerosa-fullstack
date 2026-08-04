@@ -56,7 +56,7 @@ export const PENDENCIAS_META: Record<CodigoPendencia, PendenciaMeta> = {
 	SEM_DATA_QUITACAO: {
 		label: 'Sem data de quitação',
 		descricao:
-			'Há parcela quitada sem data exata de quitação — ela não entra no cálculo de tempo de pagamento da Saúde da arrecadação.',
+			'Há parcela quitada sem data de quitação — pela regra do sistema, o pagamento é considerado na data de vencimento.',
 		severidade: 'atencao',
 	},
 };

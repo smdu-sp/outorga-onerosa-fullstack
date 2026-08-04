@@ -1,21 +1,19 @@
 /**
- * Para cada processo sem lote_cadastrado preenchido, busca dados no GeoSampa:
+ * Backfill BI → SQL → GeoSampa para processos sem lote_cadastrado.
  *
- *   Processo DIGITAL  (ex: 0000.1994/0107093-8)
- *     → BI (dbo.cadastros → sql_incra) → GeoSampa WFS pelo SQL (dados completos)
+ * Fluxo (todos os processos):
+ *   1) BI dbo.cadastros → SQL_Incra
+ *   2) Se achou SQL → GeoSampa WFS pelo SQL (lote completo + zoneamento)
+ *   3) Senão / SQL sem lote no WFS → camada outorga_onerosa pelo nº do processo
  *
- *   Processo FÍSICO   (ex: 2010-0.345.761-0)
- *     → Pula o BI (o número está cadastrado lá com outra máscara)
- *     → GeoSampa camada outorga_onerosa pelo cd_processo (dados parciais: setor+quadra)
- *
- * Processos com lote_cadastrado já preenchido são ignorados (dados completos).
- * Ao terminar, salva CSV em scripts/output/ com todos os resultados para filtragem.
+ * Grava ficha de monitoramento + Processo.sql_incra / sql_formatado / interessado
+ * (somente campos ainda vazios).
  *
  * Uso:
  *   npx tsx scripts/atualizar-processos-sem-dados.ts
  *   npx tsx scripts/atualizar-processos-sem-dados.ts --dry-run
- *   npx tsx scripts/atualizar-processos-sem-dados.ts --limit 50 --delay 2000
- *   npx tsx scripts/atualizar-processos-sem-dados.ts --processo 2024.1234/0012345-6
+ *   npx tsx scripts/atualizar-processos-sem-dados.ts --limit 50 --delay 1000
+ *   npx tsx scripts/atualizar-processos-sem-dados.ts --processo 1020.2021/0007944-0
  *   npm run db:atualizar-processos
  */
 import fs from 'node:fs';
@@ -40,13 +38,6 @@ import {
 	TipoLicencaMonitoramento,
 } from '@prisma/client';
 
-/** Formato digital padrão: 0000.1994/0107093-8 */
-const RE_DIGITAL = /^\d{4}\.\d{4}\/\d{7}-\d$/;
-
-function isDigital(numProcesso: string) {
-	return RE_DIGITAL.test(numProcesso.trim());
-}
-
 type StatusResultado =
 	| 'atualizado_sql'
 	| 'atualizado_outorga'
@@ -56,7 +47,6 @@ type StatusResultado =
 
 type LinhaResultado = {
 	num_processo: string;
-	tipo: 'Digital' | 'Físico';
 	status: StatusResultado;
 	sql?: string;
 	detalhe?: string;
@@ -70,6 +60,12 @@ type Stats = {
 	naoEncontradoWfs: number;
 	erros: number;
 };
+
+type ResultadoProcesso =
+	| { status: 'atualizado_sql'; sql: string }
+	| { status: 'atualizado_outorga' }
+	| { status: 'sem_sql_bi' }
+	| { status: 'nao_encontrado_wfs' };
 
 function parseArgs() {
 	const args = process.argv.slice(2);
@@ -94,7 +90,7 @@ function parseArgs() {
 	return {
 		dryRun,
 		limit: readNum('--limit'),
-		delay: readNum('--delay', 1500)!,
+		delay: readNum('--delay', 1000)!,
 		processo: readStr('--processo'),
 	};
 }
@@ -165,7 +161,9 @@ async function aplicarPayloadUpsert(
 
 	if (situacao) {
 		const s = {
-			incidencia_cota_solidariedade: situacao.incidencia_cota_solidariedade as IncidenciaCotaSolidariedade | undefined,
+			incidencia_cota_solidariedade: situacao.incidencia_cota_solidariedade as
+				| IncidenciaCotaSolidariedade
+				| undefined,
 			situacao: situacao.situacao as SituacaoMonitoramento | undefined,
 			origem: situacao.origem as OrigemMonitoramento | undefined,
 		};
@@ -221,8 +219,35 @@ async function aplicarPayloadUpsert(
 async function salvarPayload(
 	processoId: string,
 	payload: GeoSampaMonitoramentoPayload,
+	extras?: {
+		sql_incra?: string | null;
+		sql_formatado?: string | null;
+		data_autuacao?: string | null;
+		interessado?: string | null;
+	},
 ) {
 	await prisma.$transaction(async (tx) => {
+		const atual = await tx.processo.findUnique({
+			where: { id: processoId },
+			select: {
+				sql_incra: true,
+				sql_formatado: true,
+				data_autuacao: true,
+				interessado: true,
+			},
+		});
+		const data: Prisma.ProcessoUpdateInput = {};
+		if (!atual?.sql_incra && extras?.sql_incra) data.sql_incra = extras.sql_incra;
+		if (!atual?.sql_formatado && extras?.sql_formatado)
+			data.sql_formatado = extras.sql_formatado;
+		if (!atual?.data_autuacao && extras?.data_autuacao) {
+			data.data_autuacao = parseDataCivil(extras.data_autuacao);
+		}
+		if (!atual?.interessado && extras?.interessado) data.interessado = extras.interessado;
+		if (Object.keys(data).length > 0) {
+			await tx.processo.update({ where: { id: processoId }, data });
+		}
+
 		let ficha = await tx.monitoramentoFicha.findUnique({
 			where: { processo_id: processoId },
 			select: { id: true },
@@ -236,70 +261,63 @@ async function salvarPayload(
 	});
 }
 
-type ResultadoProcesso =
-	| { status: 'atualizado_sql'; sql: string }
-	| { status: 'atualizado_outorga' }
-	| { status: 'sem_sql_bi' }
-	| { status: 'nao_encontrado_wfs' }
-	| { status: 'erro'; mensagem: string };
-
-async function processarDigital(
+async function processarProcesso(
 	processoId: string,
 	numProcesso: string,
 	dryRun: boolean,
 ): Promise<ResultadoProcesso> {
-	// Etapa 1: pegar SQL no BI
 	const sqlDoBi = await buscarSqlPorProcessoNoBi(numProcesso, () => {});
-	if (!sqlDoBi) return { status: 'sem_sql_bi' };
 
-	// Etapa 2: consultar GeoSampa pelo SQL (dados completos: lote, zoneamento etc.)
-	let resultado: Awaited<ReturnType<typeof consultarGeoSampa>>;
+	if (sqlDoBi) {
+		try {
+			const resultado = await consultarGeoSampa(sqlDoBi, undefined, () => {});
+			if (!dryRun) {
+				const payload = mapGeoSampaParaMonitoramento(resultado.data, {
+					modo: 'SQL',
+					identificador: sqlDoBi,
+				});
+				await salvarPayload(processoId, payload, {
+					sql_incra: resultado.data.sql_incra ?? sqlDoBi,
+					sql_formatado: resultado.data.sql_formatado ?? sqlDoBi,
+					data_autuacao: resultado.data.data_autuacao,
+					interessado: resultado.data.proprietario_interessado,
+				});
+			}
+			return { status: 'atualizado_sql', sql: sqlDoBi };
+		} catch (e) {
+			if (
+				!(e instanceof GeoSampaConsultaError) ||
+				(e.codigo !== 'NAO_ENCONTRADO' && e.codigo !== 'INVALIDO')
+			) {
+				throw e;
+			}
+			// cai no fallback por processo
+		}
+	}
+
 	try {
-		resultado = await consultarGeoSampa(sqlDoBi, undefined, () => {});
+		const geoData = await consultarProcessoNoWfs(numProcesso);
+		if (!dryRun) {
+			const payload = mapGeoSampaParaMonitoramento(geoData, {
+				modo: 'PROCESSO',
+				identificador: numProcesso,
+			});
+			await salvarPayload(processoId, payload, {
+				sql_incra: geoData.sql_incra ?? sqlDoBi,
+				sql_formatado: geoData.sql_formatado ?? sqlDoBi,
+				data_autuacao: geoData.data_autuacao,
+				interessado: geoData.proprietario_interessado,
+			});
+		}
+		return sqlDoBi
+			? { status: 'atualizado_sql', sql: sqlDoBi }
+			: { status: 'atualizado_outorga' };
 	} catch (e) {
 		if (e instanceof GeoSampaConsultaError && e.codigo === 'NAO_ENCONTRADO') {
-			return { status: 'nao_encontrado_wfs' };
+			return sqlDoBi ? { status: 'nao_encontrado_wfs' } : { status: 'sem_sql_bi' };
 		}
 		throw e;
 	}
-
-	if (!dryRun) {
-		const payload = mapGeoSampaParaMonitoramento(resultado.data, {
-			modo: 'SQL',
-			identificador: sqlDoBi,
-		});
-		await salvarPayload(processoId, payload);
-	}
-
-	return { status: 'atualizado_sql', sql: sqlDoBi };
-}
-
-async function processarFisico(
-	processoId: string,
-	numProcesso: string,
-	dryRun: boolean,
-): Promise<ResultadoProcesso> {
-	// Pula o BI — processo físico está cadastrado lá com outra máscara
-	// Tenta direto na camada outorga_onerosa do WFS pelo cd_processo
-	let geoData: Awaited<ReturnType<typeof consultarProcessoNoWfs>>;
-	try {
-		geoData = await consultarProcessoNoWfs(numProcesso);
-	} catch (e) {
-		if (e instanceof GeoSampaConsultaError && e.codigo === 'NAO_ENCONTRADO') {
-			return { status: 'nao_encontrado_wfs' };
-		}
-		throw e;
-	}
-
-	if (!dryRun) {
-		const payload = mapGeoSampaParaMonitoramento(geoData, {
-			modo: 'PROCESSO',
-			identificador: numProcesso,
-		});
-		await salvarPayload(processoId, payload);
-	}
-
-	return { status: 'atualizado_outorga' };
 }
 
 async function buscarProcessosSemDados(processoFiltro?: string) {
@@ -312,8 +330,6 @@ async function buscarProcessosSemDados(processoFiltro?: string) {
 		return [p];
 	}
 
-	// Considera "completo" apenas quando lote_cadastrado está preenchido.
-	// Processos com só setor+quadra (vindos da outorga WFS) são reprocessados.
 	return prisma.processo.findMany({
 		where: {
 			OR: [
@@ -331,19 +347,16 @@ function salvarCsv(resultados: LinhaResultado[]) {
 	const dir = path.join(import.meta.dirname, 'output');
 	if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
-	const agora = new Date();
-	const stamp = agora
+	const stamp = new Date()
 		.toISOString()
 		.replace('T', '_')
 		.replace(/:/g, '-')
 		.slice(0, 16);
 	const arquivo = path.join(dir, `resultado-${stamp}.csv`);
-
-	const header = 'num_processo;tipo;status;sql;detalhe';
+	const header = 'num_processo;status;sql;detalhe';
 	const linhas = resultados.map((r) =>
-		[r.num_processo, r.tipo, r.status, r.sql ?? '', r.detalhe ?? ''].join(';'),
+		[r.num_processo, r.status, r.sql ?? '', r.detalhe ?? ''].join(';'),
 	);
-
 	fs.writeFileSync(arquivo, [header, ...linhas].join('\n'), 'utf-8');
 	return arquivo;
 }
@@ -351,26 +364,23 @@ function salvarCsv(resultados: LinhaResultado[]) {
 async function main() {
 	const opts = parseArgs();
 
-	console.log('=== Atualizar processos sem dados do GeoSampa ===');
+	console.log('=== Backfill BI → SQL → GeoSampa ===');
 	if (opts.dryRun) console.log('  [modo dry-run — nenhuma alteração será gravada]');
-	console.log('  Digital: BI (sql_incra) → WFS pelo SQL');
-	console.log('  Físico:  WFS camada outorga_onerosa pelo cd_processo');
-	console.log(`  Delay entre requisições: ${opts.delay}ms`);
-	if (opts.processo) console.log(`  Processo específico: ${opts.processo}`);
+	console.log('  1) BI cadastros → SQL');
+	console.log('  2) GeoSampa WFS pelo SQL');
+	console.log('  3) fallback: outorga WFS pelo processo');
+	console.log(`  Delay: ${opts.delay}ms`);
+	if (opts.processo) console.log(`  Processo: ${opts.processo}`);
 	if (opts.limit) console.log(`  Limite: ${opts.limit}`);
 	console.log('');
 
 	const todos = await buscarProcessosSemDados(opts.processo);
 	const lista = opts.limit ? todos.slice(0, opts.limit) : todos;
 
-	const nDigitais = lista.filter((p) => isDigital(p.num_processo)).length;
-	const nFisicos = lista.length - nDigitais;
-
-	console.log(`Processos sem localizacao_lote: ${todos.length}`);
+	console.log(`Processos pendentes: ${todos.length}`);
 	if (opts.limit && todos.length > opts.limit) {
-		console.log(`  (processando apenas os primeiros ${opts.limit})`);
+		console.log(`  (processando ${opts.limit})`);
 	}
-	console.log(`  Digitais: ${nDigitais}   Físicos: ${nFisicos}`);
 	console.log('');
 
 	const stats: Stats = {
@@ -381,29 +391,18 @@ async function main() {
 		naoEncontradoWfs: 0,
 		erros: 0,
 	};
-
 	const resultados: LinhaResultado[] = [];
 
 	for (let i = 0; i < lista.length; i++) {
 		const { id, num_processo } = lista[i];
 		const pad = String(lista.length).length;
 		const prefixo = `[${String(i + 1).padStart(pad)}/${lista.length}]`;
-		const digital = isDigital(num_processo);
-		const tipo = digital ? 'D' : 'F';
+		process.stdout.write(`${prefixo} ${num_processo} ... `);
 
-		process.stdout.write(`${prefixo} [${tipo}] ${num_processo} ... `);
-
-		let linha: LinhaResultado = {
-			num_processo,
-			tipo: digital ? 'Digital' : 'Físico',
-			status: 'erro',
-		};
+		const linha: LinhaResultado = { num_processo, status: 'erro' };
 
 		try {
-			const r = digital
-				? await processarDigital(id, num_processo, opts.dryRun)
-				: await processarFisico(id, num_processo, opts.dryRun);
-
+			const r = await processarProcesso(id, num_processo, opts.dryRun);
 			linha.status = r.status;
 
 			switch (r.status) {
@@ -414,15 +413,15 @@ async function main() {
 					break;
 				case 'atualizado_outorga':
 					stats.atualizadosOutorga++;
-					console.log('OK  (via outorga WFS — dados parciais: setor+quadra)');
+					console.log('OK  (via outorga WFS)');
 					break;
 				case 'sem_sql_bi':
 					stats.semSqlNoBi++;
-					console.log('sem SQL no BI (sql_incra vazio)');
+					console.log('sem SQL no BI / sem outorga WFS');
 					break;
 				case 'nao_encontrado_wfs':
 					stats.naoEncontradoWfs++;
-					console.log('não encontrado no GeoSampa WFS');
+					console.log('SQL no BI, mas não achou no GeoSampa WFS');
 					break;
 			}
 		} catch (e) {
@@ -432,27 +431,25 @@ async function main() {
 		}
 
 		resultados.push(linha);
-
-		if (i < lista.length - 1) {
-			await sleep(opts.delay);
-		}
+		if (i < lista.length - 1) await sleep(opts.delay);
 	}
 
 	console.log('\n--- Resultado ---');
 	console.log(`Total processado:                      ${stats.total}`);
-	console.log(`Atualizados via SQL (dados completos):  ${stats.atualizadosSql}`);
-	console.log(`Atualizados via outorga WFS (parcial):  ${stats.atualizadosOutorga}`);
-	console.log(`Sem SQL no BI (sql_incra vazio):        ${stats.semSqlNoBi}`);
-	console.log(`Não encontrados no WFS:                ${stats.naoEncontradoWfs}`);
+	console.log(`Atualizados via SQL (completos):       ${stats.atualizadosSql}`);
+	console.log(`Atualizados via outorga WFS:           ${stats.atualizadosOutorga}`);
+	console.log(`Sem SQL no BI / sem outorga:           ${stats.semSqlNoBi}`);
+	console.log(`SQL no BI, sem lote no WFS:            ${stats.naoEncontradoWfs}`);
 	console.log(`Erros:                                  ${stats.erros}`);
+
+	const comInt = await prisma.processo.count({ where: { interessado: { not: null } } });
+	const comSql = await prisma.processo.count({ where: { sql_incra: { not: null } } });
+	const comMon = await prisma.monitoramentoFicha.count();
+	console.log(`\nCobertura atual: interessado=${comInt}  sql=${comSql}  fichas=${comMon}`);
 
 	if (!opts.dryRun && resultados.length > 0) {
 		const arquivo = salvarCsv(resultados);
-		console.log(`\nCSV salvo em: ${arquivo}`);
-		console.log('Filtros úteis no CSV (coluna "status"):');
-		console.log('  sem_sql_bi        → digitais sem sql_incra no BI');
-		console.log('  nao_encontrado_wfs → não existe na camada do GeoSampa');
-		console.log('  erro              → falha inesperada (ver coluna "detalhe")');
+		console.log(`\nCSV: ${arquivo}`);
 	}
 }
 

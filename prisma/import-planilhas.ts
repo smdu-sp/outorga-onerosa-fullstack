@@ -18,6 +18,8 @@ import {
   situacaoEmQuebra,
 } from '../lib/normalizar-status';
 import { classificarAntecipacao } from '../lib/antecipacao';
+import { dataCivilDiasAtras, dataCivilHoje } from '../lib/datas';
+import { VENCIMENTO_FALLBACK_DIAS } from '../lib/parcelas-utils';
 
 const prisma = new PrismaClient();
 
@@ -67,6 +69,8 @@ interface ParcelaImport {
   dias_antecipacao?: number;
   quebra?: boolean;
   obrigacao?: Tipo;
+  /** Situação da linha era canônica (Pago/A Vencer/Quebra), não vazia/lixo. */
+  situacao_explicita?: boolean;
 }
 
 interface ProcessoImport {
@@ -172,9 +176,42 @@ function parseIntSafe(value: unknown): number | undefined {
 function parseAnoPagamento(value: unknown): number | undefined {
   const text = cleanText(value);
   if (!text || text.toUpperCase() === 'S' || text.toUpperCase() === 'N') return undefined;
+  // Coluna "ANO PAGTO" / "Data de PAGTO" às vezes traz data completa (Date ou DD/MM/AAAA).
+  const asDate = parseExcelDate(value);
+  if (asDate) return asDate.getFullYear();
   const num = parseIntSafe(value);
   if (num && num > 1900 && num < 2100) return num;
   return undefined;
+}
+
+/** Data efetiva de pagamento quando a coluna de ano/pagto veio como data (não só ano). */
+function parseDataPagamentoColuna(value: unknown): Date | undefined {
+  // Só ano (ex.: 2026) não é data de pagamento.
+  if (typeof value === 'number' && value > 1900 && value < 2100) return undefined;
+  const text = cleanText(value);
+  if (text && /^\d{4}$/.test(text)) return undefined;
+  return parseExcelDate(value);
+}
+
+/** Qualidade da parcela para merge entre abas (maior = preferir). */
+function qualidadeParcela(p: ParcelaImport): number {
+  let score = 0;
+  if (p.situacao_explicita) score += 10;
+  if (
+    p.data_quitacao &&
+    p.vencimento &&
+    p.data_quitacao.getTime() !== p.vencimento.getTime()
+  ) {
+    score += 8; // data de pagamento distinta do vencimento
+  }
+  if (p.ano_pagamento != null) score += 2;
+  // Detalhe da aba "Em pagamento" (não quitada) vence quitação inferida só pelo nome da aba.
+  if (!p.status_quitacao && !p.quebra) score += 3;
+  return score;
+}
+
+function preferParcela(a: ParcelaImport, b: ParcelaImport): ParcelaImport {
+  return qualidadeParcela(b) > qualidadeParcela(a) ? b : a;
 }
 
 function parseTipo(codigo: unknown): Tipo | undefined {
@@ -235,9 +272,13 @@ function mergeProcesso(processo: ProcessoImport) {
 
   // Chave por obrigação + nº parcela: OODC e COTA podem ter parcela 1, 2, … cada
   // uma. Sem a obrigação na chave, uma sobrescreveria a outra.
+  // Preferir a linha com Situação/data explícitas — a aba Quitado costuma
+  // repetir parcelas futuras sem Situação e sobrescrevia o "Em pagamento".
   const parcelasPorChave = new Map<string, ParcelaImport>();
   for (const parcela of [...existing.parcelas, ...processo.parcelas]) {
-    parcelasPorChave.set(`${parcela.obrigacao ?? '?'}#${parcela.num_parcela}`, parcela);
+    const key = `${parcela.obrigacao ?? '?'}#${parcela.num_parcela}`;
+    const prev = parcelasPorChave.get(key);
+    parcelasPorChave.set(key, prev ? preferParcela(prev, parcela) : parcela);
   }
   existing.parcelas = [...parcelasPorChave.values()].sort(
     (a, b) => a.num_parcela - b.num_parcela,
@@ -285,6 +326,7 @@ function parseParcelSheet(
       numParcela = parseIntSafe(row[5]);
       vencimento = parseExcelDate(row[6]);
       valor = parseNumber(row[7]);
+      dataQuitacao = parseDataPagamentoColuna(row[8]);
       anoPagamento = parseAnoPagamento(row[8]);
       situacao = row[9];
     } else if (layout === 'ad_dpci') {
@@ -294,6 +336,8 @@ function parseParcelSheet(
       cpfCnpj = cleanText(row[5]);
       vencimento = parseExcelDate(row[6]);
       valor = parseNumber(row[7]);
+      // DPCI: "ANO DE PAGAMENTO" muitas vezes traz data completa.
+      dataQuitacao = parseDataPagamentoColuna(row[8]);
       anoPagamento = parseAnoPagamento(row[8]);
       situacao = row[9] ?? row[10];
       numParcela = 1;
@@ -312,7 +356,8 @@ function parseParcelSheet(
     }
 
     if (cpfCnpj) cpfAtual = cpfCnpj;
-    if (!numParcela || !vencimento || valor === undefined) continue;
+    if (!numParcela || valor === undefined) continue;
+    if (!vencimento) vencimento = dataCivilDiasAtras(VENCIMENTO_FALLBACK_DIAS);
 
     if (numProcesso) {
       flush();
@@ -335,12 +380,47 @@ function parseParcelSheet(
     if (dataEntrada && !current.data_entrada) current.data_entrada = dataEntrada;
     if (protocolo && !current.protocolo_ad) current.protocolo_ad = protocolo;
 
-    const quitada = parcelaQuitada(situacao, statusSheet);
-    const dataQuitacaoFinal = layout === 'fisico' ? dataQuitacao : undefined;
+    const situacaoNorm = normalizarSituacaoParcela(situacao);
+    const situacaoExplicita = situacaoNorm !== 'INDEFINIDO';
+    let quitada = parcelaQuitada(situacao, statusSheet);
+    const hoje = dataCivilHoje();
+
+    // Data explícita na planilha; se veio no futuro, não é pagamento efetivo.
+    let dataQuitacaoFinal = dataQuitacao;
+    if (dataQuitacaoFinal && dataQuitacaoFinal.getTime() > hoje.getTime()) {
+      if (vencimento.getTime() <= hoje.getTime()) {
+        // Venceu e marcaram "pago" com data futura → proxy no vencimento.
+        dataQuitacaoFinal = vencimento;
+      } else {
+        // Ainda não venceu: trata como a vencer (data futura inválida).
+        quitada = false;
+        dataQuitacaoFinal = undefined;
+      }
+    }
+
+    // Quitada sem data → usa vencimento, mas nunca inventa data futura.
+    if (!dataQuitacaoFinal && quitada) {
+      if (vencimento.getTime() <= hoje.getTime()) {
+        dataQuitacaoFinal = vencimento;
+      }
+    }
+
+    // Aba Quitado com Situação vazia + vencimento futuro + sem data de pagto:
+    // não marcar como quitada (são parcelas a vencer repetidas na aba).
+    if (
+      quitada &&
+      !situacaoExplicita &&
+      !dataQuitacao &&
+      vencimento.getTime() > hoje.getTime()
+    ) {
+      quitada = false;
+      dataQuitacaoFinal = undefined;
+    }
+
     let antecipada = false;
     let diasAntecipacao: number | undefined;
     if (quitada) {
-      if (dataQuitacaoFinal) {
+      if (dataQuitacaoFinal && dataQuitacaoFinal.getTime() !== vencimento.getTime()) {
         // Fonte única: mês anterior ao vencimento + tolerância de virada de mês.
         const classif = classificarAntecipacao(vencimento, dataQuitacaoFinal);
         antecipada = classif.antecipada;
@@ -358,13 +438,13 @@ function parseParcelSheet(
       num_parcela: numParcela,
       valor,
       vencimento,
-      // Aprova Digital não informa data de quitação — apenas status quitada
       data_quitacao: dataQuitacaoFinal,
-      ano_pagamento: anoPagamento,
+      ano_pagamento: anoPagamento ?? dataQuitacaoFinal?.getFullYear(),
       cpf_cnpj: cpfAtual,
       status_quitacao: quitada,
       antecipada,
       dias_antecipacao: diasAntecipacao,
+      situacao_explicita: situacaoExplicita,
       // Quebra vem da própria Situação da linha (fonte confiável) ou, na falta
       // dela, da aba dedicada a quebras.
       quebra: situacaoEmQuebra(situacao) || (statusSheet === 'QUEBRA' && !quitada),

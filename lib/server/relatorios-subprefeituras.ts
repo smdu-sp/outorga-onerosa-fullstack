@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { normalizarSubprefeitura, tituloSubprefeitura } from '@/lib/geo/normalizar-subprefeitura';
+import { resolverNomeInteressado } from '@/lib/interessado';
 import {
 	anoArrecadacaoParcela,
 	parcelaArrecadadaNoPeriodo,
@@ -29,6 +30,8 @@ type ParcelaSubprefeitura = ParcelaArrecadacao & { valor: number };
 type ProcessoComSubprefeitura = {
 	id: string;
 	num_processo: string;
+	interessado: string | null;
+	cnpj: string | null;
 	parcelas: ParcelaSubprefeitura[];
 	monitoramento: {
 		proprietario_interessado: string | null;
@@ -58,10 +61,7 @@ function mapearProcessosPorSubprefeitura(
 			const pago = somarParcelasPagas(p.parcelas, filtro);
 			if (pago <= 0) return null;
 
-			const interessado =
-				p.monitoramento?.proprietario_interessado ??
-				p.monitoramento_cota?.proprietario_interessado ??
-				p.num_processo;
+			const interessado = resolverNomeInteressado(p);
 
 			return {
 				id: p.id,
@@ -78,6 +78,8 @@ function mapearProcessosPorSubprefeitura(
 const processoSelect = {
 	id: true,
 	num_processo: true,
+	interessado: true,
+	cnpj: true,
 	parcelas: {
 		select: {
 			valor: true,
