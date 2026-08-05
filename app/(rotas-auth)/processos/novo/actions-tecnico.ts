@@ -31,10 +31,10 @@ export async function consultarCalculo(
 
 /**
  * Confirma a criação do processo. `tipo` decide o que é gravado:
- * - OUTORGA: só o cálculo da Antares (`calculo` obrigatório).
+ * - OUTORGA: só o cálculo da API (`calculo` obrigatório).
  * - AIU: mesmo fluxo da Outorga, grava `Processo.tipo = AIU`.
  * - COTA: só o valor de Cota digitado manualmente (`valorCota` obrigatório) —
- *   não passa pela Antares.
+ *   não passa pela API de cálculo.
  * - OUTORGA_COTA: os dois — obrigação predominante PDE do processo (ver
  *   contexto-dominio.md: "tem Cota?" não é o `Processo.tipo`, é derivado).
  */

@@ -1,13 +1,15 @@
 import { prisma } from '@/lib/prisma';
 import { verificaLimite, verificaPagina } from '@/lib/pagination';
 import { serializarRegistro } from '@/lib/serializar-prisma';
-import { ICreateProcesso } from '@/types/processo';
+import { ICreateProcesso, IPainelOperacional } from '@/types/processo';
 import { Prisma, StatusPagamento } from '@prisma/client';
 import { recalcularStatusPagamento } from '@/lib/parcelas-utils';
 import { parseDataCivil } from '@/lib/datas';
+import { resolverNomeInteressado } from '@/lib/interessado';
 import {
 	calcularPendencias,
 	isCodigoPendencia,
+	PENDENCIAS_META,
 	wherePendencia,
 	wherePendencias,
 } from '@/lib/pendencias-processo';
@@ -212,94 +214,187 @@ export async function buscarDetalheProcesso(id: string) {
 	return serializarRegistro(processo as unknown as Record<string, unknown>);
 }
 
-export async function dashboardProcessos() {
-	const meses = [
-		'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-		'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-	];
-	const data = new Date();
-	const gte = new Date(data.getFullYear(), data.getMonth(), 1);
-	const lte = new Date(data.getFullYear(), data.getMonth() + 1, 0);
+export type FiltroAcessoProcessos = { criadoPor?: string; apenasQuitados?: boolean };
 
-	const parcelas = await prisma.parcela.findMany({
-		where: { vencimento: { gte, lte } },
-		include: { processo: true },
-	});
+/** Processo criado pelo fluxo do Técnico (origem PORTAL) e ainda sem nenhuma parcela cadastrada pelo CAP. */
+const FILTRO_PROCESSOS_NOVOS: Prisma.ProcessoWhereInput = {
+	origem: 'PORTAL',
+	criado_por: { not: null },
+	parcelas: { none: {} },
+};
 
-	const pde = parcelas.filter((p) => p.processo.tipo === 'PDE');
-	const cota = parcelas.filter((p) => p.processo.tipo === 'COTA');
+function whereAcessoProcesso(
+	filtroAcesso?: FiltroAcessoProcessos,
+): Prisma.ProcessoWhereInput | undefined {
+	if (filtroAcesso?.criadoPor) return { criado_por: filtroAcesso.criadoPor };
+	if (filtroAcesso?.apenasQuitados) return { status_pagamento: 'QUITADO' };
+	return undefined;
+}
 
-	const quantidadeTipo = [
-		{ label: 'PDE', value: pde.length },
-		{ label: 'COTA', value: cota.length },
-	];
-	const valorTipo = [
-		{ label: 'PDE', value: pde.reduce((acc, p) => acc + p.valor, 0).toFixed(2) },
-		{ label: 'COTA', value: cota.reduce((acc, p) => acc + p.valor, 0).toFixed(2) },
-	];
-
-	const processosTotal = await prisma.processo.count();
-
-	const parcelasRecebidas = await prisma.parcela.findMany({
-		where: {
+const processoPainelSelect = {
+	id: true,
+	tipo: true,
+	num_processo: true,
+	interessado: true,
+	cnpj: true,
+	status_pagamento: true,
+	data_entrada: true,
+	criado_em: true,
+	monitoramento: {
+		select: {
+			proprietario_interessado: true,
+			enquadramento_urbanistico: {
+				select: {
+					distrito: true,
+					subprefeitura: true,
+					zona_uso_1_18081: true,
+					zona_uso_2_17975: true,
+					zona_uso_3_16402: true,
+					zona_uso_4_16050: true,
+					zona_uso_5_13885: true,
+					zona_uso_6_13885: true,
+				},
+			},
+		},
+	},
+	monitoramento_cota: { select: { proprietario_interessado: true } },
+	parcelas: {
+		select: {
 			status_quitacao: true,
-			vencimento: {
-				gte: new Date(data.getFullYear(), 0, 1),
-				lt: new Date(data.getFullYear(), data.getMonth(), data.getDate()),
-			},
+			quebra: true,
+			data_quitacao: true,
 		},
+	},
+} satisfies Prisma.ProcessoSelect;
+
+/** Painel operacional da home: alertas + filas do dia (não é dashboard analítico). */
+export async function painelOperacional(
+	filtroAcesso?: FiltroAcessoProcessos,
+): Promise<IPainelOperacional> {
+	const hoje = new Date();
+	hoje.setHours(0, 0, 0, 0);
+	const em30 = new Date(hoje);
+	em30.setDate(em30.getDate() + 30);
+	em30.setHours(23, 59, 59, 999);
+
+	const acessoProcesso = whereAcessoProcesso(filtroAcesso);
+	const acessoParcela = acessoProcesso ? { processo: acessoProcesso } : {};
+
+	const baseAberta: Prisma.ParcelaWhereInput = {
+		status_quitacao: false,
+		quebra: false,
+		...acessoParcela,
+	};
+
+	const wherePendenciasCriticas: Prisma.ProcessoWhereInput = {
+		AND: [
+			...(acessoProcesso ? [acessoProcesso] : []),
+			{
+				OR: [
+					wherePendencia('SEM_PARCELAS'),
+					wherePendencia('FALTA_DISTRITO'),
+					wherePendencia('FALTA_SUBPREFEITURA'),
+				],
+			},
+		],
+	};
+
+	const whereNovos: Prisma.ProcessoWhereInput = {
+		AND: [...(acessoProcesso ? [acessoProcesso] : []), FILTRO_PROCESSOS_NOVOS],
+	};
+
+	const [
+		parcelasVencidas,
+		parcelasAVencer30d,
+		processosNovos,
+		pendenciasCriticas,
+		parcelasProximas,
+		processosRecentesRaw,
+	] = await Promise.all([
+		prisma.parcela.count({
+			where: { ...baseAberta, vencimento: { lt: hoje } },
+		}),
+		prisma.parcela.count({
+			where: { ...baseAberta, vencimento: { gte: hoje, lte: em30 } },
+		}),
+		prisma.processo.count({ where: whereNovos }),
+		prisma.processo.count({ where: wherePendenciasCriticas }),
+		prisma.parcela.findMany({
+			where: { ...baseAberta, vencimento: { gte: hoje, lte: em30 } },
+			orderBy: { vencimento: 'asc' },
+			take: 15,
+			include: {
+				processo: {
+					select: {
+						id: true,
+						tipo: true,
+						num_processo: true,
+						interessado: true,
+						cnpj: true,
+						monitoramento: { select: { proprietario_interessado: true } },
+						monitoramento_cota: { select: { proprietario_interessado: true } },
+					},
+				},
+			},
+		}),
+		prisma.processo.findMany({
+			where: acessoProcesso,
+			orderBy: { criado_em: 'desc' },
+			take: 10,
+			select: processoPainelSelect,
+		}),
+	]);
+
+	const vencimentos30d = parcelasProximas.map((p) => {
+		const dias = Math.ceil(
+			(p.vencimento.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24),
+		);
+		return {
+			parcelaId: p.id,
+			processoId: p.processo.id,
+			numProcesso: p.processo.num_processo,
+			interessado: resolverNomeInteressado(p.processo),
+			tipo: p.processo.tipo ?? 'PDE',
+			valor: p.valor,
+			vencimento: p.vencimento.toISOString().slice(0, 10),
+			dias,
+			numParcela: p.num_parcela,
+		};
 	});
 
-	const parcelasReceber = await prisma.parcela.findMany({
-		where: {
-			status_quitacao: false,
-			processo: { status_pagamento: 'EM_PAGAMENTO' },
-			vencimento: {
-				gte: new Date(data.getFullYear(), data.getMonth(), data.getDate()),
-				lt: new Date(data.getFullYear() + 1, 0, 1),
-			},
-		},
+	const processosRecentes = processosRecentesRaw.map((proc) => {
+		const pendencias = calcularPendencias({
+			tipo: proc.tipo ?? null,
+			parcelas: proc.parcelas,
+			enquadramento: proc.monitoramento?.enquadramento_urbanistico ?? null,
+		});
+		const temPendenciaCritica = pendencias.some(
+			(c) => PENDENCIAS_META[c].severidade === 'critica',
+		);
+		return {
+			id: proc.id,
+			numProcesso: proc.num_processo,
+			interessado: resolverNomeInteressado(proc),
+			tipo: proc.tipo,
+			statusPagamento: proc.status_pagamento,
+			dataEntrada: proc.data_entrada
+				? proc.data_entrada.toISOString().slice(0, 10)
+				: null,
+			criadoEm: proc.criado_em.toISOString(),
+			pendencias,
+			temPendenciaCritica,
+		};
 	});
-
-	const totalRecebido = parcelasRecebidas
-		.reduce((acc, p) => acc + p.valor, 0)
-		.toFixed(2);
-	const totalReceber = parcelasReceber
-		.reduce((acc, p) => acc + p.valor, 0)
-		.toFixed(2);
-
-	const mesAtual = data.getMonth();
-	const anoAtual = data.getFullYear();
-	const projecaoMensal: { label: string; value: number }[] = [];
-	const recebidoMensal: { label: string; value: number }[] = [];
-
-	for (let i = mesAtual; i < 12; i++) {
-		const doMes = parcelasReceber.filter(
-			(p) => p.vencimento.getMonth() === i && p.vencimento.getFullYear() === anoAtual,
-		);
-		projecaoMensal.push({
-			label: `${meses[i]}/${anoAtual}`,
-			value: +doMes.reduce((acc, p) => acc + p.valor, 0).toFixed(2),
-		});
-	}
-	for (let i = 0; i < mesAtual; i++) {
-		const doMes = parcelasRecebidas.filter(
-			(p) => p.vencimento.getMonth() === i && p.vencimento.getFullYear() === anoAtual,
-		);
-		recebidoMensal.push({
-			label: `${meses[i]}/${anoAtual}`,
-			value: +doMes.reduce((acc, p) => acc + p.valor, 0).toFixed(2),
-		});
-	}
 
 	return {
-		quantidadeTipo,
-		valorTipo,
-		processosTotal,
-		totalRecebido,
-		totalReceber,
-		projecaoMensal,
-		recebidoMensal,
+		contagens: {
+			parcelasVencidas,
+			parcelasAVencer30d,
+			processosNovos,
+			pendenciasCriticas,
+		},
+		vencimentos30d,
+		processosRecentes,
 	};
 }
 
@@ -373,15 +468,6 @@ function mapProcessoLista(
 		pendencias,
 	};
 }
-
-export type FiltroAcessoProcessos = { criadoPor?: string; apenasQuitados?: boolean };
-
-/** Processo criado pelo fluxo do Técnico (origem PORTAL) e ainda sem nenhuma parcela cadastrada pelo CAP. */
-const FILTRO_PROCESSOS_NOVOS: Prisma.ProcessoWhereInput = {
-	origem: 'PORTAL',
-	criado_por: { not: null },
-	parcelas: { none: {} },
-};
 
 function montarFiltrosProcessos(
 	busca?: string,

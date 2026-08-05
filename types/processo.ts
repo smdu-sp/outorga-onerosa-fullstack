@@ -52,7 +52,13 @@ export interface IEstatisticasProcessos {
 export interface IRespostaProcesso {
 	ok: boolean;
 	error: string | null;
-	data: IProcessosPaginado | IProcesso[] | IProcesso | IDashboard | Record<string, unknown> | null;
+	data:
+		| IProcessosPaginado
+		| IProcesso[]
+		| IProcesso
+		| IPainelOperacional
+		| Record<string, unknown>
+		| null;
 	status: number;
 }
 
@@ -63,14 +69,39 @@ export interface IProcessosPaginado {
 	data?: IProcesso[];
 }
 
-export interface IDashboard {
-	processosTotal: number;
-	totalRecebido: number;
-	totalReceber: number;
-	quantidadeTipo: { label: string; value: number }[];
-	valorTipo: { label: string; value: number }[];
-	projecaoMensal: { label: string; value: number }[];
-	recebidoMensal: { label: string; value: number }[];
+export interface IPainelVencimento {
+	parcelaId: string;
+	processoId: string;
+	numProcesso: string;
+	interessado: string;
+	tipo: string;
+	valor: number;
+	vencimento: string;
+	dias: number;
+	numParcela: number;
+}
+
+export interface IPainelProcessoRecente {
+	id: string;
+	numProcesso: string;
+	interessado: string;
+	tipo: string | null;
+	statusPagamento: string;
+	dataEntrada: string | null;
+	criadoEm: string;
+	pendencias: string[];
+	temPendenciaCritica: boolean;
+}
+
+export interface IPainelOperacional {
+	contagens: {
+		parcelasVencidas: number;
+		parcelasAVencer30d: number;
+		processosNovos: number;
+		pendenciasCriticas: number;
+	};
+	vencimentos30d: IPainelVencimento[];
+	processosRecentes: IPainelProcessoRecente[];
 }
 
 

@@ -6,9 +6,12 @@ import type { IGeoSampaResult } from '@/types/geosampa';
 
 export class CalculoOutorgaError extends Error {}
 
-const ANTARES_BASE_URL = (process.env.ANTARES_API_URL || 'http://10.75.35.64').replace(/\/$/, '');
+const CALCULO_OUTORGA_BASE_URL = (process.env.CALCULO_OUTORGA_API_URL || 'http://10.75.35.64').replace(
+	/\/$/,
+	'',
+);
 
-type AntaresProcurarProcessoResponse = {
+type ProcurarProcessoResponse = {
 	processo: {
 		processoSei: string;
 		dataAutuacao?: string;
@@ -26,7 +29,7 @@ type AntaresProcurarProcessoResponse = {
 	};
 };
 
-type AntaresCalcularOutorgaResponse = {
+type CalcularOutorgaResponse = {
 	outorga: {
 		parametrosDeCalculo?: {
 			valorM2?: number;
@@ -41,21 +44,21 @@ type AntaresCalcularOutorgaResponse = {
 	};
 };
 
-async function chamarAntares<T>(path: string, init?: RequestInit): Promise<T> {
+async function chamarApiCalculoOutorga<T>(path: string, init?: RequestInit): Promise<T> {
 	let resposta: Response;
 	try {
-		resposta = await fetch(`${ANTARES_BASE_URL}${path}`, {
+		resposta = await fetch(`${CALCULO_OUTORGA_BASE_URL}${path}`, {
 			...init,
 			headers: { Accept: 'application/json', ...init?.headers },
 			signal: AbortSignal.timeout(15_000),
 		});
 	} catch {
-		throw new CalculoOutorgaError('Não foi possível conectar à API de cálculo da outorga (Antares).');
+		throw new CalculoOutorgaError('Não foi possível conectar à API de cálculo da outorga.');
 	}
 
 	if (!resposta.ok) {
 		if (resposta.status === 404) {
-			throw new CalculoOutorgaError('Processo não encontrado na API de cálculo da outorga (Antares).');
+			throw new CalculoOutorgaError('Processo não encontrado na API de cálculo da outorga.');
 		}
 		throw new CalculoOutorgaError(`API de cálculo da outorga retornou erro (HTTP ${resposta.status}).`);
 	}
@@ -63,39 +66,39 @@ async function chamarAntares<T>(path: string, init?: RequestInit): Promise<T> {
 	try {
 		return (await resposta.json()) as T;
 	} catch {
-		throw new CalculoOutorgaError('Resposta inválida da API de cálculo da outorga (Antares).');
+		throw new CalculoOutorgaError('Resposta inválida da API de cálculo da outorga.');
 	}
 }
 
-async function procurarProcessoNoAntares(processoSei: string): Promise<AntaresProcurarProcessoResponse> {
-	const corpo = await chamarAntares<AntaresProcurarProcessoResponse>(
+async function procurarProcessoNaApi(processoSei: string): Promise<ProcurarProcessoResponse> {
+	const corpo = await chamarApiCalculoOutorga<ProcurarProcessoResponse>(
 		`/api/antares/procurarProcesso?processo_sei=${encodeURIComponent(processoSei)}`,
 	);
 	if (!corpo?.processo?.processoSei) {
-		throw new CalculoOutorgaError('Resposta da API de cálculo da outorga (Antares) veio sem dados do processo.');
+		throw new CalculoOutorgaError('Resposta da API de cálculo da outorga veio sem dados do processo.');
 	}
 	return corpo;
 }
 
-async function calcularOutorgaNoAntares(
+async function calcularOutorgaNaApi(
 	processoSei: string,
 	areaComputavel: number,
 	areaTerreno: number,
-): Promise<AntaresCalcularOutorgaResponse> {
-	const corpo = await chamarAntares<AntaresCalcularOutorgaResponse>('/api/antares/calcularOutorga', {
+): Promise<CalcularOutorgaResponse> {
+	const corpo = await chamarApiCalculoOutorga<CalcularOutorgaResponse>('/api/antares/calcularOutorga', {
 		method: 'POST',
 		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({ processoSei, areaComputavel, areaTerreno }),
 	});
 	if (corpo?.outorga?.valorOutorga == null) {
-		throw new CalculoOutorgaError('Resposta da API de cálculo da outorga (Antares) veio sem o valor calculado.');
+		throw new CalculoOutorgaError('Resposta da API de cálculo da outorga veio sem o valor calculado.');
 	}
 	return corpo;
 }
 
-function mapAntaresParaGeoSampaResult(
-	dadosProcesso: AntaresProcurarProcessoResponse,
-	dadosCalculo: AntaresCalcularOutorgaResponse,
+function mapCalculoParaGeoSampaResult(
+	dadosProcesso: ProcurarProcessoResponse,
+	dadosCalculo: CalcularOutorgaResponse,
 	areaComputavel: number,
 	areaTerreno: number,
 ): IGeoSampaResult {
@@ -134,8 +137,8 @@ function mapAntaresParaGeoSampaResult(
 }
 
 /**
- * Consulta a API de cálculo da outorga onerosa (Antares) pelo número do processo
- * SEI e pelas áreas informadas no momento da criação do processo. Encadeia
+ * Consulta a API de cálculo da outorga onerosa pelo número do processo SEI e
+ * pelas áreas informadas no momento da criação do processo. Encadeia
  * `procurarProcesso` (identificação + parâmetros base) e `calcularOutorga` (valor
  * calculado a partir da área computável/terreno informadas). Devolve o mesmo
  * formato de IGeoSampaResult para reaproveitar a persistência já existente em
@@ -163,8 +166,8 @@ export async function consultarCalculoOutorga(
 		throw new CalculoOutorgaError('Processo já cadastrado.');
 	}
 
-	const dadosProcesso = await procurarProcessoNoAntares(identificador);
-	const dadosCalculo = await calcularOutorgaNoAntares(identificador, areaComputavel, areaTerreno);
+	const dadosProcesso = await procurarProcessoNaApi(identificador);
+	const dadosCalculo = await calcularOutorgaNaApi(identificador, areaComputavel, areaTerreno);
 
-	return mapAntaresParaGeoSampaResult(dadosProcesso, dadosCalculo, areaComputavel, areaTerreno);
+	return mapCalculoParaGeoSampaResult(dadosProcesso, dadosCalculo, areaComputavel, areaTerreno);
 }

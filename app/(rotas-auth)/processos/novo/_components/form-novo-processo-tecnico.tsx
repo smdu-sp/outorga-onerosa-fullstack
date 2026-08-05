@@ -31,10 +31,10 @@ const fmtBRL = (n: number) =>
 const fmtArea = (n: number) => n.toLocaleString('pt-BR') + ' m²';
 
 const TIPO_OPCOES: { valor: TipoNovoProcesso; label: string; hint: string }[] = [
-	{ valor: 'OUTORGA', label: 'Outorga', hint: 'Calcula pela API da Antares' },
+	{ valor: 'OUTORGA', label: 'Outorga', hint: 'Calcula pela API de cálculo da outorga' },
 	{ valor: 'COTA', label: 'Cota', hint: 'Valor digitado manualmente' },
 	{ valor: 'OUTORGA_COTA', label: 'Outorga/Cota', hint: 'Calcula a Outorga e depois pede o valor da Cota' },
-	{ valor: 'AIU', label: 'AIU', hint: 'Outorga em Área de Intervenção Urbana (Antares)' },
+	{ valor: 'AIU', label: 'AIU', hint: 'Outorga em Área de Intervenção Urbana' },
 ];
 
 export default function FormNovoProcessoTecnico() {
@@ -90,7 +90,7 @@ export default function FormNovoProcessoTecnico() {
 		setErroApi('');
 
 		if (tipo === 'COTA') {
-			// Sem Antares — o valor já foi digitado, só falta confirmar a criação.
+			// Sem cálculo via API — o valor já foi digitado, só falta confirmar a criação.
 			setResultado(null);
 			setFase('done');
 			return;
