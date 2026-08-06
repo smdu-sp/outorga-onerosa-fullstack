@@ -44,6 +44,13 @@ model Usuario {
   processos_criados      Processo[]            @relation("ProcessoCriador")
   memoriais_oodc_criados OodcMemorialCalculo[] @relation("OodcMemorialCriador")
 
+  // Gestão de Processos de Licenciamento
+  processos_licenciamento_tecnico ProcessoLicenciamento[] @relation("LicenciamentoTecnicoAtual")
+  eventos_licenciamento           EventoLicenciamento[]   @relation("EventoLicenciamentoTecnico")
+  distribuicoes_licenciamento     DistribuicaoLicenciamento[] @relation("DistribuicaoLicenciamentoTecnico")
+  oficios_licenciamento           OficioLicenciamento[]   @relation("OficioLicenciamentoTecnico")
+  auditorias_licenciamento        AuditoriaLicenciamento[] @relation("AuditoriaLicenciamentoUsuario")
+
   @@map("usuarios")
 }
 
@@ -84,7 +91,6 @@ model Processo {
   data_autuacao    DateTime?       @db.Date
   status_pagamento StatusPagamento @default(EM_PAGAMENTO)
   origem           OrigemProcesso?
-  // unidade_licenciamento UnidadesLicenciamento?
 
   // Interessado (requerente) e CNPJ/CPF da contrapartida — um por processo,
   // não por parcela (é a mesma pessoa/empresa pagando todas as parcelas).
@@ -114,6 +120,9 @@ model Processo {
   monitoramento      MonitoramentoFicha?
   monitoramento_cota MonitoramentoCotaSolidariedade?
   memoriais_oodc     OodcMemorialCalculo[]
+
+  // Vínculo opcional com processo de licenciamento edilício (0..1)
+  processo_licenciamento ProcessoLicenciamento?
 
   @@index([status_pagamento])
   @@index([tipo])
@@ -498,9 +507,379 @@ model Parcela {
   @@map("parcelas")
 }
 
-enum UnidadesLicenciamento {
+/// Coordenadorias de análise de licenciamento edilício.
+enum CoordenadoriaAnalise {
   RESID
+  SERVIN
   COMIN
+  CAEPP
+  PARHIS
+}
+
+enum StatusCicloLicenciamento {
+  ATIVO
+  ENCERRADO
+}
+
+enum TipoSistemaLicenciamento {
+  SEI
+  FISICO
+  AD
+}
+
+enum CategoriaEventoLicenciamento {
+  TECNICO
+  ADMINISTRATIVO
+  AUTOMATICO
+}
+
+enum TipoImovelLicenciamento {
+  PRINCIPAL
+  COMPLEMENTAR
+}
+
+enum TipoDistribuicaoLicenciamento {
+  DIRETORIA
+  TECNICO
+}
+
+/// Cadastro auxiliar: divisão dentro da coordenadoria (ex.: DSIGP, DSIMP).
+model DivisaoLicenciamento {
+  id             String               @id @default(uuid())
+  coordenadoria  CoordenadoriaAnalise
+  codigo         String
+  nome           String?
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  processos ProcessoLicenciamento[]
+
+  @@unique([coordenadoria, codigo])
+  @@map("lic_divisoes")
+}
+
+model AssuntoLicenciamento {
+  id             String                @id @default(uuid())
+  coordenadoria  CoordenadoriaAnalise?
+  nome           String
+  ativo          Boolean               @default(true)
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  processos ProcessoLicenciamento[]
+
+  @@index([coordenadoria])
+  @@map("lic_assuntos")
+}
+
+model SituacaoLicenciamento {
+  id             String                @id @default(uuid())
+  coordenadoria  CoordenadoriaAnalise?
+  codigo         String
+  nome           String
+  encerra        Boolean               @default(false)
+  ativo          Boolean               @default(true)
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  processos ProcessoLicenciamento[]
+
+  @@unique([coordenadoria, codigo])
+  @@index([codigo])
+  @@map("lic_situacoes")
+}
+
+model TipoEventoLicenciamento {
+  id             String                       @id @default(uuid())
+  coordenadoria  CoordenadoriaAnalise?
+  categoria      CategoriaEventoLicenciamento
+  codigo         String
+  nome           String
+  ativo          Boolean                      @default(true)
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  eventos EventoLicenciamento[]
+
+  @@unique([coordenadoria, categoria, codigo])
+  @@index([categoria])
+  @@map("lic_tipos_evento")
+}
+
+/// Categorias de monitoramento (Hospital, CEU, SESC, TJ-SP…) — por coordenadoria.
+model CategoriaLicenciamento {
+  id             String               @id @default(uuid())
+  coordenadoria  CoordenadoriaAnalise
+  codigo         String
+  nome           String
+  ativo          Boolean              @default(true)
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  processos ProcessoLicenciamentoCategoria[]
+
+  @@unique([coordenadoria, codigo])
+  @@map("lic_categorias")
+}
+
+/// Processo de licenciamento edilício (tramitação). Distinto do Processo de Outorga.
+model ProcessoLicenciamento {
+  id String @id @default(uuid())
+
+  coordenadoria CoordenadoriaAnalise
+  status_ciclo  StatusCicloLicenciamento @default(ATIVO)
+  tipo_sistema  TipoSistemaLicenciamento?
+
+  num_processo         String  @unique
+  protocolo            String?
+  prioritario          Boolean @default(false)
+  processo_relacionado String?
+  equipamento_publico  Boolean @default(false)
+  instancia            String?
+  observacao           String? @db.Text
+
+  data_autuacao            DateTime? @db.Date
+  data_envio_coordenadoria DateTime? @db.Date
+  data_ult_dist_diretoria  DateTime? @db.Date
+  data_ult_dist_tecnico    DateTime? @db.Date
+  data_despacho_doc        DateTime? @db.Date
+
+  area_terreno_m2             Decimal? @db.Decimal(16, 2)
+  area_construcao_inicial_m2  Decimal? @db.Decimal(16, 2)
+  area_construcao_final_m2    Decimal? @db.Decimal(16, 2)
+  zona                        String?
+  categoria_uso               String?
+  descricao_uso               String?  @db.Text
+  subprefeitura               String?
+  base_legal_pde              String?
+  base_legal_lpuos            String?
+  base_legal_coe              String?
+  legislacao_especifica       String?  @db.Text
+  documento_referencia        String?
+
+  divisao_id String?
+  divisao    DivisaoLicenciamento? @relation(fields: [divisao_id], references: [id], onDelete: SetNull)
+
+  assunto_id String?
+  assunto    AssuntoLicenciamento? @relation(fields: [assunto_id], references: [id], onDelete: SetNull)
+
+  situacao_id String?
+  situacao    SituacaoLicenciamento? @relation(fields: [situacao_id], references: [id], onDelete: SetNull)
+
+  tecnico_atual_id String?
+  tecnico_atual    Usuario? @relation("LicenciamentoTecnicoAtual", fields: [tecnico_atual_id], references: [id], onDelete: SetNull)
+
+  /// Vínculo opcional com o processo de Outorga Onerosa (quando houver OODC).
+  processo_outorga_id String?   @unique
+  processo_outorga    Processo? @relation(fields: [processo_outorga_id], references: [id], onDelete: SetNull)
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  imoveis       ProcessoLicenciamentoImovel[]
+  interessados  ProcessoLicenciamentoInteressado[]
+  incidencias   ProcessoLicenciamentoIncidencia[]
+  categorias    ProcessoLicenciamentoCategoria[]
+  eventos       EventoLicenciamento[]
+  distribuicoes DistribuicaoLicenciamento[]
+  oficios       OficioLicenciamento[]
+  arquivamento  ArquivamentoLicenciamento?
+  auditorias    AuditoriaLicenciamento[]
+
+  @@index([coordenadoria])
+  @@index([status_ciclo])
+  @@index([tipo_sistema])
+  @@index([tecnico_atual_id])
+  @@index([situacao_id])
+  @@index([divisao_id])
+  @@map("lic_processos")
+}
+
+model ProcessoLicenciamentoImovel {
+  id          String                 @id @default(uuid())
+  processo_id String
+  processo    ProcessoLicenciamento  @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  tipo         TipoImovelLicenciamento @default(COMPLEMENTAR)
+  identificador String?
+  logradouro   String?  @db.Text
+  numero       String?
+  complemento  String?
+  cep          String?
+  ordem        Int      @default(0)
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  @@index([processo_id])
+  @@index([identificador])
+  @@map("lic_processo_imoveis")
+}
+
+model ProcessoLicenciamentoInteressado {
+  id          String                @id @default(uuid())
+  processo_id String
+  processo    ProcessoLicenciamento @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  nome         String
+  cpf_cnpj     String?
+  tipo_vinculo String  @default("PRINCIPAL")
+  ordem        Int     @default(0)
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  @@index([processo_id])
+  @@index([nome])
+  @@map("lic_processo_interessados")
+}
+
+model ProcessoLicenciamentoIncidencia {
+  id          String                @id @default(uuid())
+  processo_id String
+  processo    ProcessoLicenciamento @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  tipo              String
+  flag              Boolean  @default(false)
+  valor             Decimal? @db.Decimal(16, 2)
+  data_doc          DateTime? @db.Date
+  numero_documento  String?
+  observacao        String?  @db.Text
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  @@unique([processo_id, tipo])
+  @@map("lic_processo_incidencias")
+}
+
+model ProcessoLicenciamentoCategoria {
+  id           String                  @id @default(uuid())
+  processo_id  String
+  processo     ProcessoLicenciamento   @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+  categoria_id String
+  categoria    CategoriaLicenciamento  @relation(fields: [categoria_id], references: [id], onDelete: Cascade)
+
+  criado_em DateTime @default(now())
+
+  @@unique([processo_id, categoria_id])
+  @@map("lic_processo_categorias")
+}
+
+model EventoLicenciamento {
+  id          String                @id @default(uuid())
+  processo_id String
+  processo    ProcessoLicenciamento @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  categoria      CategoriaEventoLicenciamento
+  tipo_evento_id String?
+  tipo_evento    TipoEventoLicenciamento? @relation(fields: [tipo_evento_id], references: [id], onDelete: SetNull)
+
+  tecnico_id String?
+  tecnico    Usuario? @relation("EventoLicenciamentoTecnico", fields: [tecnico_id], references: [id], onDelete: SetNull)
+
+  data_inicio  DateTime? @db.Date
+  data_termino DateTime? @db.Date
+  descricao    String?   @db.Text
+  observacao   String?   @db.Text
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  @@index([processo_id])
+  @@index([tecnico_id])
+  @@index([tipo_evento_id])
+  @@index([data_inicio])
+  @@map("lic_eventos")
+}
+
+model DistribuicaoLicenciamento {
+  id          String                @id @default(uuid())
+  processo_id String
+  processo    ProcessoLicenciamento @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  tipo       TipoDistribuicaoLicenciamento
+  destino    String?
+  tecnico_id String?
+  tecnico    Usuario? @relation("DistribuicaoLicenciamentoTecnico", fields: [tecnico_id], references: [id], onDelete: SetNull)
+
+  data_inicio DateTime? @db.Date
+  data_fim    DateTime? @db.Date
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  @@index([processo_id])
+  @@index([tecnico_id])
+  @@map("lic_distribuicoes")
+}
+
+model OficioLicenciamento {
+  id          String                @id @default(uuid())
+  processo_id String
+  processo    ProcessoLicenciamento @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  numero                    String
+  data_email_enviado        DateTime? @db.Date
+  data_recebimento_resposta DateTime? @db.Date
+  data_encerramento         DateTime? @db.Date
+  interessado_nome          String?
+  observacao                String?   @db.Text
+
+  tecnico_id String?
+  tecnico    Usuario? @relation("OficioLicenciamentoTecnico", fields: [tecnico_id], references: [id], onDelete: SetNull)
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  @@index([processo_id])
+  @@index([numero])
+  @@map("lic_oficios")
+}
+
+model ArquivamentoLicenciamento {
+  id          String                @id @default(uuid())
+  processo_id String                @unique
+  processo    ProcessoLicenciamento @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  situacao            String?
+  local               String?
+  container           String?
+  caixa               String?
+  posicao             String?
+  quantidade_volumes  Int?
+  quantidade_caixas   Int?
+  data_arquivamento   DateTime? @db.Date
+  observacao          String?   @db.Text
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  @@index([container])
+  @@map("lic_arquivamentos")
+}
+
+model AuditoriaLicenciamento {
+  id          String                @id @default(uuid())
+  processo_id String
+  processo    ProcessoLicenciamento @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  usuario_id     String?
+  usuario        Usuario? @relation("AuditoriaLicenciamentoUsuario", fields: [usuario_id], references: [id], onDelete: SetNull)
+  tipo_alteracao String
+  valor_anterior String?  @db.Text
+  valor_novo     String?  @db.Text
+
+  criado_em DateTime @default(now())
+
+  @@index([processo_id])
+  @@index([criado_em])
+  @@map("lic_auditorias")
 }
 
 /// Valor de referência (R$/m²) da OODC por setor/quadra/codlog — origem: aba `v` da

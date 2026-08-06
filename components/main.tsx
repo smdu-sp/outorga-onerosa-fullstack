@@ -8,6 +8,7 @@ import {
 	BarChart3,
 	BookLock,
 	Calculator,
+	ClipboardList,
 	FolderOpen,
 	House,
 	Lock,
@@ -45,6 +46,11 @@ function montarMenuUsuario(processosNovos: number): IMenu[] {
 			titulo: 'Processos',
 			url: '/processos',
 			badge: processosNovos > 0 ? processosNovos : undefined,
+		},
+		{
+			icone: ClipboardList,
+			titulo: 'Gestão de Licenciamento',
+			url: '/gestao-licenciamento',
 		},
 		{
 			icone: BarChart3,

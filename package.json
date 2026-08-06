@@ -21,6 +21,8 @@
     "db:atualizar-processos": "tsx scripts/atualizar-processos-sem-dados.ts",
     "db:normalizar-enquadramento": "tsx scripts/normalizar-enquadramento.ts",
     "db:seed-permissoes-outorga": "tsx prisma/seed-permissoes-outorga.ts",
+    "db:seed-licenciamento": "tsx prisma/seed-licenciamento.ts",
+    "db:import-licenciamento-servin": "tsx prisma/import-licenciamento-servin.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {
