@@ -8,6 +8,7 @@ import {
 	descreverPeriodoDistrito,
 	type FiltroPeriodoDistrito,
 } from '@/lib/server/relatorios-distritos';
+import { parseFiltroPeriodo } from '@/lib/server/periodo-relatorio';
 import { MapaDistritosClient } from './mapa-distritos-client';
 
 export const dynamic = 'force-dynamic';
@@ -15,35 +16,7 @@ export const dynamic = 'force-dynamic';
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 function parseFiltro(params: Record<string, string | string[] | undefined>): FiltroPeriodoDistrito {
-	const get = (key: string) => {
-		const v = params[key];
-		return typeof v === 'string' ? v : undefined;
-	};
-
-	const hoje = new Date();
-	const filtro: FiltroPeriodoDistrito = {};
-	const anoRaw = get('ano');
-	const mesRaw = get('mes');
-
-	if (anoRaw === 'todos') {
-		// filtro.ano permanece undefined → sem filtro de ano
-	} else if (anoRaw) {
-		const ano = Number(anoRaw);
-		if (!Number.isNaN(ano)) filtro.ano = ano;
-	} else {
-		filtro.ano = hoje.getFullYear();
-	}
-
-	if (mesRaw === 'todos') {
-		// filtro.mes permanece undefined → sem filtro de mês
-	} else if (mesRaw) {
-		const mes = Number(mesRaw);
-		if (!Number.isNaN(mes) && mes >= 0 && mes <= 11) filtro.mes = mes;
-	} else {
-		filtro.mes = hoje.getMonth();
-	}
-
-	return filtro;
+	return parseFiltroPeriodo(params, { anoPadrao: 'corrente', mesPadrao: 'corrente' });
 }
 
 export default async function MapaDistritosPage({ searchParams }: { searchParams: SearchParams }) {
@@ -73,7 +46,12 @@ async function MapaDistritosConteudo({
 
 	return (
 		<MapaDistritosClient
-			key={`${filtro.ano ?? 't'}-${filtro.mes ?? 't'}`}
+			key={[
+				filtro.ano ?? 't',
+				filtro.mes ?? 't',
+				filtro.dataInicio?.toISOString() ?? '',
+				filtro.dataFim?.toISOString() ?? '',
+			].join('-')}
 			distritos={distritos}
 			filtro={filtro}
 			periodoLabel={periodoLabel}

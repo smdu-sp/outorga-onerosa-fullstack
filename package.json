@@ -19,6 +19,8 @@
     "db:sync-geosampa": "tsx prisma/sync-geosampa-outorga.ts",
     "db:limpar-processos": "tsx prisma/limpar-processos.ts",
     "db:atualizar-processos": "tsx scripts/atualizar-processos-sem-dados.ts",
+    "db:backfill-tipologia-uso-bi": "tsx prisma/backfill-tipologia-uso-bi.ts",
+    "db:backfill-origem-sistema-bi": "tsx prisma/backfill-origem-sistema-bi.ts",
     "db:normalizar-enquadramento": "tsx scripts/normalizar-enquadramento.ts",
     "db:seed-permissoes-outorga": "tsx prisma/seed-permissoes-outorga.ts",
     "db:seed-licenciamento": "tsx prisma/seed-licenciamento.ts",

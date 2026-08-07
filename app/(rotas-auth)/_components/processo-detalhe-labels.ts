@@ -31,8 +31,10 @@ export const LABELS_PROCESSO: Record<string, string> = {
 export const ORIGEM_PROCESSO: Record<string, string> = {
 	APROVA_DIGITAL: 'Aprova Digital',
 	SEI: 'SEI',
+	SISACOE: 'Sisacoe',
 	FISICO: 'Físico',
 	PORTAL: 'Portal',
+	SLCE: 'SLCe',
 };
 
 export const LABELS_PARCELA: Record<string, string> = {

@@ -7,6 +7,7 @@ import {
 	type FiltroArrecadacao,
 	type ParcelaArrecadacao,
 } from '@/lib/parcelas-utils';
+import { descreverPeriodo } from '@/lib/server/periodo-relatorio';
 import type { IRelatorioDistrito, IRelatorioDistritoProcesso } from '@/types/relatorio';
 
 const BRL_TO_M = 1_000_000;
@@ -181,15 +182,5 @@ export function resumirDistritosDeProcessos(
 }
 
 export function descreverPeriodoDistrito(filtro: FiltroPeriodoDistrito): string {
-	const MESES = [
-		'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-		'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-	];
-	if (filtro.ano == null && filtro.mes == null) return 'Todo o período';
-	if (filtro.ano != null && filtro.mes != null) {
-		return `${MESES[filtro.mes]} de ${filtro.ano}`;
-	}
-	if (filtro.ano != null) return `Ano ${filtro.ano}`;
-	if (filtro.mes != null) return `${MESES[filtro.mes]} (todos os anos)`;
-	return 'Todo o período';
+	return descreverPeriodo(filtro);
 }

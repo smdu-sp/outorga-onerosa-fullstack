@@ -9,6 +9,8 @@ const ORIGEM_LABEL: Record<string, string> = {
 	SISACOE: 'SISACOE',
 	SEI: 'SEI',
 	APROVA_DIGITAL: 'Aprova Digital',
+	PORTAL: 'Portal',
+	SLCE: 'SLCe',
 	OUTRO: 'Outro',
 };
 

@@ -36,6 +36,9 @@ export interface OrigemOutorga {
 	subprefeitura: string | null;
 }
 
+/** Buckets do gráfico de pizza por sistema de origem. */
+export type SistemaOrigemBucket = 'SEI/SISACOE' | 'PORTAL' | 'APROVA DIGITAL' | 'Outros';
+
 function enderecoDaFicha(ficha: FichaLike): string | null {
 	const principal = ficha?.enderecos?.find((e) => e.ordem === 1) ?? ficha?.enderecos?.[0];
 	if (!principal) return null;
@@ -55,11 +58,43 @@ export function resolverOrigemOutorga(ficha: FichaLike, cota: CotaLike): OrigemO
 	};
 }
 
+/**
+ * Normaliza origem do monitoramento (prioridade) ou do processo para os buckets do relatório.
+ */
+export function normalizarSistemaOrigem(
+	monitoramentoOrigem: string | null | undefined,
+	processoOrigem: string | null | undefined,
+): SistemaOrigemBucket {
+	const raw = (monitoramentoOrigem ?? processoOrigem ?? '')
+		.toUpperCase()
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/\s+/g, '_');
+
+	if (!raw) return 'Outros';
+	if (raw === 'PORTAL' || raw.includes('PORTAL')) return 'PORTAL';
+	if (raw === 'APROVA_DIGITAL' || raw === 'APROVADIGITAL' || raw.includes('APROVA')) {
+		return 'APROVA DIGITAL';
+	}
+	if (
+		raw === 'SEI' ||
+		raw === 'SISACOE' ||
+		raw.includes('SISACOE') ||
+		raw.includes('SEI')
+	) {
+		return 'SEI/SISACOE';
+	}
+	if (raw === 'SLCE' || raw.includes('SLC')) return 'Outros';
+	return 'Outros';
+}
+
 /** Seleção Prisma para a ficha de monitoramento (PDE) usada por resolverOrigemOutorga. */
 export const selectFichaOrigem = {
 	situacao: { select: { origem: true } },
 	enderecos: { select: { ordem: true, tipo: true, titulo: true, nome: true, numero: true } },
-	enquadramento_urbanistico: { select: { distrito: true, subprefeitura: true } },
+	enquadramento_urbanistico: {
+		select: { distrito: true, subprefeitura: true, tipologia_uso_oodc: true },
+	},
 } as const;
 
 /** Seleção Prisma para a ficha de Cota usada por resolverOrigemOutorga. */

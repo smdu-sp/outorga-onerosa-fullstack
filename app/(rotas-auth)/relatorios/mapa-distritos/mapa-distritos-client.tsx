@@ -8,6 +8,7 @@ import type { IRelatorioDistrito } from '@/types/relatorio';
 import { FiltrosMapaDistritos } from './_components/filtros-mapa-distritos';
 import { MapaDistritos } from './_components/mapa-distritos';
 import { TabelasMapaDistritos } from './_components/tabelas-mapa-distritos';
+import { BotaoExportarExcel } from '../_components/botao-exportar-excel';
 
 const fmtBrl = (v: number) =>
 	v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -34,7 +35,7 @@ export function MapaDistritosClient({
 
 	useEffect(() => {
 		setSelecionado(null);
-	}, [filtro.ano, filtro.mes]);
+	}, [filtro.ano, filtro.mes, filtro.dataInicio, filtro.dataFim]);
 
 	return (
 		<div className="mx-auto w-full px-4 py-7 pb-[60px] sm:px-8">
@@ -51,14 +52,17 @@ export function MapaDistritosClient({
 						Arrecadação de Outorga Onerosa por distrito municipal · {periodoLabel}
 					</p>
 				</div>
-				{distritoAtivo && (
-					<button
-						type="button"
-						onClick={() => setSelecionado(null)}
-						className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted">
-						Limpar seleção
-					</button>
-				)}
+				<div className="flex flex-wrap items-center gap-2">
+					<BotaoExportarExcel tipo="distritos" />
+					{distritoAtivo && (
+						<button
+							type="button"
+							onClick={() => setSelecionado(null)}
+							className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+							Limpar seleção
+						</button>
+					)}
+				</div>
 			</div>
 
 			<FiltrosMapaDistritos

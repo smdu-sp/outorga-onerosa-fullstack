@@ -11,6 +11,8 @@ const ORIGEM_LABEL: Record<string, string> = {
 	SISACOE: 'SISACOE',
 	SEI: 'SEI',
 	APROVA_DIGITAL: 'Aprova Digital',
+	PORTAL: 'Portal',
+	SLCE: 'SLCe',
 	OUTRO: 'Outro',
 };
 
@@ -37,7 +39,20 @@ const TIPO_CLS: Record<string, string> = {
 	COTA: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
 };
 
+const USO_LABEL: Record<string, string> = {
+	R: 'Residencial',
+	nR: 'Não Residencial',
+	'R/nR': 'Uso Misto',
+};
+
+const USO_CLS: Record<string, string> = {
+	R: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300',
+	nR: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300',
+	'R/nR': 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300',
+};
+
 type FiltroStatus = 'todos' | 'andamento' | 'quitado' | 'quebra';
+type FiltroUso = 'todos' | 'R' | 'nR' | 'R/nR' | 'sem';
 type PeriodoTop = 'ano' | 'mes' | 'todo';
 
 interface Top10Props {
@@ -56,6 +71,7 @@ export function Top10Processos({
 	filtroSub = 'todas',
 }: Top10Props) {
 	const [filtroLocal, setFiltroLocal] = useState<FiltroStatus>('todos');
+	const [filtroUso, setFiltroUso] = useState<FiltroUso>('todos');
 	const [periodo, setPeriodo] = useState<PeriodoTop>('ano');
 	const [expandido, setExpandido] = useState<Set<string>>(new Set());
 
@@ -78,6 +94,11 @@ export function Top10Processos({
 			.filter((p) => filtroStatus === 'todos' || p.status === filtroStatus)
 			.filter((p) => filtroSub === 'todas' || p.sub === filtroSub)
 			.filter((p) => filtroLocal === 'todos' || p.status === filtroLocal)
+			.filter((p) => {
+				if (filtroUso === 'todos') return true;
+				if (filtroUso === 'sem') return p.uso == null;
+				return p.uso === filtroUso;
+			})
 			.slice(0, 10);
 	}
 
@@ -98,6 +119,7 @@ export function Top10Processos({
 					{(['todos', 'andamento', 'quitado', 'quebra'] as FiltroStatus[]).map((f) => (
 						<button
 							key={f}
+							type="button"
 							onClick={() => setFiltroLocal(f)}
 							className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition-colors ${
 								filtroLocal === f
@@ -116,6 +138,35 @@ export function Top10Processos({
 						filtroSub={filtroSub}
 					/>
 				</div>
+			</div>
+
+			<div className="mb-3 flex flex-wrap items-center gap-1.5">
+				<span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+					Uso
+				</span>
+				{(
+					[
+						['todos', 'Todos'],
+						['R', 'Residencial'],
+						['nR', 'Não Residencial'],
+						['R/nR', 'Uso Misto'],
+						['sem', 'Sem uso'],
+					] as const
+				).map(([f, label]) => (
+					<button
+						key={f}
+						type="button"
+						onClick={() => setFiltroUso(f)}
+						className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+							filtroUso === f
+								? f === 'todos' || f === 'sem'
+									? 'bg-foreground text-background'
+									: USO_CLS[f]
+								: 'bg-muted text-muted-foreground hover:bg-accent'
+						} ${filtroUso === f && f !== 'todos' && f !== 'sem' ? 'ring-1 ring-current/30' : ''}`}>
+						{label}
+					</button>
+				))}
 			</div>
 
 			<Tabs
@@ -161,6 +212,7 @@ function TabelaTop({
 						<th className="pb-2 pr-3 font-semibold text-muted-foreground">Processo</th>
 						<th className="pb-2 pr-3 font-semibold text-muted-foreground">Interessado</th>
 						<th className="pb-2 pr-3 font-semibold text-muted-foreground">Tipo</th>
+						<th className="pb-2 pr-3 font-semibold text-muted-foreground">Uso</th>
 						<th className="pb-2 pr-3 text-right font-semibold text-muted-foreground">Total</th>
 						<th className="pb-2 pr-3 text-right font-semibold text-muted-foreground">Pago</th>
 						<th className="pb-2 pr-3 font-semibold text-muted-foreground">Progresso</th>
@@ -171,7 +223,7 @@ function TabelaTop({
 				<tbody>
 					{lista.length === 0 && (
 						<tr>
-							<td colSpan={10} className="py-6 text-center text-muted-foreground">
+							<td colSpan={11} className="py-6 text-center text-muted-foreground">
 								Nenhum processo encontrado.
 							</td>
 						</tr>
@@ -188,96 +240,109 @@ function TabelaTop({
 						const aberto = expandido.has(p.id);
 						return (
 							<Fragment key={p.id}>
-							<tr
-								onClick={() => toggleExpandido(p.id)}
-								className="cursor-pointer border-b border-border/50 hover:bg-muted/30">
-								<td className="py-2.5 pr-1 text-center">
-									<button
-										type="button"
-										onClick={(e) => {
-											e.stopPropagation();
-											toggleExpandido(p.id);
-										}}
-										aria-expanded={aberto}
-										aria-label={aberto ? 'Ocultar detalhes' : 'Ver origem da outorga'}
-										className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-										<ChevronDown
-											className={`h-3.5 w-3.5 transition-transform ${aberto ? 'rotate-180' : ''}`}
-										/>
-									</button>
-								</td>
-								<td className="py-2.5 pr-3">
-									<span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-bold">
-										{i + 1}
-									</span>
-								</td>
-								<td className="py-2.5 pr-3" onClick={(e) => e.stopPropagation()}>
-									<Link
-										href={`/processos/${p.id}`}
-										className="font-mono text-[11px] text-primary underline-offset-2 hover:underline">
-										{p.num}
-									</Link>
-								</td>
-								<td
-									className="max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap py-2.5 pr-3"
-									title={p.int}>
-									{p.int}
-								</td>
-								<td className="py-2.5 pr-3">
-									<span
-										className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${TIPO_CLS[p.tipo] ?? 'bg-muted text-muted-foreground'}`}>
-										{p.tipo}
-									</span>
-								</td>
-								<td className="py-2.5 pr-3 text-right font-mono font-semibold">
-									{fmtM(p.total)}
-								</td>
-								<td
-									className="py-2.5 pr-3 text-right font-mono"
-									style={{ color: p.status === 'quebra' ? '#dc2626' : undefined }}>
-									{p.status === 'quebra' ? '—' : fmtM(p.pago)}
-								</td>
-								<td className="py-2.5 pr-3">
-									<div className="flex items-center gap-1.5">
-										<div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-											<div
-												style={{
-													height: '100%',
-													width: `${pct}%`,
-													background: barColor,
-													borderRadius: 9999,
-												}}
+								<tr
+									onClick={() => toggleExpandido(p.id)}
+									className="cursor-pointer border-b border-border/50 hover:bg-muted/30">
+									<td className="py-2.5 pr-1 text-center">
+										<button
+											type="button"
+											onClick={(e) => {
+												e.stopPropagation();
+												toggleExpandido(p.id);
+											}}
+											aria-expanded={aberto}
+											aria-label={aberto ? 'Ocultar detalhes' : 'Ver origem da outorga'}
+											className="inline-flex h-5 w-5 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+											<ChevronDown
+												className={`h-3.5 w-3.5 transition-transform ${aberto ? 'rotate-180' : ''}`}
 											/>
-										</div>
-										<span className="text-[10px] text-muted-foreground">
-											{fmtPct(pct)}
+										</button>
+									</td>
+									<td className="py-2.5 pr-3">
+										<span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-muted text-[10px] font-bold">
+											{i + 1}
 										</span>
-									</div>
-								</td>
-								<td className="py-2.5 pr-3">
-									<span
-										className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_CLS[p.status] ?? 'bg-muted text-muted-foreground'}`}>
-										{STATUS_LABEL[p.status]}
-									</span>
-								</td>
-								<td className="py-2.5 text-[11px] text-muted-foreground">{p.sub}</td>
-							</tr>
-							{aberto && (
-								<tr className="border-b border-border/50 bg-muted/20">
-									<td></td>
-									<td colSpan={8} className="px-1 pb-3 pt-1">
-										<div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-											De onde vem a outorga
-										</div>
-										<div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
-											<DetalheItem rotulo="Sistema" valor={fmtOrigem(p.sistema)} />
-											<DetalheItem rotulo="Empreendimento" valor={p.empreendimento ?? '—'} />
-											<DetalheItem rotulo="Distrito" valor={p.distrito ?? '—'} />
-											<DetalheItem rotulo="Subprefeitura" valor={p.sub || '—'} />
+									</td>
+									<td className="py-2.5 pr-3" onClick={(e) => e.stopPropagation()}>
+										<Link
+											href={`/processos/${p.id}`}
+											className="font-mono text-[11px] text-primary underline-offset-2 hover:underline">
+											{p.num}
+										</Link>
+									</td>
+									<td
+										className="max-w-[160px] overflow-hidden text-ellipsis whitespace-nowrap py-2.5 pr-3"
+										title={p.int}>
+										{p.int}
+									</td>
+									<td className="py-2.5 pr-3">
+										<span
+											className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${TIPO_CLS[p.tipo] ?? 'bg-muted text-muted-foreground'}`}>
+											{p.tipo}
+										</span>
+									</td>
+									<td className="py-2.5 pr-3">
+										{p.uso ? (
+											<span
+												className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${USO_CLS[p.uso] ?? 'bg-muted text-muted-foreground'}`}>
+												{USO_LABEL[p.uso] ?? p.uso}
+											</span>
+										) : (
+											<span className="text-[10px] text-muted-foreground">—</span>
+										)}
+									</td>
+									<td className="py-2.5 pr-3 text-right font-mono font-semibold">
+										{fmtM(p.total)}
+									</td>
+									<td
+										className="py-2.5 pr-3 text-right font-mono"
+										style={{ color: p.status === 'quebra' ? '#dc2626' : undefined }}>
+										{p.status === 'quebra' ? '—' : fmtM(p.pago)}
+									</td>
+									<td className="py-2.5 pr-3">
+										<div className="flex items-center gap-1.5">
+											<div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+												<div
+													style={{
+														height: '100%',
+														width: `${pct}%`,
+														background: barColor,
+														borderRadius: 9999,
+													}}
+												/>
+											</div>
+											<span className="text-[10px] text-muted-foreground">
+												{fmtPct(pct)}
+											</span>
 										</div>
 									</td>
+									<td className="py-2.5 pr-3">
+										<span
+											className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${STATUS_CLS[p.status] ?? 'bg-muted text-muted-foreground'}`}>
+											{STATUS_LABEL[p.status]}
+										</span>
+									</td>
+									<td className="py-2.5 text-[11px] text-muted-foreground">{p.sub}</td>
 								</tr>
-							)}
+								{aberto && (
+									<tr className="border-b border-border/50 bg-muted/20">
+										<td></td>
+										<td colSpan={10} className="px-1 pb-3 pt-1">
+											<div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+												De onde vem a outorga
+											</div>
+											<div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
+												<DetalheItem rotulo="Sistema" valor={fmtOrigem(p.sistema)} />
+												<DetalheItem
+													rotulo="Empreendimento"
+													valor={p.empreendimento ?? '—'}
+												/>
+												<DetalheItem rotulo="Distrito" valor={p.distrito ?? '—'} />
+												<DetalheItem rotulo="Subprefeitura" valor={p.sub || '—'} />
+											</div>
+										</td>
+									</tr>
+								)}
 							</Fragment>
 						);
 					})}

@@ -30,6 +30,8 @@ const ORIGEM_LABEL: Record<string, string> = {
 	SISACOE: 'SISACOE',
 	SEI: 'SEI',
 	APROVA_DIGITAL: 'Aprova Digital',
+	PORTAL: 'Portal',
+	SLCE: 'SLCe',
 	OUTRO: 'Outro',
 };
 
@@ -56,9 +58,22 @@ const TIPO_CLS: Record<string, string> = {
 	COTA: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300',
 };
 
+const USO_LABEL: Record<string, string> = {
+	R: 'Residencial',
+	nR: 'Não Residencial',
+	'R/nR': 'Uso Misto',
+};
+
+const USO_CLS: Record<string, string> = {
+	R: 'bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300',
+	nR: 'bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300',
+	'R/nR': 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300',
+};
+
 const PAGE_SIZE = 20;
 
 type FiltroStatus = 'todos' | 'andamento' | 'quitado' | 'quebra';
+type FiltroUso = 'todos' | 'R' | 'nR' | 'R/nR' | 'sem';
 
 interface TodosProcessosDialogProps {
 	anosDisponiveis: number[];
@@ -94,6 +109,7 @@ export function TodosProcessosDialog({
 	const [pending, startTransition] = useTransition();
 	const [pagina, setPagina] = useState(1);
 	const [statusLocal, setStatusLocal] = useState<FiltroStatus>('todos');
+	const [filtroUso, setFiltroUso] = useState<FiltroUso>('todos');
 	const [expandido, setExpandido] = useState<Set<string>>(new Set());
 
 	const carregar = useCallback(
@@ -150,7 +166,12 @@ export function TodosProcessosDialog({
 		.filter((p) => filtroTipo === 'todos' || p.tipo === filtroTipo)
 		.filter((p) => filtroStatus === 'todos' || p.status === filtroStatus)
 		.filter((p) => filtroSub === 'todas' || p.sub === filtroSub)
-		.filter((p) => statusLocal === 'todos' || p.status === statusLocal);
+		.filter((p) => statusLocal === 'todos' || p.status === statusLocal)
+		.filter((p) => {
+			if (filtroUso === 'todos') return true;
+			if (filtroUso === 'sem') return p.uso == null;
+			return p.uso === filtroUso;
+		});
 
 	const totalPaginas = Math.max(1, Math.ceil(filtrados.length / PAGE_SIZE));
 	const paginaAtual = Math.min(pagina, totalPaginas);
@@ -251,6 +272,38 @@ export function TodosProcessosDialog({
 							</button>
 						))}
 					</div>
+
+					<div className="mt-2 flex flex-wrap items-center gap-1.5">
+						<span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+							Uso
+						</span>
+						{(
+							[
+								['todos', 'Todos'],
+								['R', 'Residencial'],
+								['nR', 'Não Residencial'],
+								['R/nR', 'Uso Misto'],
+								['sem', 'Sem uso'],
+							] as const
+						).map(([f, label]) => (
+							<button
+								key={f}
+								type="button"
+								onClick={() => {
+									setFiltroUso(f);
+									setPagina(1);
+								}}
+								className={`rounded-full px-2.5 py-0.5 text-[11px] font-semibold transition-colors ${
+									filtroUso === f
+										? f === 'todos' || f === 'sem'
+											? 'bg-foreground text-background'
+											: USO_CLS[f]
+										: 'bg-muted text-muted-foreground hover:bg-accent'
+								} ${filtroUso === f && f !== 'todos' && f !== 'sem' ? 'ring-1 ring-current/30' : ''}`}>
+								{label}
+							</button>
+						))}
+					</div>
 				</div>
 
 				<div className="min-h-0 flex-1 overflow-auto px-5 py-3">
@@ -266,6 +319,7 @@ export function TodosProcessosDialog({
 									<th className="pb-2 pr-3 font-semibold text-muted-foreground">Processo</th>
 									<th className="pb-2 pr-3 font-semibold text-muted-foreground">Interessado</th>
 									<th className="pb-2 pr-3 font-semibold text-muted-foreground">Tipo</th>
+									<th className="pb-2 pr-3 font-semibold text-muted-foreground">Uso</th>
 									<th className="pb-2 pr-3 text-right font-semibold text-muted-foreground">Total</th>
 									<th className="pb-2 pr-3 text-right font-semibold text-muted-foreground">Pago</th>
 									<th className="pb-2 pr-3 font-semibold text-muted-foreground">Progresso</th>
@@ -276,7 +330,7 @@ export function TodosProcessosDialog({
 							<tbody>
 								{!pending && visiveis.length === 0 && (
 									<tr>
-										<td colSpan={10} className="py-8 text-center text-muted-foreground">
+										<td colSpan={11} className="py-8 text-center text-muted-foreground">
 											Nenhum processo encontrado.
 										</td>
 									</tr>
@@ -339,6 +393,16 @@ export function TodosProcessosDialog({
 														{p.tipo}
 													</span>
 												</td>
+												<td className="py-2.5 pr-3">
+													{p.uso ? (
+														<span
+															className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${USO_CLS[p.uso] ?? 'bg-muted text-muted-foreground'}`}>
+															{USO_LABEL[p.uso] ?? p.uso}
+														</span>
+													) : (
+														<span className="text-[10px] text-muted-foreground">—</span>
+													)}
+												</td>
 												<td className="py-2.5 pr-3 text-right font-mono font-semibold">
 													{fmtM(p.total)}
 												</td>
@@ -375,7 +439,7 @@ export function TodosProcessosDialog({
 											{aberto && (
 												<tr className="border-b border-border/50 bg-muted/20">
 													<td></td>
-													<td colSpan={9} className="px-1 pb-3 pt-1">
+													<td colSpan={10} className="px-1 pb-3 pt-1">
 														<div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
 															De onde vem a outorga
 														</div>

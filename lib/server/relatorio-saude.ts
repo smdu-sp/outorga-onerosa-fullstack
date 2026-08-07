@@ -8,6 +8,10 @@
 
 import { prisma } from '@/lib/prisma';
 import { normalizarSubprefeitura, tituloSubprefeitura } from '@/lib/geo/normalizar-subprefeitura';
+import {
+	dataNoPeriodoFiltro,
+	type FiltroArrecadacao,
+} from '@/lib/parcelas-utils';
 import type {
 	IRelatorioSaude,
 	IRelatorioSaudeKpis,
@@ -214,7 +218,10 @@ function distribuicaoPagamento(universo: ParcelaSaude[]) {
 	return buckets.map(({ label, count, valor }) => ({ label, count, valor }));
 }
 
-export async function buscarSaudeArrecadacao(anoFiltro?: number): Promise<IRelatorioSaude> {
+export async function buscarSaudeArrecadacao(
+	anoFiltro?: number,
+	intervalo?: Pick<FiltroArrecadacao, 'dataInicio' | 'dataFim'>,
+): Promise<IRelatorioSaude> {
 	const hoje = new Date();
 	const parcelas: ParcelaSaude[] = await prisma.parcela.findMany({
 		select: {
@@ -240,9 +247,18 @@ export async function buscarSaudeArrecadacao(anoFiltro?: number): Promise<IRelat
 	});
 
 	const anos = [...new Set(parcelas.map((p) => p.vencimento.getFullYear()))].sort((a, b) => b - a);
-	const ano = anoFiltro ?? null;
+	const ano = intervalo?.dataInicio || intervalo?.dataFim ? null : (anoFiltro ?? null);
 	const universo =
-		ano != null ? parcelas.filter((p) => p.vencimento.getFullYear() === ano) : parcelas;
+		intervalo?.dataInicio || intervalo?.dataFim
+			? parcelas.filter((p) =>
+					dataNoPeriodoFiltro(p.vencimento, {
+						dataInicio: intervalo.dataInicio,
+						dataFim: intervalo.dataFim,
+					}),
+				)
+			: ano != null
+				? parcelas.filter((p) => p.vencimento.getFullYear() === ano)
+				: parcelas;
 
 	return {
 		ano,

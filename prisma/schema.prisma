@@ -16,8 +16,10 @@ enum Tipo {
 enum OrigemProcesso {
   APROVA_DIGITAL
   SEI
+  SISACOE
   FISICO
   PORTAL
+  SLCE
 }
 
 enum StatusPagamento {

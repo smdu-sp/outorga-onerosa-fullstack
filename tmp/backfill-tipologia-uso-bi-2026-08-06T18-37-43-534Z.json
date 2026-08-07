@@ -1,0 +1,106 @@
+{
+  "dryRun": true,
+  "force": false,
+  "stats": {
+    "atualizados": 0,
+    "jaPreenchido": 13,
+    "semCategoriaBi": 0,
+    "semEnquadramento": 7,
+    "erros": 0
+  },
+  "linhas": [
+    {
+      "num_processo": "1010-2021/0011738-0",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010-2022/0000916-4",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010-2022/0002224-1",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010-2023/0006305-5",
+      "status": "ja_preenchido",
+      "tipologia": "R"
+    },
+    {
+      "num_processo": "1010.2019.0002533-4",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0000195-8",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0000253-9",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0000522-8",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0000629-1",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0001438-3",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0001444-8",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0001598-3",
+      "status": "ja_preenchido",
+      "tipologia": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0001812-10",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-11",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-12",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-13",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-14",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-5",
+      "status": "ja_preenchido",
+      "tipologia": "R"
+    },
+    {
+      "num_processo": "1010.2019/0001812-6",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-7",
+      "status": "sem_enquadramento"
+    }
+  ]
+}

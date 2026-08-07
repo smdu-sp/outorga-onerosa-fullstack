@@ -7,6 +7,10 @@ import { ArrowLeft, LandPlot } from 'lucide-react';
 import { TableSkeleton } from '@/components/data-table';
 import { relatorioZonas } from '@/services/relatorios/zonas';
 import type { IRelatorioZonas } from '@/types/relatorio';
+import { parseFiltroPeriodo, descreverPeriodo } from '@/lib/server/periodo-relatorio';
+import { temIntervaloDatas } from '@/lib/parcelas-utils';
+import { FiltrosPeriodoDatas } from '../_components/filtros-periodo-datas';
+import { BotaoExportarExcel } from '../_components/botao-exportar-excel';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,26 +58,41 @@ const ZONA_NOME: Record<string, string> = {
 
 export default async function ZonasUsoPage({ searchParams }: { searchParams: SearchParams }) {
 	const params = await searchParams;
-	const anoRaw = typeof params.ano === 'string' ? params.ano : undefined;
-	const mesRaw = typeof params.mes === 'string' ? params.mes : undefined;
+	const filtro = parseFiltroPeriodo(params, { anoPadrao: 'corrente', mesPadrao: 'omitir' });
+	const temRange = temIntervaloDatas(filtro);
 
-	const ano = anoRaw === 'todos' ? undefined : anoRaw ? Number(anoRaw) : new Date().getFullYear();
-	const mes =
-		mesRaw === 'todos' || mesRaw == null
-			? undefined
-			: Number.isNaN(Number(mesRaw)) || Number(mesRaw) < 0 || Number(mesRaw) > 11
-				? undefined
-				: Number(mesRaw);
+	const ano = temRange ? undefined : filtro.ano;
+	const mes = temRange ? undefined : filtro.mes;
+	const intervalo = temRange
+		? { dataInicio: filtro.dataInicio, dataFim: filtro.dataFim }
+		: undefined;
 
 	return (
-		<Suspense key={`${ano ?? 't'}-${mes ?? 't'}`} fallback={<TableSkeleton />}>
-			<Conteudo ano={ano} mes={mes} />
+		<Suspense
+			key={`${ano ?? 't'}-${mes ?? 't'}-${filtro.dataInicio?.toISOString() ?? ''}-${filtro.dataFim?.toISOString() ?? ''}`}
+			fallback={<TableSkeleton />}>
+			<Conteudo
+				ano={ano}
+				mes={mes}
+				intervalo={intervalo}
+				periodoLabel={descreverPeriodo(filtro)}
+			/>
 		</Suspense>
 	);
 }
 
-async function Conteudo({ ano, mes }: { ano?: number; mes?: number }) {
-	const resp = await relatorioZonas(ano, mes);
+async function Conteudo({
+	ano,
+	mes,
+	intervalo,
+	periodoLabel,
+}: {
+	ano?: number;
+	mes?: number;
+	intervalo?: { dataInicio?: Date; dataFim?: Date };
+	periodoLabel: string;
+}) {
+	const resp = await relatorioZonas(ano, mes, intervalo);
 	if (!resp.ok || !resp.data) notFound();
 	const d = resp.data;
 
@@ -88,17 +107,26 @@ async function Conteudo({ ano, mes }: { ano?: number; mes?: number }) {
 				<span className="font-semibold text-foreground">Por zona de uso</span>
 			</div>
 
-			<div className="mb-5">
-				<h1 className="flex items-center gap-2 text-[28px] font-bold tracking-tight">
-					<LandPlot className="h-6 w-6 text-primary" />
-					Arrecadação por zona de uso
-				</h1>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Outorga × Cota por zona de uso (Lei 16.402/2016). Valor arrecadado; AIU não incluída.
-				</p>
+			<div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+				<div>
+					<h1 className="flex items-center gap-2 text-[28px] font-bold tracking-tight">
+						<LandPlot className="h-6 w-6 text-primary" />
+						Arrecadação por zona de uso
+					</h1>
+					<p className="mt-1 text-sm text-muted-foreground">
+						Outorga × Cota por zona de uso (Lei 16.402/2016). Valor arrecadado; AIU não incluída ·{' '}
+						{periodoLabel}
+					</p>
+				</div>
+				<Suspense>
+					<BotaoExportarExcel tipo="zonas" />
+				</Suspense>
 			</div>
 
 			<Filtros anos={d.anos} anoAtual={d.ano} mesAtual={d.mes} />
+			<div className="mb-6">
+				<FiltrosPeriodoDatas />
+			</div>
 
 			<Tabela d={d} />
 		</div>

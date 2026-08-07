@@ -8,6 +8,7 @@ import type { IRelatorioSubprefeituraDetalhe } from '@/types/relatorio';
 import { FiltrosMapaSubprefeituras } from './_components/filtros-mapa-subprefeituras';
 import { MapaSubprefeituras } from './_components/mapa-subprefeituras';
 import { TabelasMapaSubprefeituras } from './_components/tabelas-mapa-subprefeituras';
+import { BotaoExportarExcel } from '../_components/botao-exportar-excel';
 
 const fmtBrl = (v: number) =>
 	v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -34,7 +35,7 @@ export function MapaSubprefeiturasClient({
 
 	useEffect(() => {
 		setSelecionado(null);
-	}, [filtro.ano, filtro.mes]);
+	}, [filtro.ano, filtro.mes, filtro.dataInicio, filtro.dataFim]);
 
 	return (
 		<div className="mx-auto w-full px-4 py-7 pb-[60px] sm:px-8">
@@ -51,14 +52,17 @@ export function MapaSubprefeiturasClient({
 						Arrecadação de Outorga Onerosa por subprefeitura · {periodoLabel}
 					</p>
 				</div>
-				{subAtiva && (
-					<button
-						type="button"
-						onClick={() => setSelecionado(null)}
-						className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted">
-						Limpar seleção
-					</button>
-				)}
+				<div className="flex flex-wrap items-center gap-2">
+					<BotaoExportarExcel tipo="subprefeituras" />
+					{subAtiva && (
+						<button
+							type="button"
+							onClick={() => setSelecionado(null)}
+							className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+							Limpar seleção
+						</button>
+					)}
+				</div>
 			</div>
 
 			<FiltrosMapaSubprefeituras

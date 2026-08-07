@@ -26,6 +26,8 @@ export interface IRelatorioTop10 {
 	/** Endereço do empreendimento */
 	empreendimento: string | null;
 	distrito: string | null;
+	/** Tipologia de uso canônica: R | nR | R/nR (null se sem classificação) */
+	uso: 'R' | 'nR' | 'R/nR' | null;
 }
 
 export interface IRelatorioSubprefeitura {
@@ -226,6 +228,35 @@ export interface IRelatorioZonas {
 	totalGeral: number;
 }
 
+/** Fatia do gráfico de pizza por sistema de origem. */
+export interface IRelatorioOrigemSistema {
+	sistema: string;
+	qtdProcessos: number;
+	valorArrecadado: number;
+}
+
+/** Linha do relatório por tipologia de uso OODC. */
+export interface IRelatorioTipologiaLinha {
+	codigo: string;
+	label: string;
+	qtdProcessos: number;
+	valorTotal: number;
+	valorArrecadado: number;
+	valorEmAberto: number;
+	valorQuebra: number;
+}
+
+export interface IRelatorioTipologia {
+	linhas: IRelatorioTipologiaLinha[];
+	totais: {
+		qtdProcessos: number;
+		valorTotal: number;
+		valorArrecadado: number;
+		valorEmAberto: number;
+		valorQuebra: number;
+	};
+}
+
 export interface IRelatorio {
 	anoAtual: number;
 	mesAtual: number;
@@ -264,4 +295,8 @@ export interface IRelatorio {
 		prevRestante: number;
 		processos: number;
 	};
+	/** Distribuição por sistema de origem (SEI/SISACOE, PORTAL, APROVA DIGITAL) */
+	origemSistema: IRelatorioOrigemSistema[];
+	/** Resumo por tipologia de uso OODC */
+	tipologiaUso: IRelatorioTipologia;
 }

@@ -1,5 +1,11 @@
 import { prisma } from '@/lib/prisma';
-import { dataPagamentoParcela, parcelaArrecadadaNoPeriodo } from '@/lib/parcelas-utils';
+import {
+	dataNoPeriodoFiltro,
+	dataPagamentoParcela,
+	parcelaArrecadadaNoPeriodo,
+	temIntervaloDatas,
+	type FiltroArrecadacao,
+} from '@/lib/parcelas-utils';
 import { resolverNomeInteressado } from '@/lib/interessado';
 import { resumirDistritosDeProcessos } from '@/lib/server/relatorios-distritos';
 import {
@@ -7,6 +13,9 @@ import {
 	selectCotaOrigem,
 	selectFichaOrigem,
 } from '@/lib/server/relatorio-origem';
+import { buscarArrecadacaoPorOrigem } from '@/lib/server/relatorio-origem-agg';
+import { buscarRelatorioTipologiaUso } from '@/lib/server/relatorio-tipologia';
+import { normalizarTipologiaUsoOodc } from '@/lib/server/bi-categoria';
 import { IRelatorio, IRelatorioPdeCota, IRelatorioTop10 } from '@/types/relatorio';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
@@ -14,11 +23,12 @@ const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'O
 const BRL_TO_M = 1_000_000;
 
 /** Filtro de período por vencimento das parcelas (mesma semântica do mapa de subprefeituras). */
-export type FiltroPeriodoRanking = {
-	/** Ano civil; undefined = todos os anos */
-	ano?: number;
-	/** 0 = janeiro … 11 = dezembro; undefined = todos os meses */
-	mes?: number;
+export type FiltroPeriodoRanking = FiltroArrecadacao;
+
+/** Opções do relatório home: ano/mês ou intervalo livre. */
+export type FiltroRelatorioHome = FiltroArrecadacao & {
+	/** `true` = todos os anos (equivale a `anoFiltro === null` legado). */
+	todosAnos?: boolean;
 };
 
 const processoRankingSelect = {
@@ -47,15 +57,8 @@ const processoRankingSelect = {
 	},
 } as const;
 
-function parcelaNoPeriodo(
-	vencimento: Date,
-	filtro: FiltroPeriodoRanking,
-): boolean {
-	const ano = vencimento.getFullYear();
-	const mes = vencimento.getMonth();
-	if (filtro.ano != null && ano !== filtro.ano) return false;
-	if (filtro.mes != null && mes !== filtro.mes) return false;
-	return true;
+function parcelaNoPeriodo(vencimento: Date, filtro: FiltroPeriodoRanking): boolean {
+	return dataNoPeriodoFiltro(vencimento, filtro);
 }
 
 function mapearRankingProcessos(
@@ -83,6 +86,9 @@ function mapearRankingProcessos(
 			const subprefeitura =
 				p.monitoramento?.enquadramento_urbanistico?.subprefeitura ?? '';
 			const origem = resolverOrigemOutorga(p.monitoramento, p.monitoramento_cota);
+			const uso = normalizarTipologiaUsoOodc(
+				p.monitoramento?.enquadramento_urbanistico?.tipologia_uso_oodc,
+			);
 
 			const proximaParc = p.parcelas
 				.filter((x) => !x.status_quitacao && !x.quebra && x.vencimento >= hoje)
@@ -101,6 +107,7 @@ function mapearRankingProcessos(
 				sistema: origem.sistema,
 				empreendimento: origem.empreendimento,
 				distrito: origem.distrito,
+				uso,
 			};
 		})
 		.filter((p): p is NonNullable<typeof p> => p !== null)
@@ -120,28 +127,56 @@ export async function buscarRankingProcessos(
 }
 
 export async function buscarRelatorio(
-	/** `null` = todos os anos; `undefined` = ano corrente */
-	anoFiltro?: number | null,
+	/** `null` = todos os anos; `undefined` = ano corrente. Ou passe `FiltroRelatorioHome`. */
+	anoFiltro?: number | null | FiltroRelatorioHome,
 	mesFiltro?: number,
 ): Promise<IRelatorio> {
 	const hoje = new Date();
-	const todosAnos = anoFiltro === null;
-	const anoAtual = todosAnos ? hoje.getFullYear() : (anoFiltro ?? hoje.getFullYear());
-	const mesAtual =
-		mesFiltro != null
-			? mesFiltro - 1
-			: todosAnos || anoFiltro == null || anoFiltro === hoje.getFullYear()
+
+	const filtroHome: FiltroRelatorioHome =
+		anoFiltro != null && typeof anoFiltro === 'object'
+			? anoFiltro
+			: {
+					...(anoFiltro === null ? { todosAnos: true } : {}),
+					...(typeof anoFiltro === 'number' ? { ano: anoFiltro } : {}),
+					...(mesFiltro != null ? { mes: mesFiltro } : {}),
+				};
+
+	const temRange = temIntervaloDatas(filtroHome);
+	const todosAnos = Boolean(filtroHome.todosAnos) && !temRange && filtroHome.ano == null;
+	const anoAtual = temRange
+		? (filtroHome.dataFim ?? filtroHome.dataInicio ?? hoje).getUTCFullYear()
+		: todosAnos
+			? hoje.getFullYear()
+			: (filtroHome.ano ?? hoje.getFullYear());
+	const mesAtual = temRange
+		? (filtroHome.dataFim ?? filtroHome.dataInicio ?? hoje).getUTCMonth()
+		: filtroHome.mes != null
+			? filtroHome.mes
+			: todosAnos || filtroHome.ano == null || filtroHome.ano === hoje.getFullYear()
 				? hoje.getMonth()
-				: anoFiltro < hoje.getFullYear()
+				: filtroHome.ano < hoje.getFullYear()
 					? 11
 					: -1;
+
+	const filtroArrec: FiltroArrecadacao = temRange
+		? { dataInicio: filtroHome.dataInicio, dataFim: filtroHome.dataFim }
+		: todosAnos
+			? {}
+			: {
+					ano: anoAtual,
+					...(filtroHome.mes != null ? { mes: filtroHome.mes } : {}),
+				};
 
 	const inicioAno = new Date(anoAtual, 0, 1);
 	const fimAno = new Date(anoAtual + 1, 0, 1);
 
-	// ── Previsto: vencimentos no ano (ou todos, se filtro "Todos") ──
-	const parcelasVencimentoAno = await prisma.parcela.findMany({
-		where: todosAnos ? undefined : { vencimento: { gte: inicioAno, lt: fimAno } },
+	// ── Previsto: vencimentos no período ──
+	const parcelasVencimentoRaw = await prisma.parcela.findMany({
+		where:
+			todosAnos || temRange
+				? undefined
+				: { vencimento: { gte: inicioAno, lt: fimAno } },
 		select: {
 			valor: true,
 			vencimento: true,
@@ -152,7 +187,11 @@ export async function buscarRelatorio(
 		},
 	});
 
-	// ── Arrecadado: pagamentos efetivos no ano (data_quitacao / ano_pagamento) ──
+	const parcelasVencimentoAno = temRange
+		? parcelasVencimentoRaw.filter((p) => dataNoPeriodoFiltro(p.vencimento, filtroArrec))
+		: parcelasVencimentoRaw;
+
+	// ── Arrecadado: pagamentos efetivos no período ──
 	const parcelasPagasAno = await prisma.parcela.findMany({
 		where: { status_quitacao: true },
 		select: {
@@ -167,36 +206,55 @@ export async function buscarRelatorio(
 		},
 	});
 
-	const parcelasArrecadadasAno = todosAnos
+	const parcelasArrecadadasAno = todosAnos && !temRange
 		? parcelasPagasAno
-		: parcelasPagasAno.filter((p) => parcelaArrecadadaNoPeriodo(p, { ano: anoAtual }));
+		: parcelasPagasAno.filter((p) => parcelaArrecadadaNoPeriodo(p, filtroArrec));
 
-	const multasPagas = await prisma.multa.findMany({
+	const multasPagasRaw = await prisma.multa.findMany({
 		where: {
 			status_quitacao: true,
-			...(todosAnos ? {} : { data_quitacao: { gte: inicioAno, lt: fimAno } }),
+			...(todosAnos || temRange
+				? {}
+				: { data_quitacao: { gte: inicioAno, lt: fimAno } }),
 		},
 		select: { valor: true, data_quitacao: true },
 	});
 
+	const multasPagas = temRange
+		? multasPagasRaw.filter(
+				(m) => m.data_quitacao != null && dataNoPeriodoFiltro(m.data_quitacao, filtroArrec),
+			)
+		: multasPagasRaw;
+
 	// ── D26: mensal do ano de referência (calendário/gráficos mensais) ──
 	// Com "Todos", o calendário mensal continua no ano corrente; KPIs usam a base completa acima.
-	const parcelasVencimentoD26 = todosAnos
+	const parcelasVencimentoD26 = todosAnos && !temRange
 		? parcelasVencimentoAno.filter(
 				(p) => p.vencimento >= inicioAno && p.vencimento < fimAno,
 			)
-		: parcelasVencimentoAno;
-	const parcelasArrecadadasD26 = todosAnos
+		: temRange
+			? parcelasVencimentoAno.filter((p) => p.vencimento.getFullYear() === anoAtual)
+			: parcelasVencimentoAno;
+	const parcelasArrecadadasD26 = todosAnos && !temRange
 		? parcelasPagasAno.filter((p) => parcelaArrecadadaNoPeriodo(p, { ano: anoAtual }))
-		: parcelasArrecadadasAno;
-	const multasPagasD26 = todosAnos
+		: temRange
+			? parcelasArrecadadasAno.filter((p) => {
+					const pag = dataPagamentoParcela(p);
+					return pag != null && pag.getFullYear() === anoAtual;
+				})
+			: parcelasArrecadadasAno;
+	const multasPagasD26 = todosAnos && !temRange
 		? multasPagas.filter(
 				(m) =>
 					m.data_quitacao != null &&
 					m.data_quitacao >= inicioAno &&
 					m.data_quitacao < fimAno,
 			)
-		: multasPagas;
+		: temRange
+			? multasPagas.filter(
+					(m) => m.data_quitacao != null && m.data_quitacao.getFullYear() === anoAtual,
+				)
+			: multasPagas;
 
 	const prev: (number | null)[] = Array(12).fill(null);
 	const real: (number | null)[] = Array(12).fill(null);
@@ -260,8 +318,8 @@ export async function buscarRelatorio(
 		}
 	}
 
-	// KPIs de tipo no modo "Todos": soma de todo o período (não só o D26 do ano corrente)
-	if (todosAnos) {
+	// KPIs de tipo no modo "Todos" ou intervalo livre: soma de todo o período filtrado
+	if (todosAnos || temRange) {
 		arrecTipoBrl.outorga = 0;
 		arrecTipoBrl.cota = 0;
 		arrecTipoBrl.aiu = 0;
@@ -341,14 +399,16 @@ export async function buscarRelatorio(
 
 	const todosProcessos = mapearRankingProcessos(
 		processos,
-		todosAnos ? {} : { ano: anoAtual },
+		todosAnos && !temRange ? {} : filtroArrec,
 		hoje,
 	);
 	const topAno = todosProcessos.slice(0, 10);
 	const topMes =
-		!todosAnos && mesAtual >= 0
+		!todosAnos && !temRange && mesAtual >= 0
 			? mapearRankingProcessos(processos, { ano: anoAtual, mes: mesAtual }, hoje).slice(0, 10)
-			: [];
+			: temRange
+				? todosProcessos.slice(0, 10)
+				: [];
 	const topTodo = mapearRankingProcessos(processos, {}, hoje).slice(0, 10);
 
 	function agruparTipo(lista: typeof todosProcessos): IRelatorioPdeCota {
@@ -440,6 +500,11 @@ export async function buscarRelatorio(
 
 	const distritos = resumirDistritosDeProcessos(processos);
 
+	const [origemSistema, tipologiaUso] = await Promise.all([
+		buscarArrecadacaoPorOrigem(filtroArrec),
+		buscarRelatorioTipologiaUso(filtroArrec),
+	]);
+
 	return {
 		anoAtual,
 		mesAtual,
@@ -457,5 +522,7 @@ export async function buscarRelatorio(
 		aiu,
 		arrecadadoTipo,
 		fundurb,
+		origemSistema,
+		tipologiaUso,
 	};
 }

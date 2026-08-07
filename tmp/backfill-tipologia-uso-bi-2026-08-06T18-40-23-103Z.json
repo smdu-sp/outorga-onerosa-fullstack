@@ -1,0 +1,82 @@
+{
+  "dryRun": true,
+  "force": false,
+  "stats": {
+    "atualizadoBi": 6,
+    "atualizadoLocal": 3,
+    "jaCanonico": 0,
+    "semFonte": 1,
+    "semEnquadramento": 0,
+    "erros": 0
+  },
+  "linhas": [
+    {
+      "num_processo": "1010.2021/0010961-2",
+      "status": "sem_fonte",
+      "antes": null
+    },
+    {
+      "num_processo": "1010.2023/0003253-2",
+      "status": "atualizado_local",
+      "antes": "R2v-3",
+      "depois": "R",
+      "detalhe": "dry-run (local)"
+    },
+    {
+      "num_processo": "1010.2023/0004696-7",
+      "status": "atualizado_local",
+      "antes": "R2v-3",
+      "depois": "R",
+      "detalhe": "dry-run (local)"
+    },
+    {
+      "num_processo": "1010.2023/0009779-0",
+      "status": "atualizado_local",
+      "antes": "R2v-3",
+      "depois": "R",
+      "detalhe": "dry-run (local)"
+    },
+    {
+      "num_processo": "1020.2021/0000699-0",
+      "status": "atualizado_bi",
+      "antes": null,
+      "depois": "R",
+      "detalhe": "dry-run (bi)"
+    },
+    {
+      "num_processo": "1020.2021/0009359-1",
+      "status": "atualizado_bi",
+      "antes": "R2v-3/nR1.02/nR1.03/nR1.06/nR2.07",
+      "depois": "R/nR",
+      "detalhe": "dry-run (bi+local)"
+    },
+    {
+      "num_processo": "1020.2021/0011060-7",
+      "status": "atualizado_bi",
+      "antes": null,
+      "depois": "R",
+      "detalhe": "dry-run (bi)"
+    },
+    {
+      "num_processo": "1020.2021/0013208-2",
+      "status": "atualizado_bi",
+      "antes": "R2v-2/nR1.03/nR1.12",
+      "depois": "R/nR",
+      "detalhe": "dry-run (bi+local)"
+    },
+    {
+      "num_processo": "1020.2022/0013169-0",
+      "status": "atualizado_bi",
+      "antes": "R2v-1",
+      "depois": "R",
+      "detalhe": "dry-run (bi+local)"
+    },
+    {
+      "num_processo": "1020.2022/0015758-3",
+      "status": "atualizado_bi",
+      "antes": null,
+      "depois": "R",
+      "detalhe": "dry-run (bi)"
+    }
+  ]
+}

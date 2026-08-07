@@ -49,7 +49,11 @@ function zonasDistintas(enq: EnquadramentoZonas): string[] {
 	return [...set];
 }
 
-export async function buscarOutorgaPorZona(ano?: number, mes?: number): Promise<IRelatorioZonas> {
+export async function buscarOutorgaPorZona(
+	ano?: number,
+	mes?: number,
+	intervalo?: Pick<FiltroArrecadacao, 'dataInicio' | 'dataFim'>,
+): Promise<IRelatorioZonas> {
 	const processos = await prisma.processo.findMany({
 		select: {
 			tipo: true,
@@ -90,8 +94,13 @@ export async function buscarOutorgaPorZona(ano?: number, mes?: number): Promise<
 	const anos = [...anosSet].sort((a, b) => b - a);
 
 	const filtro: FiltroArrecadacao = {};
-	if (ano != null) filtro.ano = ano;
-	if (mes != null) filtro.mes = mes;
+	if (intervalo?.dataInicio || intervalo?.dataFim) {
+		if (intervalo.dataInicio) filtro.dataInicio = intervalo.dataInicio;
+		if (intervalo.dataFim) filtro.dataFim = intervalo.dataFim;
+	} else {
+		if (ano != null) filtro.ano = ano;
+		if (mes != null) filtro.mes = mes;
+	}
 
 	const mapa = new Map<
 		string,

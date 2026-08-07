@@ -13,6 +13,14 @@ export function FiltrosRelatorio({ subprefeituras, anosDisponiveis }: FiltrosRel
 	const pathname = usePathname();
 	const params = useSearchParams();
 
+	const pushParams = useCallback(
+		(p: URLSearchParams) => {
+			const qs = p.toString();
+			router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+		},
+		[pathname, router],
+	);
+
 	const update = useCallback(
 		(key: string, value: string, defaultVal: string) => {
 			const p = new URLSearchParams(params.toString());
@@ -21,11 +29,49 @@ export function FiltrosRelatorio({ subprefeituras, anosDisponiveis }: FiltrosRel
 			} else {
 				p.set(key, value);
 			}
-			const qs = p.toString();
-			router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+			pushParams(p);
 		},
-		[params, pathname, router],
+		[params, pushParams],
 	);
+
+	const updateAno = useCallback(
+		(value: string) => {
+			const p = new URLSearchParams(params.toString());
+			p.delete('de');
+			p.delete('ate');
+			if (value === String(anosDisponiveis.at(-1) ?? new Date().getFullYear())) {
+				p.delete('ano');
+			} else {
+				p.set('ano', value);
+			}
+			pushParams(p);
+		},
+		[params, pushParams, anosDisponiveis],
+	);
+
+	const updateData = useCallback(
+		(key: 'de' | 'ate', value: string) => {
+			const p = new URLSearchParams(params.toString());
+			if (value) {
+				p.set(key, value);
+				p.delete('ano');
+				p.delete('mes');
+			} else {
+				p.delete(key);
+			}
+			pushParams(p);
+		},
+		[params, pushParams],
+	);
+
+	const limparPeriodo = useCallback(() => {
+		const p = new URLSearchParams(params.toString());
+		p.delete('de');
+		p.delete('ate');
+		p.delete('ano');
+		p.delete('mes');
+		pushParams(p);
+	}, [params, pushParams]);
 
 	const agora = new Date();
 	const anoAtual = anosDisponiveis.at(-1) ?? agora.getFullYear();
@@ -33,9 +79,14 @@ export function FiltrosRelatorio({ subprefeituras, anosDisponiveis }: FiltrosRel
 	const tipo = params.get('tipo') ?? 'todos';
 	const status = params.get('status') ?? 'todos';
 	const sub = params.get('sub') ?? 'todas';
-	const ano = params.get('ano') ?? String(anoAtual);
+	const de = params.get('de') ?? '';
+	const ate = params.get('ate') ?? '';
+	const temRange = Boolean(de || ate);
+	const ano = temRange ? 'todos' : (params.get('ano') ?? String(anoAtual));
 
 	const selectCls =
+		'h-[30px] rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring';
+	const inputCls =
 		'h-[30px] rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring';
 	const labelCls =
 		'text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground';
@@ -75,7 +126,11 @@ export function FiltrosRelatorio({ subprefeituras, anosDisponiveis }: FiltrosRel
 			<div className={sepCls} />
 
 			<span className={labelCls}>Ano</span>
-			<select className={selectCls} value={ano} onChange={(e) => update('ano', e.target.value, String(anoAtual))}>
+			<select
+				className={selectCls}
+				value={ano}
+				disabled={temRange}
+				onChange={(e) => updateAno(e.target.value)}>
 				<option value="todos">Todos</option>
 				{anosDisponiveis.map((y) => (
 					<option key={y} value={String(y)}>
@@ -83,6 +138,33 @@ export function FiltrosRelatorio({ subprefeituras, anosDisponiveis }: FiltrosRel
 					</option>
 				))}
 			</select>
+
+			<div className={sepCls} />
+
+			<span className={labelCls}>De</span>
+			<input
+				type="date"
+				className={inputCls}
+				value={de}
+				onChange={(e) => updateData('de', e.target.value)}
+			/>
+			<span className={labelCls}>Até</span>
+			<input
+				type="date"
+				className={inputCls}
+				value={ate}
+				min={de || undefined}
+				onChange={(e) => updateData('ate', e.target.value)}
+			/>
+
+			{temRange && (
+				<button
+					type="button"
+					onClick={limparPeriodo}
+					className="ml-1 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted">
+					Limpar período
+				</button>
+			)}
 		</div>
 	);
 }

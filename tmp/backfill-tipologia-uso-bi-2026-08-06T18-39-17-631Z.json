@@ -1,0 +1,205 @@
+{
+  "dryRun": true,
+  "force": false,
+  "stats": {
+    "atualizadoBi": 0,
+    "atualizadoLocal": 0,
+    "jaCanonico": 31,
+    "semFonte": 0,
+    "semEnquadramento": 9,
+    "erros": 0
+  },
+  "linhas": [
+    {
+      "num_processo": "1010-2021/0011738-0",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010-2022/0000916-4",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010-2022/0002224-1",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010-2023/0006305-5",
+      "status": "ja_canonico",
+      "antes": "R"
+    },
+    {
+      "num_processo": "1010.2019.0002533-4",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0000195-8",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0000253-9",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0000522-8",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0000629-1",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0001438-3",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0001444-8",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0001598-3",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0001812-10",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-11",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-12",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-13",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-14",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-5",
+      "status": "ja_canonico",
+      "antes": "R"
+    },
+    {
+      "num_processo": "1010.2019/0001812-6",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-7",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-8",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001812-9",
+      "status": "sem_enquadramento"
+    },
+    {
+      "num_processo": "1010.2019/0001857-5",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0001896-6",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002019-7",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002071-5",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002150-9",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002189-4",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002250-5",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002270-0",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002376-5",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002393-5",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002413-3",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002428-1",
+      "status": "ja_canonico",
+      "antes": "R"
+    },
+    {
+      "num_processo": "1010.2019/0002456-7",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002468-0",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002542-3",
+      "status": "ja_canonico",
+      "antes": "R"
+    },
+    {
+      "num_processo": "1010.2019/0002545-8",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2019/0002549-0",
+      "status": "ja_canonico",
+      "antes": "nR"
+    },
+    {
+      "num_processo": "1010.2020.000.7948-7",
+      "status": "ja_canonico",
+      "antes": "nR"
+    }
+  ]
+}

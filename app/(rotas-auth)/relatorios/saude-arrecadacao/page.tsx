@@ -12,6 +12,10 @@ import type {
 	IRelatorioSaudeKpis,
 	IRelatorioSaudeRegiao,
 } from '@/types/relatorio';
+import { parseFiltroPeriodo, descreverPeriodo } from '@/lib/server/periodo-relatorio';
+import { temIntervaloDatas } from '@/lib/parcelas-utils';
+import { FiltrosPeriodoDatas } from '../_components/filtros-periodo-datas';
+import { BotaoExportarExcel } from '../_components/botao-exportar-excel';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,18 +27,37 @@ const fmtPct = (v: number) => `${v.toFixed(1)}%`;
 
 export default async function SaudeArrecadacaoPage({ searchParams }: { searchParams: SearchParams }) {
 	const params = await searchParams;
+	const filtro = parseFiltroPeriodo(params, { anoPadrao: 'corrente', mesPadrao: 'omitir' });
+	const temRange = temIntervaloDatas(filtro);
 	const anoRaw = typeof params.ano === 'string' ? params.ano : undefined;
-	const ano = anoRaw === 'todos' ? undefined : anoRaw ? Number(anoRaw) : new Date().getFullYear();
+	const ano = temRange
+		? undefined
+		: anoRaw === 'todos'
+			? undefined
+			: anoRaw
+				? Number(anoRaw)
+				: new Date().getFullYear();
+	const intervalo = temRange
+		? { dataInicio: filtro.dataInicio, dataFim: filtro.dataFim }
+		: undefined;
 
 	return (
 		<Suspense fallback={<TableSkeleton />}>
-			<Conteudo ano={ano} />
+			<Conteudo ano={ano} intervalo={intervalo} periodoLabel={descreverPeriodo(filtro)} />
 		</Suspense>
 	);
 }
 
-async function Conteudo({ ano }: { ano?: number }) {
-	const resp = await relatorioSaude(ano);
+async function Conteudo({
+	ano,
+	intervalo,
+	periodoLabel,
+}: {
+	ano?: number;
+	intervalo?: { dataInicio?: Date; dataFim?: Date };
+	periodoLabel: string;
+}) {
+	const resp = await relatorioSaude(ano, intervalo);
 	if (!resp.ok || !resp.data) notFound();
 	const d = resp.data;
 
@@ -51,19 +74,24 @@ async function Conteudo({ ano }: { ano?: number }) {
 			</div>
 
 			{/* Título + descrição */}
-			<div className="mb-5">
-				<h1 className="flex items-center gap-2 text-[28px] font-bold tracking-tight">
-					<HeartPulse className="h-6 w-6 text-primary" />
-					Saúde da arrecadação
-				</h1>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Coorte de parcelas por ano de vencimento — quebra, inadimplência, antecipação e
-					tempo de pagamento.
-				</p>
+			<div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+				<div>
+					<h1 className="flex items-center gap-2 text-[28px] font-bold tracking-tight">
+						<HeartPulse className="h-6 w-6 text-primary" />
+						Saúde da arrecadação
+					</h1>
+					<p className="mt-1 text-sm text-muted-foreground">
+						Coorte de parcelas por vencimento — quebra, inadimplência, antecipação e tempo de
+						pagamento · {periodoLabel}
+					</p>
+				</div>
+				<Suspense>
+					<BotaoExportarExcel tipo="saude" />
+				</Suspense>
 			</div>
 
-			{/* Filtro de ano */}
-			<FiltroAno anos={d.anos} anoAtual={d.ano} />
+			{/* Filtro de ano + período */}
+			<FiltroPeriodoSaude anos={d.anos} anoAtual={d.ano} intervalo={intervalo} />
 
 			{/* Aviso de cobertura */}
 			{d.kpis.coberturaDataQuit < 95 && (
@@ -89,7 +117,16 @@ async function Conteudo({ ano }: { ano?: number }) {
 	);
 }
 
-function FiltroAno({ anos, anoAtual }: { anos: number[]; anoAtual: number | null }) {
+function FiltroPeriodoSaude({
+	anos,
+	anoAtual,
+	intervalo,
+}: {
+	anos: number[];
+	anoAtual: number | null;
+	intervalo?: { dataInicio?: Date; dataFim?: Date };
+}) {
+	const temRange = Boolean(intervalo?.dataInicio || intervalo?.dataFim);
 	const chip = (label: string, ativo: boolean, href: string) => (
 		<Link
 			key={label}
@@ -104,10 +141,13 @@ function FiltroAno({ anos, anoAtual }: { anos: number[]; anoAtual: number | null
 	);
 
 	return (
-		<div className="mb-6 flex flex-wrap items-center gap-2">
-			<span className="text-xs text-muted-foreground">Coorte de vencimento:</span>
-			{chip('Todos os anos', anoAtual == null, '?ano=todos')}
-			{anos.map((a) => chip(String(a), anoAtual === a, `?ano=${a}`))}
+		<div className="mb-6 flex flex-col gap-3">
+			<div className="flex flex-wrap items-center gap-2">
+				<span className="text-xs text-muted-foreground">Coorte de vencimento:</span>
+				{chip('Todos os anos', !temRange && anoAtual == null, '?ano=todos')}
+				{anos.map((a) => chip(String(a), !temRange && anoAtual === a, `?ano=${a}`))}
+			</div>
+			<FiltrosPeriodoDatas />
 		</div>
 	);
 }

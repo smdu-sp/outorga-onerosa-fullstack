@@ -5,6 +5,7 @@
 import { AppSidebar } from '@/components/sidebar/app-sidebar';
 import { SidebarInset, SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import {
+	AlertTriangle,
 	BarChart3,
 	BookLock,
 	Calculator,
@@ -61,6 +62,12 @@ function montarMenuUsuario(processosNovos: number): IMenu[] {
 }
 
 const menuAdmin: IMenu[] = [
+	{
+		icone: AlertTriangle,
+		titulo: 'Dados faltantes',
+		url: '/admin/dados-faltantes',
+		permissao: 'processos_ver_todos',
+	},
 	{
 		icone: Users,
 		titulo: 'Usuários',

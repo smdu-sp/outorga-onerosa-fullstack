@@ -7,6 +7,7 @@ import {
 	type FiltroArrecadacao,
 	type ParcelaArrecadacao,
 } from '@/lib/parcelas-utils';
+import { descreverPeriodo } from '@/lib/server/periodo-relatorio';
 import type {
 	IRelatorioSubprefeituraDetalhe,
 	IRelatorioSubprefeituraProcesso,
@@ -175,13 +176,5 @@ export async function buscarAnosComArrecadacaoSubprefeitura(): Promise<number[]>
 }
 
 export function descreverPeriodoSubprefeitura(filtro: FiltroPeriodoSubprefeitura): string {
-	const MESES = [
-		'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-		'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-	];
-	if (filtro.ano == null && filtro.mes == null) return 'Todo o período';
-	if (filtro.ano != null && filtro.mes != null) return `${MESES[filtro.mes]} de ${filtro.ano}`;
-	if (filtro.ano != null) return `Ano ${filtro.ano}`;
-	if (filtro.mes != null) return `${MESES[filtro.mes]} (todos os anos)`;
-	return 'Todo o período';
+	return descreverPeriodo(filtro);
 }

@@ -12,6 +12,7 @@ import { StatusComposicao } from './_components/status-composicao';
 import { ComparativoAnoAnterior } from './_components/comparativo-ano-anterior';
 import { ArrecadacaoPorRegiao } from './_components/arrecadacao-regiao';
 import { TabelaProcessosMes } from './_components/tabela-processos';
+import { BotaoExportarExcel } from '../../../_components/botao-exportar-excel';
 
 type Params = Promise<{ ano: string; mes: string }>;
 
@@ -57,6 +58,12 @@ async function RelatorioMesHome({ anoStr, mesStr }: { anoStr: string; mesStr: st
 				</div>
 
 				<div className="flex items-center gap-2">
+					<Suspense>
+						<BotaoExportarExcel
+							tipo="mes"
+							extraParams={{ ano: String(ano), mes: String(mes) }}
+						/>
+					</Suspense>
 					<Link
 						href={`/relatorios/mes/${mesPrev.ano}/${mesPrev.mes}`}
 						className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
