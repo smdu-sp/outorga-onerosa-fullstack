@@ -14,6 +14,8 @@ import {
 	normalizarTipologiaUsoOodc,
 } from '@/lib/server/bi-categoria';
 import { consultarGeoSampa, GeoSampaConsultaError } from '@/lib/server/geosampa';
+import { salvarDadosGeoSampaNoProcesso } from '@/lib/server/monitoramento';
+import { sincronizarSqlsDoProcessoComBi } from '@/lib/server/processo-sqls';
 import {
 	descricaoProtocoloAd,
 	limparProtocoloAd,
@@ -410,6 +412,220 @@ export async function compararSeiComBiPorProtocoloAd(
 			erro,
 			podeAplicar: Boolean(tipologiaBi && temEnq && status !== 'igual'),
 		});
+	}
+
+	return resultados;
+}
+
+export type ResultadoBackfillBiGeosampa = {
+	processoId: string;
+	num_processo: string;
+	status: 'atualizado' | 'nao_encontrado' | 'erro';
+	/** Origem dos dados gravados. */
+	fonte: 'bi+geosampa' | 'geosampa' | 'bi' | null;
+	sql: string | null;
+	tipologiaAplicada: 'R' | 'nR' | 'R/nR' | null;
+	detalhe: string | null;
+};
+
+const BACKFILL_MAX = 50;
+
+/**
+ * Backfill completo: consulta BI (SQL + categorias + licenças via fluxo GeoSampa)
+ * e GeoSampa quando o BI não resolve o lote; grava ficha de monitoramento,
+ * `sql_incra`/`sql_formatado` e tipologia (preferindo BI).
+ */
+export async function backfillProcessosDoBiGeosampa(
+	processoIds: string[],
+): Promise<ResultadoBackfillBiGeosampa[]> {
+	const ids = [...new Set(processoIds)].slice(0, BACKFILL_MAX);
+	const processos = await prisma.processo.findMany({
+		where: { id: { in: ids } },
+		select: {
+			id: true,
+			num_processo: true,
+			protocolo_ad: true,
+			interessado: true,
+			monitoramento: {
+				select: { enquadramento_urbanistico: { select: { id: true } } },
+			},
+		},
+	});
+	const porId = new Map(processos.map((p) => [p.id, p]));
+	const resultados: ResultadoBackfillBiGeosampa[] = [];
+
+	for (const id of ids) {
+		const p = porId.get(id);
+		if (!p) {
+			resultados.push({
+				processoId: id,
+				num_processo: '?',
+				status: 'erro',
+				fonte: null,
+				sql: null,
+				tipologiaAplicada: null,
+				detalhe: 'Processo não encontrado.',
+			});
+			continue;
+		}
+
+		let tipologiaBi: 'R' | 'nR' | 'R/nR' | null = null;
+		let detalheBi: string | null = null;
+
+		try {
+			const protocolo = limparProtocoloAd(p.protocolo_ad);
+			let cats: Awaited<ReturnType<typeof buscarCategoriasPorProcessoNoBi>> = [];
+			if (protocolo) {
+				cats = await buscarCategoriasPorProtocoloAdNoBi(protocolo);
+			}
+			if (!cats.length) {
+				cats = await buscarCategoriasPorProcessoNoBi(p.num_processo);
+			}
+			tipologiaBi = classificarTipologiaUsoDeCategorias(cats);
+			if (cats.length) {
+				detalheBi = cats.map(descricaoCategoriaBi).join(' · ');
+			}
+		} catch {
+			// BI categoria é complementar; segue com GeoSampa
+		}
+
+		try {
+			const consulta = await consultarGeoSampa(undefined, p.num_processo, () => {});
+			let data = consulta.data;
+
+			if (tipologiaBi) {
+				data = {
+					...data,
+					enquadramento_urbanistico: {
+						...data.enquadramento_urbanistico,
+						tipologia_uso_oodc: tipologiaBi,
+					},
+				};
+			}
+
+			await salvarDadosGeoSampaNoProcesso(
+				p.id,
+				consulta.modoSalvamento,
+				consulta.identificadorSalvamento,
+				data,
+			);
+
+			if (!p.interessado?.trim() && data.proprietario_interessado?.trim()) {
+				await prisma.processo.update({
+					where: { id: p.id },
+					data: { interessado: data.proprietario_interessado.trim() },
+				});
+			}
+
+			const tipGeo = normalizarTipologiaUsoOodc(
+				data.enquadramento_urbanistico?.tipologia_uso_oodc ??
+					data.enquadramento_urbanistico?.uso ??
+					null,
+			);
+			const tipAplicada = tipologiaBi ?? tipGeo;
+			const sql =
+				data.sql_incra ??
+				data.sql_formatado ??
+				(consulta.modoSalvamento === 'SQL' ? consulta.identificadorSalvamento : null);
+
+			const detalheApos = await prisma.processo.findUnique({
+				where: { id: p.id },
+				select: { _count: { select: { sqls: true } }, sql_incra: true },
+			});
+			const qtdSqls = detalheApos?._count.sqls ?? 0;
+
+			resultados.push({
+				processoId: p.id,
+				num_processo: p.num_processo,
+				status: 'atualizado',
+				fonte: tipologiaBi ? 'bi+geosampa' : 'geosampa',
+				sql: detalheApos?.sql_incra ?? sql,
+				tipologiaAplicada: tipAplicada,
+				detalhe: [
+					qtdSqls > 1 ? `${qtdSqls} SQLs` : sql ? `SQL ${sql}` : null,
+					detalheBi ? `BI: ${detalheBi}` : null,
+				]
+					.filter(Boolean)
+					.join(' · ') || null,
+			});
+		} catch (e) {
+			if (e instanceof GeoSampaConsultaError) {
+				// Sem lote no GeoSampa — ainda grava todos os SQLs do BI e tipología se houver
+				const sqlsBi = await sincronizarSqlsDoProcessoComBi(p.id, p.num_processo, {
+					protocoloAd: p.protocolo_ad,
+				});
+				if (sqlsBi.length) {
+					await prisma.processo.update({
+						where: { id: p.id },
+						data: {
+							sql_incra: sqlsBi[0],
+							sql_formatado: sqlsBi[0],
+						},
+					});
+				}
+
+				const enqId = p.monitoramento?.enquadramento_urbanistico?.id;
+				if (tipologiaBi && enqId) {
+					await prisma.monitoramentoEnquadramentoUrbanistico.update({
+						where: { id: enqId },
+						data: { tipologia_uso_oodc: tipologiaBi },
+					});
+					resultados.push({
+						processoId: p.id,
+						num_processo: p.num_processo,
+						status: 'atualizado',
+						fonte: 'bi',
+						sql: sqlsBi[0] ?? null,
+						tipologiaAplicada: tipologiaBi,
+						detalhe: [
+							`GeoSampa: ${e.message}`,
+							sqlsBi.length ? `${sqlsBi.length} SQL(s) do BI` : null,
+							detalheBi ? `Tipologia BI: ${detalheBi}` : null,
+						]
+							.filter(Boolean)
+							.join(' · '),
+					});
+					continue;
+				}
+
+				if (sqlsBi.length) {
+					resultados.push({
+						processoId: p.id,
+						num_processo: p.num_processo,
+						status: 'atualizado',
+						fonte: 'bi',
+						sql: sqlsBi[0] ?? null,
+						tipologiaAplicada: null,
+						detalhe: [
+							`GeoSampa: ${e.message}`,
+							`${sqlsBi.length} SQL(s) do BI gravados`,
+						].join(' · '),
+					});
+					continue;
+				}
+
+				resultados.push({
+					processoId: p.id,
+					num_processo: p.num_processo,
+					status: 'nao_encontrado',
+					fonte: null,
+					sql: null,
+					tipologiaAplicada: null,
+					detalhe: e.message,
+				});
+				continue;
+			}
+
+			resultados.push({
+				processoId: p.id,
+				num_processo: p.num_processo,
+				status: 'erro',
+				fonte: null,
+				sql: null,
+				tipologiaAplicada: null,
+				detalhe: e instanceof Error ? e.message : 'Erro no backfill',
+			});
+		}
 	}
 
 	return resultados;

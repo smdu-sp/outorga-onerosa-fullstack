@@ -1,11 +1,19 @@
 /**
  * Relatório por tipologia de uso OODC (R / nR / R/nR).
  *
+ * O período (`ano`/`mês`/`de`–`até`) segue a mesma semântica dos demais
+ * relatórios financeiros: parcela quitada entra pela data de pagamento;
+ * em aberto e quebra, pelo vencimento. Processo sem `data_entrada` não é
+ * excluído — basta ter parcela no período (parcelamentos de anos anteriores
+ * que pagam no ano filtrado entram). `data_entrada` no período ainda inclui
+ * processos novos sem movimento financeiro.
+ *
  * @format
  */
 
 import { prisma } from '@/lib/prisma';
 import {
+	dataNoPeriodoFiltro,
 	parcelaArrecadadaNoPeriodo,
 	processoEntradaNoPeriodo,
 	type FiltroArrecadacao,
@@ -62,24 +70,42 @@ export async function buscarRelatorioTipologiaUso(
 	}
 
 	for (const p of processos) {
-		if (!processoEntradaNoPeriodo(p.data_entrada, filtro)) continue;
+		let arrecadado = 0;
+		let emAberto = 0;
+		let quebra = 0;
+		let total = 0;
+		let temParcelaNoPeriodo = false;
+
+		for (const parc of p.parcelas) {
+			if (parc.quebra) {
+				if (!dataNoPeriodoFiltro(parc.vencimento, filtro)) continue;
+				quebra += parc.valor;
+				total += parc.valor;
+				temParcelaNoPeriodo = true;
+			} else if (parc.status_quitacao) {
+				if (!parcelaArrecadadaNoPeriodo(parc, filtro)) continue;
+				arrecadado += parc.valor;
+				total += parc.valor;
+				temParcelaNoPeriodo = true;
+			} else {
+				if (!dataNoPeriodoFiltro(parc.vencimento, filtro)) continue;
+				emAberto += parc.valor;
+				total += parc.valor;
+				temParcelaNoPeriodo = true;
+			}
+		}
+
+		if (!temParcelaNoPeriodo && !processoEntradaNoPeriodo(p.data_entrada, filtro)) continue;
 
 		const tip = normalizarTipologiaUso(
 			p.monitoramento?.enquadramento_urbanistico?.tipologia_uso_oodc,
 		);
 		const entry = mapa.get(tip)!;
 		entry.qtd += 1;
-
-		for (const parc of p.parcelas) {
-			entry.total += parc.valor;
-			if (parc.quebra) {
-				entry.quebra += parc.valor;
-			} else if (parc.status_quitacao) {
-				if (parcelaArrecadadaNoPeriodo(parc, filtro)) entry.arrecadado += parc.valor;
-			} else {
-				entry.emAberto += parc.valor;
-			}
-		}
+		entry.total += total;
+		entry.arrecadado += arrecadado;
+		entry.emAberto += emAberto;
+		entry.quebra += quebra;
 	}
 
 	const linhas: IRelatorioTipologiaLinha[] = ORDEM.map((codigo) => {

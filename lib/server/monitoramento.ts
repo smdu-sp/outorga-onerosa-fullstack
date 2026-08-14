@@ -4,8 +4,15 @@ import {
 	mapGeoSampaParaMonitoramento,
 } from '@/lib/enquadramento-persistencia';
 import { CAMPOS_DATA_CIVIL, parseDataCivil } from '@/lib/datas';
+import { montarSqlDaLocalizacao, normalizarSql } from '@/lib/geosampa-sql.util';
 import { SECOES_MONITORAMENTO_DEUSO } from '@/lib/monitoramento-secoes';
 import { prisma } from '@/lib/prisma';
+import { buscarSqlsPorProcessoNoBi } from '@/lib/server/bi-sql-incra';
+import {
+	enriquecerSqlsComLotesGeoSampa,
+	mesclarListasSql,
+	substituirSqlsEnriquecidosDoProcesso,
+} from '@/lib/server/processo-sqls';
 import { buscarDetalheProcesso } from '@/lib/server/processos';
 import {
 	IncidenciaCotaSolidariedade,
@@ -354,19 +361,56 @@ export async function salvarDadosGeoSampaNoProcesso(
 
 	const payload = mapGeoSampaParaMonitoramento(geosampa, { modo, identificador });
 
+	// O WFS/mapper não preenche sql_incra — quando o SQL veio do BI (modo SQL),
+	// gravar no Processo a partir do identificador ou da localização do lote.
+	const sqlResolvido =
+		normalizarSql(geosampa.sql_incra ?? '') ??
+		(modo === 'SQL' ? normalizarSql(identificador) : null) ??
+		montarSqlDaLocalizacao(payload.localizacao_lote ?? geosampa.localizacao_lote ?? {}) ??
+		null;
+
+	const sqlsBi = await buscarSqlsPorProcessoNoBi(processo.num_processo, () => {}, {
+		protocoloAd: processo.protocolo_ad,
+	});
+	const sqlsTodos = mesclarListasSql([sqlResolvido], sqlsBi);
+	const sqlPrimario = sqlsTodos[0] ?? null;
+	const sqlFormatado =
+		normalizarSql(geosampa.sql_formatado ?? '') ?? sqlPrimario;
+	const codlog =
+		payload.localizacao_lote?.codigo_logradouro ??
+		geosampa.localizacao_lote?.codigo_logradouro ??
+		null;
+
+	// Cada SQL → lote no GeoSampa (o primário reaproveita o resultado já consultado)
+	const lotesEnriquecidos =
+		sqlsTodos.length > 0
+			? await enriquecerSqlsComLotesGeoSampa(sqlsTodos, {
+					sqlPrimario,
+					geoPrimario: geosampa,
+					codlogFallback: codlog,
+				})
+			: [];
+
 	await prisma.$transaction(async (tx) => {
 		const camposProcesso: Prisma.ProcessoUpdateInput = {};
 		if (geosampa.data_autuacao) {
 			camposProcesso.data_autuacao = parseDataCivil(geosampa.data_autuacao);
 		}
-		if (geosampa.sql_incra !== undefined) {
+		if (sqlPrimario) {
+			camposProcesso.sql_incra = sqlPrimario;
+			camposProcesso.sql_formatado = sqlFormatado ?? sqlPrimario;
+		} else if (geosampa.sql_incra !== undefined) {
 			camposProcesso.sql_incra = geosampa.sql_incra || null;
-		}
-		if (geosampa.sql_formatado !== undefined) {
-			camposProcesso.sql_formatado = geosampa.sql_formatado || null;
+			if (geosampa.sql_formatado !== undefined) {
+				camposProcesso.sql_formatado = geosampa.sql_formatado || null;
+			}
 		}
 		if (Object.keys(camposProcesso).length > 0) {
 			await tx.processo.update({ where: { id: processoId }, data: camposProcesso });
+		}
+
+		if (lotesEnriquecidos.length > 0) {
+			await substituirSqlsEnriquecidosDoProcesso(processoId, lotesEnriquecidos, { tx });
 		}
 
 		const ficha = await tx.monitoramentoFicha.upsert({

@@ -164,11 +164,17 @@ dados reais:
 - **Processos sem nº** (19 linhas) — descartados no import.
 - **Placeholders** tipo `processo`, `xxxxxxx`, `0000-0.000` — filtrados por
   `normalizeProcesso`.
+- **DV auto-incrementado pelo Excel:** ao arrastar a célula do nº de processo entre
+  linhas de parcela, o Excel trata o dígito verificador como sequência numérica.
+  Exemplo real: `1010.2019/0001812-5` virou `-6` … `-14` (uma "processo" por parcela).
+  Correção pontual em [`lib/corrigir-num-processo.ts`](../lib/corrigir-num-processo.ts);
+  consolidação one-off em `prisma/corrigir-processo-1812.ts`.
 
 Fontes canônicas de parsing já implementadas (reutilizar, não reinventar):
 [lib/parse-numero-br.ts](../lib/parse-numero-br.ts) (números BR: `1.234,56`),
 [lib/normalizar-status.ts](../lib/normalizar-status.ts) (Situação → status canônico),
-`parseExcelDate`, `cleanText`, `normalizeProcesso` no import.
+`parseExcelDate`, `cleanText`, `normalizeProcesso` no import
+(+ `corrigirNumProcesso`).
 
 ---
 

@@ -36,7 +36,8 @@ export default async function NovoProcessoPage() {
 				<h1 className="m-0 text-[30px] font-bold tracking-[-0.01em]">Novo processo</h1>
 				<p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
 					Informe o número do processo e as áreas do projeto. O sistema consulta a API de
-					cálculo da outorga — você confirma ou cancela antes de qualquer gravação.
+					cálculo da outorga — você confere os dados, baixa o memorial em PDF para o
+					processo SEI e só então envia à CAP.
 				</p>
 			</div>
 

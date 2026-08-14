@@ -49,8 +49,10 @@ export function dataNoIntervalo(
 }
 
 /**
- * Processo entra no período de contagem (origem/tipologia) pela `data_entrada`.
+ * Processo entra no período pela `data_entrada` (coorte de autuação).
  * Sem data de entrada → fora do filtro quando há qualquer restrição de período.
+ * Relatórios financeiros (arrecadação/tipologia) não devem usar só isto —
+ * parcela paga em ano posterior a um processo antigo ficaria de fora.
  */
 export function processoEntradaNoPeriodo(
 	dataEntrada: Date | null | undefined,

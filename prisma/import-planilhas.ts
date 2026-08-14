@@ -18,6 +18,7 @@ import {
   situacaoEmQuebra,
 } from '../lib/normalizar-status';
 import { classificarAntecipacao } from '../lib/antecipacao';
+import { corrigirNumProcesso } from '../lib/corrigir-num-processo';
 import { dataCivilDiasAtras, dataCivilHoje } from '../lib/datas';
 import { VENCIMENTO_FALLBACK_DIAS } from '../lib/parcelas-utils';
 
@@ -124,7 +125,7 @@ function normalizeProcesso(value: unknown): string | undefined {
   const text = cleanText(value);
   if (!text) return undefined;
   if (/processo|xxxxxxx|0000-0\.000/i.test(text)) return undefined;
-  return text.replace(/\s+/g, ' ');
+  return corrigirNumProcesso(text.replace(/\s+/g, ' '));
 }
 
 function isValidDbDate(date?: Date): date is Date {

@@ -20,12 +20,20 @@ export const LABELS_PROCESSO: Record<string, string> = {
 	data_autuacao: 'Data de Autuação',
 	interessado: 'Interessado',
 	cnpj: 'CNPJ',
-	sql_incra: 'SQL/INCRA',
-	sql_formatado: 'SQL formatado',
 	origem: 'Sistema de origem',
 	status_pagamento: 'Status de Pagamento',
 	criado_em: 'Criado em',
 	alterado_em: 'Alterado em',
+};
+
+export const LABELS_SQL: Record<string, string> = {
+	sql_formatado: 'SQL',
+	setor: 'Setor',
+	quadra: 'Quadra',
+	lote_cadastrado: 'Lote cadastrado',
+	codigo_logradouro: 'Codlog',
+	endereco: 'Endereço',
+	coordenadas: 'Coordenadas',
 };
 
 export const ORIGEM_PROCESSO: Record<string, string> = {

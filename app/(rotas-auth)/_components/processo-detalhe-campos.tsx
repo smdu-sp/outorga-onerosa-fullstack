@@ -31,6 +31,7 @@ import {
 	LABELS_PARCELA,
 	LABELS_PROCESSO,
 	LABELS_SITUACAO,
+	LABELS_SQL,
 	LABELS_SUBCATEGORIA_USO,
 	CONSTA_DOCUMENTO,
 	INCIDENCIA_COTA,
@@ -375,6 +376,90 @@ function TabelaLicencas({ licencas }: { licencas: Record<string, unknown>[] }) {
 	);
 }
 
+function formatarSqlLinha(sql: Record<string, unknown>): string {
+	const setor = String(sql.setor ?? '').padStart(3, '0');
+	const quadra = String(sql.quadra ?? '').padStart(3, '0');
+	const lote = String(sql.lote_cadastrado ?? sql.lote_atualizado ?? '').trim();
+	if (setor && quadra && lote && setor !== '000' && quadra !== '000') {
+		return `${setor}.${quadra}.${lote}`;
+	}
+	return '—';
+}
+
+function formatarEnderecoSql(sql: Record<string, unknown>): string {
+	const enderecos = sql.enderecos as
+		| { tipo?: string | null; titulo?: string | null; nome?: string | null; numero?: string | null }[]
+		| undefined;
+	const primeiro = enderecos?.[0];
+	if (!primeiro) return '—';
+	const logradouro = [primeiro.tipo, primeiro.titulo, primeiro.nome]
+		.filter((p) => p != null && String(p).trim() !== '')
+		.map((p) => String(p).trim())
+		.join(' ');
+	if (!logradouro) return '—';
+	return primeiro.numero ? `${logradouro}, ${primeiro.numero}` : logradouro;
+}
+
+function formatarCoordSql(sql: Record<string, unknown>): string {
+	const e = sql.coordenada_e;
+	const n = sql.coordenada_n;
+	if (e == null || n == null || e === '' || n === '') return '—';
+	const ne = Number(e);
+	const nn = Number(n);
+	if (!Number.isFinite(ne) || !Number.isFinite(nn)) return '—';
+	return `${ne.toFixed(2)} / ${nn.toFixed(2)}`;
+}
+
+function TabelaSqls({ sqls }: { sqls: Record<string, unknown>[] }) {
+	const colunas = Object.keys(LABELS_SQL);
+
+	return (
+		<Table className='border'>
+			<TableHeader className='bg-primary hover:opacity-100'>
+				<TableRow className='hover:opacity-100'>
+					{colunas.map((chave) => (
+						<TableHead key={chave} className='text-secondary text-center text-xs'>
+							{LABELS_SQL[chave]}
+						</TableHead>
+					))}
+				</TableRow>
+			</TableHeader>
+			<TableBody>
+				{sqls.length === 0 && (
+					<TableRow>
+						<TableCell
+							colSpan={colunas.length}
+							className='text-center text-sm text-muted-foreground py-6'>
+							Nenhum SQL cadastrado. Atualize pelo GeoSampa ou rode o backfill no BI.
+						</TableCell>
+					</TableRow>
+				)}
+				{sqls.map((sql, index) => (
+					<TableRow key={(sql.id as string) ?? index}>
+						{colunas.map((chave) => (
+							<TableCell
+								key={chave}
+								className={
+									chave === 'endereco'
+										? 'text-left text-sm'
+										: 'text-center text-sm font-mono'
+								}>
+								{chave === 'sql_formatado'
+									? formatarSqlLinha(sql)
+									: chave === 'endereco'
+										? formatarEnderecoSql(sql)
+										: chave === 'coordenadas'
+											? formatarCoordSql(sql)
+											: formatarValor(chave, sql[chave], LABELS_SQL)}
+							</TableCell>
+						))}
+					</TableRow>
+				))}
+			</TableBody>
+		</Table>
+	);
+}
+
 function SecaoBloco({
 	titulo,
 	tabela,
@@ -413,6 +498,9 @@ function RenderSecao({ secao, detalhe }: { secao: SecaoDetalhe; detalhe: IProces
 	if (secao.tipo === 'licencas') {
 		return <TabelaLicencas licencas={secao.getLista(detalhe) ?? []} />;
 	}
+	if (secao.tipo === 'sqls') {
+		return <TabelaSqls sqls={secao.getLista(detalhe) ?? []} />;
+	}
 	if (secao.tipo === 'grid') {
 		return <CamposGrid dados={secao.getDados(detalhe)} labels={secao.labels} />;
 	}
@@ -446,6 +534,7 @@ export {
 	TabelaParcelas,
 	TabelaEnderecos,
 	TabelaLicencas,
+	TabelaSqls,
 	LABELS_PROCESSO,
 	LABELS_MONITORAMENTO_FICHA,
 	LABELS_COORDENADA,

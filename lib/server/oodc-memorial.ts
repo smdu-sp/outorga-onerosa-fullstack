@@ -127,9 +127,17 @@ export async function montarRascunhoCalculo(processoId: string): Promise<Rascunh
 	// usa). O endereço local (localizacao_lote, já conferido pelo GeoSampa) sempre vem
 	// primeiro; os demais entram com o mesmo codlog como sugestão — sem vínculo direto
 	// SQL→codlog nas tabelas do BI, então fica editável.
-	const setoresQuadrasBi = await buscarSetoresQuadrasPorProcessoNoBi(processo.num_processo);
+	const setoresQuadrasBi = await buscarSetoresQuadrasPorProcessoNoBi(
+		processo.num_processo,
+		() => {},
+		{ protocoloAd: processo.protocolo_ad },
+	);
 	const codlogFallback =
-		enderecoInicial.codlog || (await buscarCodlogPadraoPorProcessoNoBi(processo.num_processo)) || '';
+		enderecoInicial.codlog ||
+		(await buscarCodlogPadraoPorProcessoNoBi(processo.num_processo, () => {}, {
+			protocoloAd: processo.protocolo_ad,
+		})) ||
+		'';
 
 	const enderecos: EnderecoValorUnitario[] = [];
 	const vistos = new Set<string>();

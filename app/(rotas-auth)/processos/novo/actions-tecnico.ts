@@ -2,6 +2,8 @@
 
 import { requirePermissao } from '@/lib/auth/session';
 import { consultarCalculoOutorga, CalculoOutorgaError } from '@/lib/server/calculo-outorga';
+import { montarPdfCalculoOutorga, nomeArquivoPdfCalculo } from '@/lib/server/pdf-calculo-outorga';
+import type { DadosPdfCalculo } from '@/types/pdf-calculo-outorga';
 import { salvarCotaSolidariedade, salvarDadosGeoSampaNoProcesso } from '@/lib/server/monitoramento';
 import { salvarMultaProcesso } from '@/lib/server/multas';
 import { buscarDetalheProcesso, criarProcesso } from '@/lib/server/processos';
@@ -91,6 +93,35 @@ export async function confirmarProcessoTecnico(
 		return {
 			ok: false,
 			error: error instanceof Error ? error.message : 'Erro ao confirmar o processo.',
+		};
+	}
+}
+
+/** Gera o memorial de cálculo em PDF para o técnico anexar ao processo SEI. */
+export async function gerarPdfMemorialCalculo(
+	dados: DadosPdfCalculo,
+): Promise<{ ok: boolean; base64?: string; filename?: string; error?: string }> {
+	try {
+		const session = await requirePermissao('processos_criar');
+		if (!dados?.numProcesso?.trim()) {
+			return { ok: false, error: 'Número do processo ausente.' };
+		}
+
+		const pdf = await montarPdfCalculoOutorga({
+			...dados,
+			geradoPor: dados.geradoPor || session.usuario.nome,
+		});
+
+		return {
+			ok: true,
+			base64: Buffer.from(pdf).toString('base64'),
+			filename: nomeArquivoPdfCalculo(dados.numProcesso),
+		};
+	} catch (error) {
+		if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error;
+		return {
+			ok: false,
+			error: error instanceof Error ? error.message : 'Não foi possível gerar o PDF do cálculo.',
 		};
 	}
 }

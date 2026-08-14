@@ -19,6 +19,7 @@ export const NAV_DETALHE: NavDetalheGrupo[] = [
 		grupo: 'Processo',
 		itens: [
 			{ id: 'processo', label: 'Dados do Processo' },
+			{ id: 'sqls', label: 'SQLs do Lote' },
 			{ id: 'valores', label: 'Valores' },
 			{ id: 'parcelas-outorga', label: 'Parcela Outorga' },
 			{ id: 'parcelas-cota', label: 'Parcela Cota' },
@@ -66,7 +67,7 @@ export function contarPreenchidos(
 	secao: SecaoDetalhe,
 	detalhe: IProcessoDetalhe,
 ): number {
-	if (secao.tipo === 'parcelas' || secao.tipo === 'enderecos' || secao.tipo === 'licencas') {
+	if (secao.tipo === 'parcelas' || secao.tipo === 'enderecos' || secao.tipo === 'licencas' || secao.tipo === 'sqls') {
 		return (secao.getLista(detalhe) ?? []).length;
 	}
 	if (secao.tipo === 'grid') {
@@ -96,6 +97,7 @@ export function secaoSemRegistro(secao: SecaoDetalhe, detalhe: IProcessoDetalhe)
 	// seu próprio componente/mensagem de vazio — nunca cai no aviso genérico.
 	if (secao.id === 'valores') return false;
 	if (secao.id === 'multa') return false;
+	if (secao.id === 'sqls') return false;
 	if (secao.id === 'cota') return !detalhe.monitoramento_cota;
 	if (secao.tabela.startsWith('monitoramento_') && secao.id !== 'cota') {
 		return !detalhe.monitoramento;

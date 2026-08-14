@@ -13,6 +13,7 @@ import {
 	LABELS_MONITORAMENTO_FICHA,
 	LABELS_PARCELA,
 	LABELS_PROCESSO,
+	LABELS_SQL,
 	LABELS_SUBCATEGORIA_USO,
 } from './processo-detalhe-labels';
 
@@ -26,7 +27,7 @@ export type SecaoGrid = {
 };
 
 export type SecaoLista = {
-	tipo: 'parcelas' | 'enderecos' | 'licencas';
+	tipo: 'parcelas' | 'enderecos' | 'licencas' | 'sqls';
 	id: string;
 	titulo: string;
 	tabela: string;
@@ -44,6 +45,13 @@ export const SECOES_PROCESSO_DETALHE: SecaoDetalhe[] = [
 		tabela: 'processos',
 		labels: LABELS_PROCESSO,
 		getDados: (d) => d as unknown as Record<string, unknown>,
+	},
+	{
+		tipo: 'sqls',
+		id: 'sqls',
+		titulo: 'SQLs do Lote',
+		tabela: 'sqls',
+		getLista: (d) => (d.sqls ?? []) as unknown as Record<string, unknown>[],
 	},
 	{
 		tipo: 'grid',
@@ -178,4 +186,4 @@ export const SECOES_PROCESSO_DETALHE: SecaoDetalhe[] = [
 	},
 ];
 
-export { LABELS_PARCELA, LABELS_ENDERECO, LABELS_LICENCA };
+export { LABELS_PARCELA, LABELS_ENDERECO, LABELS_LICENCA, LABELS_SQL };

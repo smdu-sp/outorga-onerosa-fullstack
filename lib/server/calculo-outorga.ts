@@ -1,7 +1,9 @@
 import { normalizarSql, parseSqlParaLocalizacao } from '@/lib/geosampa-sql.util';
 import { parseNumeroBr } from '@/lib/parse-numero-br';
 import { prisma } from '@/lib/prisma';
-import { RE_PROCESSO } from '@/lib/server/geosampa';
+import { buscarSqlPorProcessoNoBi } from '@/lib/server/bi-cadastro';
+import { buscarSqlsPorProcessoNoBi } from '@/lib/server/bi-sql-incra';
+import { consultarProcessoNoWfs, consultarSqlNoWfs, GeoSampaConsultaError, RE_PROCESSO } from '@/lib/server/geosampa';
 import type { IGeoSampaResult } from '@/types/geosampa';
 
 export class CalculoOutorgaError extends Error {}
@@ -19,6 +21,8 @@ type ProcurarProcessoResponse = {
 		dataProtocolo?: string;
 		sqlIncra?: string;
 		codlog?: string;
+		setor?: string;
+		quadra?: string;
 	};
 	outorga?: {
 		parametrosDeCalculo?: {
@@ -114,15 +118,21 @@ function mapCalculoParaGeoSampaResult(
 			? parseSqlParaLocalizacao(sqlBruto)
 			: null;
 
+	const localizacao = {
+		setor: localizacaoDoSql?.setor ?? (processo.setor?.trim() || undefined),
+		quadra: localizacaoDoSql?.quadra ?? (processo.quadra?.trim() || undefined),
+		lote_cadastrado: localizacaoDoSql?.lote_cadastrado,
+		lote_atualizado: localizacaoDoSql?.lote_cadastrado,
+		codigo_logradouro: processo.codlog?.trim() || undefined,
+	};
+	const temLocalizacao = Object.values(localizacao).some(Boolean);
+
 	return {
 		num_processo: processo.processoSei,
 		data_autuacao: processo.dataAutuacao,
 		sql_incra: sqlBruto,
 		sql_formatado: sqlFormatado ?? undefined,
-		localizacao_lote:
-			localizacaoDoSql || processo.codlog
-				? { ...localizacaoDoSql, codigo_logradouro: processo.codlog }
-				: undefined,
+		localizacao_lote: temLocalizacao ? localizacao : undefined,
 		calculo_outorga: {
 			valor_m2_quadro14: params?.valorM2,
 			fp_uso_r: params?.fatorPlanejamento,
@@ -136,12 +146,93 @@ function mapCalculoParaGeoSampaResult(
 	};
 }
 
+function camposPreenchidos<T extends object>(obj?: T | null): Partial<T> {
+	if (!obj) return {};
+	return Object.fromEntries(
+		Object.entries(obj).filter(([, v]) => v != null && v !== ''),
+	) as Partial<T>;
+}
+
+/** Distrito, zona e tipologia vêm do GeoSampa (WFS), não da API de cálculo. */
+function mesclarCalculoComGeoSampa(calculo: IGeoSampaResult, geo: IGeoSampaResult): IGeoSampaResult {
+	return {
+		...geo,
+		...camposPreenchidos(calculo),
+		proprietario_interessado: calculo.proprietario_interessado ?? geo.proprietario_interessado,
+		enderecos: calculo.enderecos?.length ? calculo.enderecos : geo.enderecos,
+		coordenada: calculo.coordenada ?? geo.coordenada,
+		localizacao_lote: {
+			...geo.localizacao_lote,
+			...camposPreenchidos(calculo.localizacao_lote),
+		},
+		enquadramento_urbanistico: {
+			...geo.enquadramento_urbanistico,
+			...camposPreenchidos(calculo.enquadramento_urbanistico),
+		},
+		calculo_outorga: {
+			...geo.calculo_outorga,
+			...camposPreenchidos(calculo.calculo_outorga),
+		},
+	};
+}
+
+async function resolverSqlDoCalculo(
+	calculo: IGeoSampaResult,
+	protocoloAd?: string,
+): Promise<string | undefined> {
+	if (calculo.sql_formatado) return calculo.sql_formatado;
+	if (!calculo.num_processo) return undefined;
+	try {
+		const sqls = await buscarSqlsPorProcessoNoBi(calculo.num_processo, () => {}, {
+			protocoloAd,
+		});
+		if (sqls[0]) return sqls[0];
+		return (await buscarSqlPorProcessoNoBi(calculo.num_processo)) ?? undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+async function enriquecerCalculoComGeoSampa(
+	calculo: IGeoSampaResult,
+	protocoloAd?: string,
+): Promise<IGeoSampaResult> {
+	const sql = await resolverSqlDoCalculo(calculo, protocoloAd);
+	if (sql) {
+		try {
+			const geo = await consultarSqlNoWfs(sql);
+			return mesclarCalculoComGeoSampa(
+				{
+					...calculo,
+					sql_formatado: calculo.sql_formatado ?? sql,
+					sql_incra: calculo.sql_incra ?? sql,
+				},
+				geo,
+			);
+		} catch (error) {
+			if (!(error instanceof GeoSampaConsultaError)) {
+				/* tenta a camada de outorga abaixo */
+			}
+		}
+	}
+
+	if (!calculo.num_processo) return calculo;
+	try {
+		const geo = await consultarProcessoNoWfs(calculo.num_processo);
+		return mesclarCalculoComGeoSampa(calculo, geo);
+	} catch {
+		return calculo;
+	}
+}
+
 /**
  * Consulta a API de cálculo da outorga onerosa pelo número do processo SEI e
  * pelas áreas informadas no momento da criação do processo. Encadeia
  * `procurarProcesso` (identificação + parâmetros base) e `calcularOutorga` (valor
- * calculado a partir da área computável/terreno informadas). Devolve o mesmo
- * formato de IGeoSampaResult para reaproveitar a persistência já existente em
+ * calculado a partir da área computável/terreno informadas). Em seguida consulta
+ * o GeoSampa (pelo SQL do lote, resolvido via API/BI) para preencher distrito,
+ * subprefeitura, zona e tipologia. Devolve o mesmo formato de IGeoSampaResult
+ * para reaproveitar a persistência já existente em
  * `salvarDadosGeoSampaNoProcesso`/`aplicarPayloadGeoSampaNaFicha`, que grava o
  * cálculo no banco quando o processo é confirmado.
  */
@@ -169,5 +260,6 @@ export async function consultarCalculoOutorga(
 	const dadosProcesso = await procurarProcessoNaApi(identificador);
 	const dadosCalculo = await calcularOutorgaNaApi(identificador, areaComputavel, areaTerreno);
 
-	return mapCalculoParaGeoSampaResult(dadosProcesso, dadosCalculo, areaComputavel, areaTerreno);
+	const calculo = mapCalculoParaGeoSampaResult(dadosProcesso, dadosCalculo, areaComputavel, areaTerreno);
+	return enriquecerCalculoComGeoSampa(calculo, dadosProcesso.processo.protocolo);
 }

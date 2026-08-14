@@ -8,6 +8,7 @@ import { useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { processoEhNovo } from '@/lib/processo-novo';
 import { BotaoGeoSampa } from './botao-geosampa';
+import { BotaoBi } from './botao-bi';
 import { BotaoRecalcular } from './botao-recalcular';
 
 const fmtBRL = (n: number) =>
@@ -159,11 +160,18 @@ export function DetalheHeader({
 
 				<div className="flex flex-wrap items-center gap-2">
 					{onDetalheAtualizado && (
-						<BotaoGeoSampa
-							processoId={processo.id}
-							numProcesso={processo.num_processo}
-							onAtualizado={onDetalheAtualizado}
-						/>
+						<>
+							<BotaoBi
+								processoId={processo.id}
+								numProcesso={processo.num_processo}
+								onAtualizado={onDetalheAtualizado}
+							/>
+							<BotaoGeoSampa
+								processoId={processo.id}
+								numProcesso={processo.num_processo}
+								onAtualizado={onDetalheAtualizado}
+							/>
+						</>
 					)}
 					{onDetalheAtualizado && podeRecalcular && (
 						<BotaoRecalcular processoId={processo.id} onAtualizado={onDetalheAtualizado} />

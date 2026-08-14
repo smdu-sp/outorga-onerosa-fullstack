@@ -7,6 +7,8 @@ import {
 	Calculator,
 	Check,
 	CheckCircle2,
+	Download,
+	FileText,
 	Hash,
 	Info,
 	Loader2,
@@ -16,13 +18,19 @@ import {
 import Link from 'next/link';
 import { useRef, useState } from 'react';
 import type { IGeoSampaResult } from '@/types/geosampa';
-import { consultarCalculo, confirmarProcessoTecnico, type TipoNovoProcesso } from '../actions-tecnico';
+import {
+	consultarCalculo,
+	confirmarProcessoTecnico,
+	gerarPdfMemorialCalculo,
+	type TipoNovoProcesso,
+} from '../actions-tecnico';
+import type { DadosPdfCalculo } from '@/types/pdf-calculo-outorga';
 import { resumoEnquadramento, resumoEndereco, resumoParametros } from '@/lib/geosampa-resumo';
 import { parseNumeroBr } from '@/lib/parse-numero-br';
 import { TIPOLOGIA_USO_OODC } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
 import { CampoKV, NovoCard, NovoCardHead } from './novo-processo-ui';
 
-type Fase = 'idle' | 'loading' | 'done' | 'error' | 'confirmando' | 'confirmado';
+type Fase = 'idle' | 'loading' | 'done' | 'error' | 'anexar' | 'confirmando' | 'confirmado';
 
 const reProc = /^\d{4}\.\d{4}\/\d{7}-\d$/;
 
@@ -49,6 +57,8 @@ export default function FormNovoProcessoTecnico() {
 	const [fase, setFase] = useState<Fase>('idle');
 	const [resultado, setResultado] = useState<IGeoSampaResult | null>(null);
 	const [erroApi, setErroApi] = useState('');
+	const [pdfBaixado, setPdfBaixado] = useState(false);
+	const [baixandoPdf, setBaixandoPdf] = useState(false);
 	const inputRef = useRef<HTMLInputElement>(null);
 
 	const cotaValida = (parseNumeroBr(valorCota) ?? 0) > 0;
@@ -90,7 +100,7 @@ export default function FormNovoProcessoTecnico() {
 		setErroApi('');
 
 		if (tipo === 'COTA') {
-			// Sem cálculo via API — o valor já foi digitado, só falta confirmar a criação.
+			// Sem cálculo via API — o valor já foi digitado; em seguida vem o memorial em PDF.
 			setResultado(null);
 			setFase('done');
 			return;
@@ -120,10 +130,44 @@ export default function FormNovoProcessoTecnico() {
 		setValorCota('');
 		setIncluirMulta(false);
 		setValorMulta('');
+		setPdfBaixado(false);
 		setTimeout(() => inputRef.current?.focus(), 0);
 	}
 
-	async function confirmar() {
+	function montarDadosPdf(): DadosPdfCalculo {
+		const par = resultado?.calculo_outorga ? resumoParametros(resultado.calculo_outorga) : null;
+		const enqResumo = resultado ? resumoEnquadramento(resultado) : null;
+		const loc = resultado?.localizacao_lote;
+		const areaT = par?.area_terreno || parseNumeroBr(areaTerreno) || undefined;
+		const areaC = par?.area_computavel || parseNumeroBr(areaComputavel) || undefined;
+		return {
+			numProcesso: valor.trim(),
+			tipo,
+			proprietario: resultado?.proprietario_interessado,
+			endereco: resultado ? resumoEndereco(resultado) || undefined : undefined,
+			sql: resultado?.sql_formatado || resultado?.sql_incra,
+			setor: loc?.setor,
+			quadra: loc?.quadra,
+			lote: loc?.lote_atualizado || loc?.lote_cadastrado,
+			codigoLogradouro: loc?.codigo_logradouro,
+			distrito: enqResumo?.distrito || undefined,
+			subprefeitura: enqResumo?.subprefeitura || undefined,
+			zonas: enqResumo?.zonas.length ? enqResumo.zonas : undefined,
+			tipologiaUso: enqResumo?.tipologia_uso_oodc
+				? (TIPOLOGIA_USO_OODC[enqResumo.tipologia_uso_oodc] ?? enqResumo.tipologia_uso_oodc)
+				: undefined,
+			areaTerreno: areaT,
+			areaComputavel: areaC,
+			valorM2: par?.valor_m2_quadro14 || undefined,
+			fatorPlanejamento: par?.fator_planejamento,
+			fatorSocial: par?.fator_social,
+			contrapartida: par?.valor_calculado_total || undefined,
+			valorCota: tipo === 'COTA' || tipo === 'OUTORGA_COTA' ? parseNumeroBr(valorCota) : undefined,
+			valorMulta: incluirMulta ? parseNumeroBr(valorMulta) : undefined,
+		};
+	}
+
+	function irParaAnexar() {
 		if (tipo !== 'COTA' && !resultado) return;
 		if ((tipo === 'COTA' || tipo === 'OUTORGA_COTA') && !cotaValida) {
 			setErroApi('Informe o valor da Cota de Solidariedade.');
@@ -133,6 +177,38 @@ export default function FormNovoProcessoTecnico() {
 			setErroApi('Informe o valor da multa.');
 			return;
 		}
+		setErroApi('');
+		setPdfBaixado(false);
+		setFase('anexar');
+	}
+
+	async function baixarPdf() {
+		if (baixandoPdf) return;
+		setBaixandoPdf(true);
+		setErroApi('');
+		try {
+			const resp = await gerarPdfMemorialCalculo(montarDadosPdf());
+			if (!resp.ok || !resp.base64 || !resp.filename) {
+				setErroApi(resp.error ?? 'Não foi possível gerar o PDF do cálculo.');
+				return;
+			}
+			const bin = atob(resp.base64);
+			const bytes = new Uint8Array(bin.length);
+			for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+			const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = resp.filename;
+			a.click();
+			URL.revokeObjectURL(url);
+			setPdfBaixado(true);
+		} finally {
+			setBaixandoPdf(false);
+		}
+	}
+
+	async function enviarAoCap() {
+		if (tipo !== 'COTA' && !resultado) return;
 		setFase('confirmando');
 		const resp = await confirmarProcessoTecnico(
 			valor.trim(),
@@ -142,7 +218,7 @@ export default function FormNovoProcessoTecnico() {
 			incluirMulta ? parseNumeroBr(valorMulta) : undefined,
 		);
 		if (!resp.ok) {
-			setFase('done');
+			setFase('anexar');
 			setErroApi(resp.error ?? 'Erro ao confirmar o processo.');
 			return;
 		}
@@ -164,13 +240,151 @@ export default function FormNovoProcessoTecnico() {
 					<p className="text-[15px] font-bold">Processo enviado para CAP</p>
 					<p className="mx-auto mt-1.5 max-w-md text-sm text-muted-foreground">
 						O processo <span className="font-mono">{valor}</span> foi cadastrado e está em CAP
-						para iniciar os trâmites administrativos de pagamento da outorga.
+						para iniciar os trâmites administrativos de pagamento da outorga. Confirme que o
+						memorial em PDF foi juntado ao processo SEI.
 					</p>
 					<Link
 						href="/processos"
 						className="mt-5 inline-flex items-center justify-center rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white no-underline hover:bg-primary/90">
 						Ver processos
 					</Link>
+				</div>
+			</NovoCard>
+		);
+	}
+
+	if (fase === 'anexar' || fase === 'confirmando') {
+		const valorOutorga = par?.valor_calculado_total;
+		const valorCotaNum = tipo === 'COTA' || tipo === 'OUTORGA_COTA' ? parseNumeroBr(valorCota) : undefined;
+		const valorMultaNum = incluirMulta ? parseNumeroBr(valorMulta) : undefined;
+		return (
+			<NovoCard className="animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-hidden">
+				<NovoCardHead
+					icon={FileText}
+					title="Anexar memorial ao processo SEI"
+					subtitle="Baixe o PDF do cálculo e junte-o ao processo antes de enviar à CAP"
+				/>
+				<div className="px-6 py-5">
+					{erroApi && (
+						<div className="mb-4 flex items-center gap-2.5 rounded-[10px] border border-destructive/30 bg-destructive/8 px-4 py-3 text-[13px] font-medium text-destructive">
+							<AlertTriangle className="h-4 w-4 shrink-0" />
+							{erroApi}
+						</div>
+					)}
+
+					<div className="mb-5 rounded-[10px] border border-border bg-secondary px-4 py-3.5">
+						<p className="text-[11px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">
+							Processo
+						</p>
+						<p className="mt-1 font-mono text-[15px] font-semibold">{valor}</p>
+						<div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+							{valorOutorga != null && valorOutorga > 0 && (
+								<p className="text-sm">
+									<span className="text-muted-foreground">Outorga: </span>
+									<span className="font-semibold">{fmtBRL(valorOutorga)}</span>
+								</p>
+							)}
+							{valorCotaNum != null && valorCotaNum > 0 && (
+								<p className="text-sm">
+									<span className="text-muted-foreground">Cota: </span>
+									<span className="font-semibold">{fmtBRL(valorCotaNum)}</span>
+								</p>
+							)}
+							{valorMultaNum != null && valorMultaNum > 0 && (
+								<p className="text-sm">
+									<span className="text-muted-foreground">Multa: </span>
+									<span className="font-semibold">{fmtBRL(valorMultaNum)}</span>
+								</p>
+							)}
+						</div>
+					</div>
+
+					<ol className="mb-5 space-y-3 text-sm">
+						<li className="flex items-start gap-2.5">
+							<span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-bold text-white">
+								1
+							</span>
+							<span>
+								Baixe o memorial de cálculo em PDF — ele detalha parâmetros, fórmula e o valor
+								confirmado.
+							</span>
+						</li>
+						<li className="flex items-start gap-2.5">
+							<span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-bold text-white">
+								2
+							</span>
+							<span>Junte o arquivo ao processo SEI correspondente.</span>
+						</li>
+						<li className="flex items-start gap-2.5">
+							<span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-bold text-white">
+								3
+							</span>
+							<span>Depois, envie o cadastro à CAP para iniciar o parcelamento.</span>
+						</li>
+					</ol>
+
+					<button
+						type="button"
+						onClick={baixarPdf}
+						disabled={baixandoPdf || fase === 'confirmando'}
+						className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-3 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-70 sm:w-auto">
+						{baixandoPdf ? (
+							<>
+								<Loader2 className="h-4 w-4 animate-spin" />
+								Gerando PDF…
+							</>
+						) : (
+							<>
+								<Download className="h-4 w-4" />
+								Baixar PDF do cálculo
+							</>
+						)}
+					</button>
+
+					{pdfBaixado && (
+						<p className="mt-3 flex items-center gap-1.5 text-[13px] font-medium text-success">
+							<CheckCircle2 className="h-4 w-4 shrink-0" />
+							PDF baixado. Anexe-o ao processo SEI e envie à CAP.
+						</p>
+					)}
+				</div>
+
+				<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-[22px] py-[18px] sm:flex-row sm:items-center">
+					<p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
+						<Info className="h-3.5 w-3.5 shrink-0" />
+						O processo só é gravado e enviado à CAP nesta etapa.
+					</p>
+					<div className="flex w-full gap-2.5 sm:w-auto">
+						<button
+							type="button"
+							onClick={() => {
+								setErroApi('');
+								setFase('done');
+							}}
+							disabled={fase === 'confirmando' || baixandoPdf}
+							className="inline-flex flex-1 items-center justify-center rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-background disabled:opacity-60 sm:flex-none">
+							Voltar
+						</button>
+						<button
+							type="button"
+							onClick={enviarAoCap}
+							disabled={fase === 'confirmando' || baixandoPdf}
+							className={cn(
+								'inline-flex flex-1 items-center justify-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-semibold disabled:opacity-70 sm:flex-none',
+								pdfBaixado
+									? 'border-primary bg-primary text-white hover:bg-primary/90'
+									: 'border-border bg-card hover:bg-background',
+							)}>
+							{fase === 'confirmando' ? (
+								<>
+									<Loader2 className="h-4 w-4 animate-spin" />
+									Enviando…
+								</>
+							) : (
+								'Enviar ao CAP'
+							)}
+						</button>
+					</div>
 				</div>
 			</NovoCard>
 		);
@@ -375,7 +589,7 @@ export default function FormNovoProcessoTecnico() {
 				</NovoCard>
 			)}
 
-			{tipo !== 'COTA' && (fase === 'done' || fase === 'confirmando') && resultado && (
+			{tipo !== 'COTA' && fase === 'done' && resultado && (
 				<NovoCard className="animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-hidden">
 					<NovoCardHead
 						icon={Building}
@@ -527,40 +741,28 @@ export default function FormNovoProcessoTecnico() {
 					<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-[22px] py-[18px] sm:flex-row sm:items-center">
 						<p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
 							<Check className="h-3.5 w-3.5 shrink-0" />
-							Só grava no banco se você confirmar.
+							Na próxima etapa você baixa o memorial em PDF para juntar ao processo SEI.
 						</p>
 						<div className="flex w-full gap-2.5 sm:w-auto">
 							<button
 								type="button"
 								onClick={reiniciar}
-								disabled={fase === 'confirmando'}
-								className="inline-flex flex-1 items-center justify-center rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-background disabled:opacity-60 sm:flex-none">
+								className="inline-flex flex-1 items-center justify-center rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-background sm:flex-none">
 								Cancelar
 							</button>
 							<button
 								type="button"
-								onClick={confirmar}
-								disabled={
-									fase === 'confirmando' ||
-									(tipo === 'OUTORGA_COTA' && !cotaValida) ||
-									!multaValida
-								}
+								onClick={irParaAnexar}
+								disabled={(tipo === 'OUTORGA_COTA' && !cotaValida) || !multaValida}
 								className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-70 sm:flex-none">
-								{fase === 'confirmando' ? (
-									<>
-										<Loader2 className="h-4 w-4 animate-spin" />
-										Confirmando…
-									</>
-								) : (
-									'Confirmar'
-								)}
+								Confirmar cálculo
 							</button>
 						</div>
 					</div>
 				</NovoCard>
 			)}
 
-			{tipo === 'COTA' && (fase === 'done' || fase === 'confirmando') && (
+			{tipo === 'COTA' && fase === 'done' && (
 				<NovoCard className="animate-in fade-in slide-in-from-bottom-2 duration-300 overflow-hidden">
 					<NovoCardHead
 						icon={Building}
@@ -623,29 +825,21 @@ export default function FormNovoProcessoTecnico() {
 					<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-[22px] py-[18px] sm:flex-row sm:items-center">
 						<p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
 							<Check className="h-3.5 w-3.5 shrink-0" />
-							Só grava no banco se você confirmar.
+							Na próxima etapa você baixa o memorial em PDF para juntar ao processo SEI.
 						</p>
 						<div className="flex w-full gap-2.5 sm:w-auto">
 							<button
 								type="button"
 								onClick={reiniciar}
-								disabled={fase === 'confirmando'}
-								className="inline-flex flex-1 items-center justify-center rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-background disabled:opacity-60 sm:flex-none">
+								className="inline-flex flex-1 items-center justify-center rounded-lg border border-border bg-card px-4 py-2.5 text-sm font-medium hover:bg-background sm:flex-none">
 								Cancelar
 							</button>
 							<button
 								type="button"
-								onClick={confirmar}
-								disabled={fase === 'confirmando' || !multaValida}
+								onClick={irParaAnexar}
+								disabled={!multaValida}
 								className="inline-flex flex-1 items-center justify-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-70 sm:flex-none">
-								{fase === 'confirmando' ? (
-									<>
-										<Loader2 className="h-4 w-4 animate-spin" />
-										Confirmando…
-									</>
-								) : (
-									'Confirmar'
-								)}
+								Confirmar cálculo
 							</button>
 						</div>
 					</div>

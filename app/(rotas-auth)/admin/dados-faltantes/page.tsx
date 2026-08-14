@@ -12,6 +12,8 @@ import { PainelDadosFaltantes } from './_components/painel-dados-faltantes';
 import { PainelSeiVsBi } from './_components/painel-sei-vs-bi';
 
 export const dynamic = 'force-dynamic';
+/** Backfill BI + GeoSampa pode demorar (WFS por processo). */
+export const maxDuration = 300;
 
 export default async function AdminDadosFaltantesPage() {
 	const session = await requireAuth();
@@ -33,7 +35,8 @@ export default async function AdminDadosFaltantesPage() {
 					Dados faltantes
 				</h1>
 				<p className="mt-1 text-sm text-muted-foreground">
-					Categoria de uso incompleta e cruzamento SEI × BI pelo protocolo do Aprova Digital.
+					Categoria de uso incompleta, cruzamento SEI × BI pelo protocolo do Aprova Digital e
+					backfill completo (BI + GeoSampa).
 				</p>
 			</div>
 

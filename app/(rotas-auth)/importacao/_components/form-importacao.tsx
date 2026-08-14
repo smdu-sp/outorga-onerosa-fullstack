@@ -13,6 +13,7 @@ import { useTransition, useState } from "react";
 import * as processosServices from "@/services/processos";
 import { IProcesso } from "@/types/processo";
 import { Loader2 } from "lucide-react";
+import { corrigirNumProcesso } from "@/lib/corrigir-num-processo";
 
 const formSchema = z.object({
     tipo: z.enum(["AD", "SEI"], { required_error: "Selecione um tipo de documento." }),
@@ -110,7 +111,10 @@ export default function FormImportacao() {
                     const dataSerial = resolveCell(linhaParcela[0]);
                     const data_entrada = dataSerial ? new Date(Date.UTC(0, 0, Number(dataSerial))) : undefined;
                     const protocolo_ad = resolveCell(linhaParcela[2]) || undefined;
-                    const num_processo = resolveCell(linhaParcela[3]) || undefined;
+                    const numRaw = resolveCell(linhaParcela[3]);
+                    const num_processo = numRaw
+                        ? corrigirNumProcesso(String(numRaw).replace(/\s+/g, " ").trim())
+                        : undefined;
 
                     const num_parcela = +resolveCell(linhaParcela[5])!;
                     const situacaoRaw = resolveCell(linhaParcela[9]);

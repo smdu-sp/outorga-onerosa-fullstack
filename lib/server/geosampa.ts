@@ -10,6 +10,7 @@ import {
 	mesclarLicencasPreferindoExistentes,
 	tiposLicencaFaltantes,
 } from './bi-cadastro';
+import { buscarSqlsPorProcessoNoBi } from './bi-sql-incra';
 import { GeosampaWfsClient } from './geosampa-wfs.client';
 import {
 	mapEnquadramentoFromCamadas,
@@ -96,6 +97,14 @@ export async function consultarGeoSampa(
 		}
 
 		data = await enriquecerLicencasComplementares(data, { sql: identificador }, log);
+		const sqlNorm = RE_SQL.test(identificador) ? identificador : null;
+		if (sqlNorm) {
+			data = {
+				...data,
+				sql_incra: data.sql_incra ?? sqlNorm,
+				sql_formatado: data.sql_formatado ?? sqlNorm,
+			};
+		}
 
 		return { data, modoSalvamento: 'SQL', identificadorSalvamento: identificador };
 	}
@@ -138,6 +147,12 @@ export async function consultarGeoSampa(
 			{ sql: sqlResolvido, processo: identificador },
 			log,
 		);
+		// BI/local resolvem o SQL, mas o mapper WFS não preenche esses campos.
+		data = {
+			...data,
+			sql_incra: data.sql_incra ?? sqlResolvido,
+			sql_formatado: data.sql_formatado ?? sqlResolvido,
+		};
 
 		return {
 			data,
@@ -174,7 +189,10 @@ async function resolverSqlParaProcesso(numProcesso: string, log: GeoSampaLogFn):
 	log('info', 'Verificando banco local (localizacao_lote do monitoramento)...');
 	const proc = await prisma.processo.findUnique({
 		where: { num_processo: numProcesso },
-		include: { monitoramento: { include: { localizacao_lote: true } } },
+		select: {
+			protocolo_ad: true,
+			monitoramento: { include: { localizacao_lote: true } },
+		},
 	});
 
 	const sqlLocal = proc?.monitoramento?.localizacao_lote
@@ -186,11 +204,19 @@ async function resolverSqlParaProcesso(numProcesso: string, log: GeoSampaLogFn):
 		return sqlLocal;
 	}
 
-	log('info', 'SQL não encontrado no banco local — consultando banco BI (dbo.cadastros)...');
-	const sqlBi = await buscarSqlPorProcessoNoBi(numProcesso, log);
+	log('info', 'SQL não encontrado no banco local — consultando banco BI (prata_sql_incra / cadastros)...');
+	const sqlsBi = await buscarSqlsPorProcessoNoBi(numProcesso, log, {
+		protocoloAd: proc?.protocolo_ad,
+	});
+	const sqlBi = sqlsBi[0] ?? (await buscarSqlPorProcessoNoBi(numProcesso, log));
 
 	if (sqlBi) {
-		log('success', `SQL encontrado no banco BI: ${sqlBi}`);
+		log(
+			'success',
+			sqlsBi.length > 1
+				? `SQL encontrado no BI: ${sqlBi} (+${sqlsBi.length - 1} outro(s))`
+				: `SQL encontrado no banco BI: ${sqlBi}`,
+		);
 	} else {
 		log('warn', 'SQL não encontrado no banco BI.');
 	}
@@ -198,52 +224,78 @@ async function resolverSqlParaProcesso(numProcesso: string, log: GeoSampaLogFn):
 	return sqlBi;
 }
 
-async function consultarSqlNoWfs(
+async function resolverFeatureLotePorSql(
+	sqlNorm: string,
+	log: GeoSampaLogFn = () => {},
+): Promise<Parameters<typeof mapLoteWfsParaGeoSampa>[0] | null> {
+	log('info', `WFS (com dígito): ${GeosampaWfsClient.sqlParaCql(sqlNorm)}`);
+	let lote = await wfs.buscarLotePorSql(sqlNorm);
+	log(lote ? 'success' : 'warn', lote ? 'Lote encontrado com dígito.' : 'Nenhum resultado com dígito.');
+
+	if (!lote) {
+		log('info', `WFS (sem dígito): ${GeosampaWfsClient.sqlParaCqlSemDigito(sqlNorm)}`);
+		lote = await wfs.buscarLotePorSqlSemDigito(sqlNorm);
+		log(lote ? 'success' : 'warn', lote ? 'Lote encontrado sem dígito.' : 'Nenhum resultado sem dígito.');
+	}
+
+	if (!lote) {
+		log('info', `WFS (lote 0000): ${GeosampaWfsClient.sqlParaCqlLoteZero(sqlNorm)}`);
+		lote = await wfs.buscarLotePorSqlLoteZero(sqlNorm);
+		log(
+			lote ? 'success' : 'warn',
+			lote ? 'Lote encontrado com lote 0000.' : 'Nenhum resultado com lote 0000.',
+		);
+	}
+
+	if (!lote) {
+		log('info', `SQL não encontrado no GeoSampa — consultando dbo.SQLsFiliacao para sqlPai: ${sqlNorm}...`);
+		const sqlFilho = await buscarSqlFilhoPorSqlPaiNoBi(sqlNorm, log);
+		if (sqlFilho) {
+			log('info', `sqlFilho encontrado: ${sqlFilho} — tentando novamente no GeoSampa WFS...`);
+			lote = await wfs.buscarLotePorSql(sqlFilho);
+			if (!lote) lote = await wfs.buscarLotePorSqlSemDigito(sqlFilho);
+			if (!lote) lote = await wfs.buscarLotePorSqlLoteZero(sqlFilho);
+			log(
+				lote ? 'success' : 'warn',
+				lote ? 'Lote encontrado com sqlFilho.' : 'Nenhum resultado com sqlFilho.',
+			);
+		} else {
+			log('warn', 'Nenhum sqlFilho encontrado em dbo.SQLsFiliacao.');
+		}
+	}
+
+	return lote;
+}
+
+/**
+ * Consulta só o lote no WFS (sem zoneamento/subprefeitura) — usado para enriquecer
+ * cada SQL secundário do processo.
+ */
+export async function buscarLoteBasicoPorSql(
+	sqlNorm: string,
+	log: GeoSampaLogFn = () => {},
+): Promise<IGeoSampaResult | null> {
+	try {
+		const lote = await resolverFeatureLotePorSql(sqlNorm, log);
+		if (!lote) return null;
+		const data = mapLoteWfsParaGeoSampa(lote);
+		return {
+			...data,
+			sql_incra: sqlNorm,
+			sql_formatado: sqlNorm,
+		};
+	} catch (error) {
+		log('warn', `Falha ao buscar lote ${sqlNorm}: ${(error as Error).message}`);
+		return null;
+	}
+}
+
+export async function consultarSqlNoWfs(
 	sql: string,
 	log: GeoSampaLogFn = () => {},
 ): Promise<IGeoSampaResult> {
 	try {
-		const cqlComDigito = GeosampaWfsClient.sqlParaCql(sql);
-		log('info', `WFS (com dígito): ${cqlComDigito}`);
-		let lote = await wfs.buscarLotePorSql(sql);
-		log(lote ? 'success' : 'warn', lote ? 'Lote encontrado com dígito.' : 'Nenhum resultado com dígito.');
-
-		if (!lote) {
-			const cqlSemDigito = GeosampaWfsClient.sqlParaCqlSemDigito(sql);
-			log('info', `WFS (sem dígito): ${cqlSemDigito}`);
-			lote = await wfs.buscarLotePorSqlSemDigito(sql);
-			log(lote ? 'success' : 'warn', lote ? 'Lote encontrado sem dígito.' : 'Nenhum resultado sem dígito.');
-		}
-
-		if (!lote) {
-			const cqlLoteZero = GeosampaWfsClient.sqlParaCqlLoteZero(sql);
-			log('info', `WFS (lote 0000): ${cqlLoteZero}`);
-			lote = await wfs.buscarLotePorSqlLoteZero(sql);
-			log(lote ? 'success' : 'warn', lote ? 'Lote encontrado com lote 0000.' : 'Nenhum resultado com lote 0000.');
-		}
-
-		if (!lote) {
-			log('info', `SQL não encontrado no GeoSampa — consultando dbo.SQLsFiliacao para sqlPai: ${sql}...`);
-			const sqlFilho = await buscarSqlFilhoPorSqlPaiNoBi(sql, log);
-			if (sqlFilho) {
-				log('info', `sqlFilho encontrado: ${sqlFilho} — tentando novamente no GeoSampa WFS...`);
-				lote = await wfs.buscarLotePorSql(sqlFilho);
-				log(lote ? 'success' : 'warn', lote ? 'Lote encontrado com sqlFilho (com dígito).' : 'Nenhum resultado com sqlFilho (com dígito).');
-
-				if (!lote) {
-					lote = await wfs.buscarLotePorSqlSemDigito(sqlFilho);
-					log(lote ? 'success' : 'warn', lote ? 'Lote encontrado com sqlFilho (sem dígito).' : 'Nenhum resultado com sqlFilho (sem dígito).');
-				}
-
-				if (!lote) {
-					lote = await wfs.buscarLotePorSqlLoteZero(sqlFilho);
-					log(lote ? 'success' : 'warn', lote ? 'Lote encontrado com sqlFilho (lote 0000).' : 'Nenhum resultado com sqlFilho (lote 0000).');
-				}
-			} else {
-				log('warn', 'Nenhum sqlFilho encontrado em dbo.SQLsFiliacao.');
-			}
-		}
-
+		const lote = await resolverFeatureLotePorSql(sql, log);
 		if (!lote) {
 			throw new GeoSampaConsultaError(
 				`Nenhum lote encontrado no GeoSampa para o SQL ${sql}.`,
