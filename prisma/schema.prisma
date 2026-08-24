@@ -43,15 +43,17 @@ model Usuario {
   permissoes Permissao[]
   grupos     GrupoPermissao[]
 
-  processos_criados      Processo[]            @relation("ProcessoCriador")
-  memoriais_oodc_criados OodcMemorialCalculo[] @relation("OodcMemorialCriador")
+  processos_criados       Processo[]                 @relation("ProcessoCriador")
+  memoriais_oodc_criados  OodcMemorialCalculo[]      @relation("OodcMemorialCriador")
+  planejamentos_criados   PlanejamentoOrcamentario[] @relation("PlanejamentoCriador")
+  planejamentos_revisados PlanejamentoRevisao[]      @relation("PlanejamentoRevisor")
 
   // Gestão de Processos de Licenciamento
-  processos_licenciamento_tecnico ProcessoLicenciamento[] @relation("LicenciamentoTecnicoAtual")
-  eventos_licenciamento           EventoLicenciamento[]   @relation("EventoLicenciamentoTecnico")
+  processos_licenciamento_tecnico ProcessoLicenciamento[]     @relation("LicenciamentoTecnicoAtual")
+  eventos_licenciamento           EventoLicenciamento[]       @relation("EventoLicenciamentoTecnico")
   distribuicoes_licenciamento     DistribuicaoLicenciamento[] @relation("DistribuicaoLicenciamentoTecnico")
-  oficios_licenciamento           OficioLicenciamento[]   @relation("OficioLicenciamentoTecnico")
-  auditorias_licenciamento        AuditoriaLicenciamento[] @relation("AuditoriaLicenciamentoUsuario")
+  oficios_licenciamento           OficioLicenciamento[]       @relation("OficioLicenciamentoTecnico")
+  auditorias_licenciamento        AuditoriaLicenciamento[]    @relation("AuditoriaLicenciamentoUsuario")
 
   @@map("usuarios")
 }
@@ -547,10 +549,10 @@ enum TipoDistribuicaoLicenciamento {
 
 /// Cadastro auxiliar: divisão dentro da coordenadoria (ex.: DSIGP, DSIMP).
 model DivisaoLicenciamento {
-  id             String               @id @default(uuid())
-  coordenadoria  CoordenadoriaAnalise
-  codigo         String
-  nome           String?
+  id            String               @id @default(uuid())
+  coordenadoria CoordenadoriaAnalise
+  codigo        String
+  nome          String?
 
   criado_em   DateTime @default(now())
   alterado_em DateTime @default(now()) @updatedAt
@@ -562,10 +564,10 @@ model DivisaoLicenciamento {
 }
 
 model AssuntoLicenciamento {
-  id             String                @id @default(uuid())
-  coordenadoria  CoordenadoriaAnalise?
-  nome           String
-  ativo          Boolean               @default(true)
+  id            String                @id @default(uuid())
+  coordenadoria CoordenadoriaAnalise?
+  nome          String
+  ativo         Boolean               @default(true)
 
   criado_em   DateTime @default(now())
   alterado_em DateTime @default(now()) @updatedAt
@@ -577,12 +579,12 @@ model AssuntoLicenciamento {
 }
 
 model SituacaoLicenciamento {
-  id             String                @id @default(uuid())
-  coordenadoria  CoordenadoriaAnalise?
-  codigo         String
-  nome           String
-  encerra        Boolean               @default(false)
-  ativo          Boolean               @default(true)
+  id            String                @id @default(uuid())
+  coordenadoria CoordenadoriaAnalise?
+  codigo        String
+  nome          String
+  encerra       Boolean               @default(false)
+  ativo         Boolean               @default(true)
 
   criado_em   DateTime @default(now())
   alterado_em DateTime @default(now()) @updatedAt
@@ -595,12 +597,12 @@ model SituacaoLicenciamento {
 }
 
 model TipoEventoLicenciamento {
-  id             String                       @id @default(uuid())
-  coordenadoria  CoordenadoriaAnalise?
-  categoria      CategoriaEventoLicenciamento
-  codigo         String
-  nome           String
-  ativo          Boolean                      @default(true)
+  id            String                       @id @default(uuid())
+  coordenadoria CoordenadoriaAnalise?
+  categoria     CategoriaEventoLicenciamento
+  codigo        String
+  nome          String
+  ativo         Boolean                      @default(true)
 
   criado_em   DateTime @default(now())
   alterado_em DateTime @default(now()) @updatedAt
@@ -614,11 +616,11 @@ model TipoEventoLicenciamento {
 
 /// Categorias de monitoramento (Hospital, CEU, SESC, TJ-SP…) — por coordenadoria.
 model CategoriaLicenciamento {
-  id             String               @id @default(uuid())
-  coordenadoria  CoordenadoriaAnalise
-  codigo         String
-  nome           String
-  ativo          Boolean              @default(true)
+  id            String               @id @default(uuid())
+  coordenadoria CoordenadoriaAnalise
+  codigo        String
+  nome          String
+  ativo         Boolean              @default(true)
 
   criado_em   DateTime @default(now())
   alterado_em DateTime @default(now()) @updatedAt
@@ -634,7 +636,7 @@ model ProcessoLicenciamento {
   id String @id @default(uuid())
 
   coordenadoria CoordenadoriaAnalise
-  status_ciclo  StatusCicloLicenciamento @default(ATIVO)
+  status_ciclo  StatusCicloLicenciamento  @default(ATIVO)
   tipo_sistema  TipoSistemaLicenciamento?
 
   num_processo         String  @unique
@@ -651,18 +653,18 @@ model ProcessoLicenciamento {
   data_ult_dist_tecnico    DateTime? @db.Date
   data_despacho_doc        DateTime? @db.Date
 
-  area_terreno_m2             Decimal? @db.Decimal(16, 2)
-  area_construcao_inicial_m2  Decimal? @db.Decimal(16, 2)
-  area_construcao_final_m2    Decimal? @db.Decimal(16, 2)
-  zona                        String?
-  categoria_uso               String?
-  descricao_uso               String?  @db.Text
-  subprefeitura               String?
-  base_legal_pde              String?
-  base_legal_lpuos            String?
-  base_legal_coe              String?
-  legislacao_especifica       String?  @db.Text
-  documento_referencia        String?
+  area_terreno_m2            Decimal? @db.Decimal(16, 2)
+  area_construcao_inicial_m2 Decimal? @db.Decimal(16, 2)
+  area_construcao_final_m2   Decimal? @db.Decimal(16, 2)
+  zona                       String?
+  categoria_uso              String?
+  descricao_uso              String?  @db.Text
+  subprefeitura              String?
+  base_legal_pde             String?
+  base_legal_lpuos           String?
+  base_legal_coe             String?
+  legislacao_especifica      String?  @db.Text
+  documento_referencia       String?
 
   divisao_id String?
   divisao    DivisaoLicenciamento? @relation(fields: [divisao_id], references: [id], onDelete: SetNull)
@@ -703,17 +705,17 @@ model ProcessoLicenciamento {
 }
 
 model ProcessoLicenciamentoImovel {
-  id          String                 @id @default(uuid())
+  id          String                @id @default(uuid())
   processo_id String
-  processo    ProcessoLicenciamento  @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+  processo    ProcessoLicenciamento @relation(fields: [processo_id], references: [id], onDelete: Cascade)
 
-  tipo         TipoImovelLicenciamento @default(COMPLEMENTAR)
+  tipo          TipoImovelLicenciamento @default(COMPLEMENTAR)
   identificador String?
-  logradouro   String?  @db.Text
-  numero       String?
-  complemento  String?
-  cep          String?
-  ordem        Int      @default(0)
+  logradouro    String?                 @db.Text
+  numero        String?
+  complemento   String?
+  cep           String?
+  ordem         Int                     @default(0)
 
   criado_em   DateTime @default(now())
   alterado_em DateTime @default(now()) @updatedAt
@@ -746,12 +748,12 @@ model ProcessoLicenciamentoIncidencia {
   processo_id String
   processo    ProcessoLicenciamento @relation(fields: [processo_id], references: [id], onDelete: Cascade)
 
-  tipo              String
-  flag              Boolean  @default(false)
-  valor             Decimal? @db.Decimal(16, 2)
-  data_doc          DateTime? @db.Date
-  numero_documento  String?
-  observacao        String?  @db.Text
+  tipo             String
+  flag             Boolean   @default(false)
+  valor            Decimal?  @db.Decimal(16, 2)
+  data_doc         DateTime? @db.Date
+  numero_documento String?
+  observacao       String?   @db.Text
 
   criado_em   DateTime @default(now())
   alterado_em DateTime @default(now()) @updatedAt
@@ -761,11 +763,11 @@ model ProcessoLicenciamentoIncidencia {
 }
 
 model ProcessoLicenciamentoCategoria {
-  id           String                  @id @default(uuid())
+  id           String                 @id @default(uuid())
   processo_id  String
-  processo     ProcessoLicenciamento   @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+  processo     ProcessoLicenciamento  @relation(fields: [processo_id], references: [id], onDelete: Cascade)
   categoria_id String
-  categoria    CategoriaLicenciamento  @relation(fields: [categoria_id], references: [id], onDelete: Cascade)
+  categoria    CategoriaLicenciamento @relation(fields: [categoria_id], references: [id], onDelete: Cascade)
 
   criado_em DateTime @default(now())
 
@@ -780,7 +782,7 @@ model EventoLicenciamento {
 
   categoria      CategoriaEventoLicenciamento
   tipo_evento_id String?
-  tipo_evento    TipoEventoLicenciamento? @relation(fields: [tipo_evento_id], references: [id], onDelete: SetNull)
+  tipo_evento    TipoEventoLicenciamento?     @relation(fields: [tipo_evento_id], references: [id], onDelete: SetNull)
 
   tecnico_id String?
   tecnico    Usuario? @relation("EventoLicenciamentoTecnico", fields: [tecnico_id], references: [id], onDelete: SetNull)
@@ -808,7 +810,7 @@ model DistribuicaoLicenciamento {
   tipo       TipoDistribuicaoLicenciamento
   destino    String?
   tecnico_id String?
-  tecnico    Usuario? @relation("DistribuicaoLicenciamentoTecnico", fields: [tecnico_id], references: [id], onDelete: SetNull)
+  tecnico    Usuario?                      @relation("DistribuicaoLicenciamentoTecnico", fields: [tecnico_id], references: [id], onDelete: SetNull)
 
   data_inicio DateTime? @db.Date
   data_fim    DateTime? @db.Date
@@ -849,15 +851,15 @@ model ArquivamentoLicenciamento {
   processo_id String                @unique
   processo    ProcessoLicenciamento @relation(fields: [processo_id], references: [id], onDelete: Cascade)
 
-  situacao            String?
-  local               String?
-  container           String?
-  caixa               String?
-  posicao             String?
-  quantidade_volumes  Int?
-  quantidade_caixas   Int?
-  data_arquivamento   DateTime? @db.Date
-  observacao          String?   @db.Text
+  situacao           String?
+  local              String?
+  container          String?
+  caixa              String?
+  posicao            String?
+  quantidade_volumes Int?
+  quantidade_caixas  Int?
+  data_arquivamento  DateTime? @db.Date
+  observacao         String?   @db.Text
 
   criado_em   DateTime @default(now())
   alterado_em DateTime @default(now()) @updatedAt
@@ -912,8 +914,8 @@ model OodcMemorialCalculo {
   processo_id String
   processo    Processo @relation(fields: [processo_id], references: [id], onDelete: Cascade)
 
-  id_assunto     Int
-  id_legislacao  Int
+  id_assunto            Int
+  id_legislacao         Int
   /// 'SUGERIDA' quando veio de `sugerirLegislacao` sem o usuário trocar; 'MANUAL' caso o usuário tenha escolhido/sobrescrito.
   legislacao_origem     String
   legislacao_observacao String? @db.Text
@@ -922,16 +924,16 @@ model OodcMemorialCalculo {
   id_zona               Int
   id_area_aiu           Int?
 
-  area_res_fruicao_m2         Decimal @db.Decimal(14, 2)
-  base_legal_frui_id          Int
-  area_doacao_verde_m2        Decimal @db.Decimal(14, 2)
-  area_doacao_melhoramento_m2 Decimal @db.Decimal(14, 2)
-  base_legal_mel_id           Int
-  area_reserva_praca_m2       Decimal @db.Decimal(14, 2)
-  area_doacao_calcada_m2      Decimal @db.Decimal(14, 2)
-  base_legal_cal_id           Int
+  area_res_fruicao_m2                 Decimal @db.Decimal(14, 2)
+  base_legal_frui_id                  Int
+  area_doacao_verde_m2                Decimal @db.Decimal(14, 2)
+  area_doacao_melhoramento_m2         Decimal @db.Decimal(14, 2)
+  base_legal_mel_id                   Int
+  area_reserva_praca_m2               Decimal @db.Decimal(14, 2)
+  area_doacao_calcada_m2              Decimal @db.Decimal(14, 2)
+  base_legal_cal_id                   Int
   /// area_res_cal — fundamento legal fixo (art. 37 da Lei 18.081/2024), não entra na fórmula do benefício
-  area_reserva_calcada_m2         Decimal @db.Decimal(14, 2)
+  area_reserva_calcada_m2             Decimal @db.Decimal(14, 2)
   /// area_des_mel — dropdown próprio (reaproveita a tabela base_mel), não entra na fórmula do benefício
   area_desapropriacao_melhoramento_m2 Decimal @db.Decimal(14, 2)
   base_legal_des_mel_id               Int
@@ -1019,4 +1021,116 @@ model OodcMemorialTipologia {
 
   @@unique([memorial_id, ordem])
   @@map("oodc_memorial_tipologias")
+}
+
+// --- Módulo de Planejamento Orçamentário ---
+
+/// Planejamento orçamentário de um ano: valor anual (= soma dos 12 meses) projetado a
+/// partir da média de arrecadação dos 3 anos anteriores + parâmetros de correção.
+enum MetodoDistribuicaoPlanejamento {
+  MEDIA_HISTORICA
+  IGUAL
+}
+
+model PlanejamentoOrcamentario {
+  id  String @id @default(uuid())
+  ano Int    @unique
+
+  media_base_3_anos   Decimal                        @db.Decimal(16, 2) // snapshot da média usada no cálculo (auditoria)
+  valor_anual         Decimal                        @db.Decimal(16, 2) // sempre = soma de PlanejamentoOrcamentarioMes.valor
+  metodo_distribuicao MetodoDistribuicaoPlanejamento @default(MEDIA_HISTORICA)
+
+  criado_por      String?
+  usuario_criador Usuario? @relation("PlanejamentoCriador", fields: [criado_por], references: [id], onDelete: SetNull)
+
+  criado_em   DateTime @default(now())
+  alterado_em DateTime @default(now()) @updatedAt
+
+  parametros   PlanejamentoParametroCorrecao[]
+  meses        PlanejamentoOrcamentarioMes[]
+  historicoAno PlanejamentoHistoricoAno[]
+  revisoes     PlanejamentoRevisao[]
+
+  @@map("planejamento_orcamentario")
+}
+
+/// Fator de correção multiplicável (ex.: IPCA 4,5%) aplicado sobre a média dos 3 anos.
+model PlanejamentoParametroCorrecao {
+  id              String                   @id @default(uuid())
+  planejamento_id String
+  planejamento    PlanejamentoOrcamentario @relation(fields: [planejamento_id], references: [id], onDelete: Cascade)
+
+  nome       String
+  percentual Decimal @db.Decimal(7, 4) // 4.5000 = 4,5%
+  ordem      Int     @default(0)
+
+  @@map("planejamento_parametros_correcao")
+}
+
+/// Valor mensal (1 de 12) do planejamento — sugerido a partir da distribuição histórica,
+/// editável manualmente pelo admin.
+model PlanejamentoOrcamentarioMes {
+  id              String                   @id @default(uuid())
+  planejamento_id String
+  planejamento    PlanejamentoOrcamentario @relation(fields: [planejamento_id], references: [id], onDelete: Cascade)
+
+  mes                 Int // 1–12
+  valor               Decimal @db.Decimal(16, 2)
+  editado_manualmente Boolean @default(false)
+
+  @@unique([planejamento_id, mes])
+  @@map("planejamento_orcamentario_meses")
+}
+
+/// Override opcional do valor-base de um dos 3 anos usados no cálculo da média
+/// histórica. Não altera a arrecadação real (Parcela/Multa) — só a base de cálculo
+/// deste planejamento específico (golden rule do CLAUDE.md: nunca corromper dado real).
+model PlanejamentoHistoricoAno {
+  id              String                   @id @default(uuid())
+  planejamento_id String
+  planejamento    PlanejamentoOrcamentario @relation(fields: [planejamento_id], references: [id], onDelete: Cascade)
+
+  ano            Int
+  valor_real     Decimal  @db.Decimal(16, 2) // snapshot da arrecadação real no momento do cálculo
+  valor_ajustado Decimal? @db.Decimal(16, 2) // override manual, se o usuário editou
+
+  @@unique([planejamento_id, ano])
+  @@map("planejamento_historico_ano")
+}
+
+/// Snapshot do estado anterior sempre que um plano já fechado (fora do prazo normal de
+/// edição) é revisado por um DEV. Permite reconstruir a evolução do planejamento ao
+/// longo do ano. O comparativo planejado x executado sempre usa a versão vigente.
+model PlanejamentoRevisao {
+  id              String                   @id @default(uuid())
+  planejamento_id String
+  planejamento    PlanejamentoOrcamentario @relation(fields: [planejamento_id], references: [id], onDelete: Cascade)
+
+  motivo String @db.Text
+
+  valor_anual_anterior         Decimal @db.Decimal(16, 2)
+  valor_anual_novo             Decimal @db.Decimal(16, 2)
+  snapshot_parametros_anterior Json
+  snapshot_meses_anterior      Json
+  snapshot_historico_anterior  Json
+
+  revisado_por String?
+  usuario      Usuario? @relation("PlanejamentoRevisor", fields: [revisado_por], references: [id], onDelete: SetNull)
+  revisado_em  DateTime @default(now())
+
+  @@map("planejamento_revisoes")
+}
+
+/// Singleton com a regra de prazo de edição do planejamento (dia/mês do "ano atual" até
+/// quando o planejamento do "ano seguinte" pode ser editado por um admin comum).
+/// Configurável só por usuário DEV — ver `requireDev()` em lib/auth/session.ts.
+model ConfiguracaoPlanejamento {
+  id         String @id @default(uuid())
+  dia_limite Int // 1–31
+  mes_limite Int // 1–12
+
+  alterado_por String?
+  alterado_em  DateTime @default(now()) @updatedAt
+
+  @@map("configuracao_planejamento")
 }

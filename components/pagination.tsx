@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/pagination"
 import { ChevronLeftIcon, ChevronRightIcon, ChevronsLeftIcon, ChevronsRightIcon } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "./ui/select";
 
 function retornaPaginas(pagina: number, limite: number, total: number): number[] {
@@ -30,16 +30,26 @@ export default function Pagination(props: { total: number, pagina: number, limit
     const total = props.total || +(searchParams.get('total') || 0);
     const [pagina, setPagina] = useState(props.pagina || +(searchParams.get('pagina') || 1));
     const [limite, setLimite] = useState(props.limite || +(searchParams.get('limite') || 10));
-    const [paginas, setPaginas] = useState(retornaPaginas(pagina, limite, total));
+    const paginas = useMemo(() => retornaPaginas(pagina, limite, total), [pagina, limite, total]);
 
     useEffect(() => {
         const params = new URLSearchParams(searchParams.toString())
-        params.set('pagina', String(pagina));
-        params.set('limite', String(limite));
-        params.set('total', String(total));
+        const novaPagina = String(pagina);
+        const novoLimite = String(limite);
+        const novoTotal = String(total);
+        const inalterado =
+            params.get('pagina') === novaPagina &&
+            params.get('limite') === novoLimite &&
+            params.get('total') === novoTotal;
+        if (inalterado) return;
+        params.set('pagina', novaPagina);
+        params.set('limite', novoLimite);
+        params.set('total', novoTotal);
         router.push(pathname + '?' + params.toString(), { scroll: false });
-        setPaginas(retornaPaginas(pagina, limite, total));
-    }, [pagina, limite, searchParams, pathname, total, router]);
+        // searchParams/pathname/router de propósito fora das deps: só reagir a mudanças
+        // de pagina/limite/total evita o loop (push -> searchParams muda -> reroda o efeito).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pagina, limite, total]);
 
     return paginas.length > 0 && (
         <ShadPagination>

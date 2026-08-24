@@ -17,6 +17,7 @@ import {
 	TableRow,
 } from './ui/table';
 import { Skeleton } from './ui/skeleton';
+import { cn } from '@/lib/utils';
 
 interface DataTableProps<TData, TValue> {
 	columns: ColumnDef<TData, TValue>[];
@@ -36,11 +37,11 @@ export default function DataTable<TData, TValue>({
 	});
 
 	return (
-		<div className="rounded-lg border overflow-hidden">
+		<div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
 			<Table>
 				<TableHeader>
 					{table.getHeaderGroups().map((headerGroup) => (
-						<TableRow key={headerGroup.id} className="bg-muted/50 hover:bg-muted/50">
+						<TableRow key={headerGroup.id} className="bg-muted hover:bg-muted">
 							{headerGroup.headers.map((header) => (
 								<TableHead
 									key={header.id}
@@ -55,12 +56,15 @@ export default function DataTable<TData, TValue>({
 				</TableHeader>
 				<TableBody>
 					{table.getRowModel().rows?.length ? (
-						table.getRowModel().rows.map((row) => (
+						table.getRowModel().rows.map((row, i) => (
 							<TableRow
 								key={row.id}
 								data-state={row.getIsSelected() && 'selected'}
 								onClick={() => onRowClick?.(row.original)}
-								className={onRowClick ? 'cursor-pointer' : undefined}>
+								className={cn(
+									i % 2 === 1 && 'bg-muted/30',
+									onRowClick && 'cursor-pointer',
+								)}>
 								{row.getVisibleCells().map((cell) => (
 									<TableCell key={cell.id} className="text-sm py-3">
 										{flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -83,8 +87,8 @@ export default function DataTable<TData, TValue>({
 
 export function TableSkeleton() {
 	return (
-		<div className="rounded-lg border overflow-hidden space-y-0">
-			<div className="h-10 bg-muted/50 border-b" />
+		<div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs space-y-0">
+			<div className="h-10 bg-muted border-b border-border/70" />
 			{Array.from({ length: 8 }).map((_, i) => (
 				<div key={i} className="flex items-center gap-4 px-4 h-14 border-b last:border-0">
 					<Skeleton className="h-4 w-48" />

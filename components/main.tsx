@@ -14,6 +14,7 @@ import {
 	House,
 	Lock,
 	LucideProps,
+	Target,
 	Terminal,
 	Users,
 } from 'lucide-react';
@@ -85,6 +86,12 @@ const menuAdmin: IMenu[] = [
 		titulo: 'Grupos de Permissão',
 		url: '/grupos-permissao',
 		permissao: 'grupo_permissao_buscar_tudo',
+	},
+	{
+		icone: Target,
+		titulo: 'Planejamento Orçamentário',
+		url: '/admin/planejamento-orcamentario',
+		permissao: 'planejamento_orcamentario_editar',
 	},
 ];
 

@@ -26,7 +26,7 @@ const MESES = [
 ];
 const MESES_CURTO = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
-function descreverPeriodo(ano: number | null, mes: number | null): string {
+function descreverPeriodoMesAno(ano: number | null, mes: number | null): string {
 	if (ano == null && mes == null) return 'Todo o período';
 	if (ano != null && mes != null) return `${MESES[mes]} de ${ano}`;
 	if (ano != null) return `Ano de ${ano}`;
@@ -192,7 +192,7 @@ function Tabela({ d }: { d: IRelatorioZonas }) {
 				<div className="text-sm font-semibold">
 					Outorga × Cota por zona
 					<span className="ml-2 text-xs font-normal text-muted-foreground">
-						· {descreverPeriodo(d.ano, d.mes)}
+						· {descreverPeriodoMesAno(d.ano, d.mes)}
 					</span>
 				</div>
 				<div className="text-xs text-muted-foreground">
