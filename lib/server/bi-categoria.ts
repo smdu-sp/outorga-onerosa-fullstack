@@ -180,15 +180,27 @@ function normalizarTexto(valor: string): string {
 }
 
 /**
- * `codcategoria`/`codsubcategoria` do BI têm milhares de variantes sujas (espaços,
- * pontuação, texto embutido tipo "NR1-ESCRITORIOS EM GERAL"). HIS mapeia direto para a
- * tipologia 1 (`lib/oodc/tabelas.ts`, `TIPOLOGIAS`); HMP existe mas não dá pra saber a
- * faixa de área (2 = até 50m² / 3 = 51-70m²) sem a área da unidade — fica `null`
- * (usuário escolhe manualmente).
+ * `codcategoria`/`codsubcategoria` do BI (e tokens do GeoSampa tipo `HIS/R2v`) têm
+ * milhares de variantes sujas. Mapeia para `TIPOLOGIAS` (`lib/oodc/tabelas.ts`):
+ * - HIS → 1
+ * - R2v / RV2 / R2h / R1 / R2 → 8 (habitação > 70 m²; sem área da UH não dá pra
+ *   distinguir 4–7)
+ * - NR* → 24 (outras atividades)
+ * HMP existe mas não dá pra saber a faixa (2 = até 50 m² / 3 = 51–70 m²) — fica
+ * `null` (usuário escolhe). EHIS é classificação do empreendimento, não tipologia.
  */
-export function sugerirIdTipologiaDeCategoria(codsubcategoria: string | null): number | null {
-	const s = normalizarTexto(codsubcategoria ?? '');
-	if (/\bHIS\b/.test(s) && !/\bEHIS\b/.test(s)) return 1;
+export function sugerirIdTipologiaDeCategoria(
+	codsubcategoria: string | null,
+	codcategoria?: string | null,
+): number | null {
+	const s = normalizarTexto(`${codcategoria ?? ''} ${codsubcategoria ?? ''}`);
+	if (!s) return null;
+	if (/\bEHIS\b/.test(s)) return null;
+	if (/\bHIS\b/.test(s)) return 1;
+	if (/\bHMP\b/.test(s) || /H\.M\.P/.test(s)) return null;
+	if (/\bR2V\b|\bRV2\b|\bR2H\b|\bR2-V\b|\bR2-H\b/.test(s)) return 8;
+	if (/\bR1\b|\bR2\b/.test(s)) return 8;
+	if (/\bNR\d|\bNR1|\bNR2|\bNR3|^NR\b/.test(s)) return 24;
 	return null;
 }
 

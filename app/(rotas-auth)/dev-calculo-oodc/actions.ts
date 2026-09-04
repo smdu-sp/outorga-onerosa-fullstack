@@ -1,9 +1,17 @@
 'use server';
 
 import { requireDev } from '@/lib/auth/session';
-import { buscarAssuntosPorProcessoNoBi, mapearAssuntoBiParaIdOodc } from '@/lib/server/bi-cadastro';
-import { buscarValorReferencia } from '@/lib/server/oodc-valor-referencia';
 import type { EnderecoValorUnitario, ValorUnitarioEncontrado } from '@/lib/oodc/tipos';
+import {
+	montarRascunhoPorNumeroProcesso,
+	OodcMemorialError,
+	type RascunhoCalculoOodc,
+} from '@/lib/server/oodc-memorial';
+import { buscarValorReferencia } from '@/lib/server/oodc-valor-referencia';
+
+function ehRedirect(error: unknown): error is Error {
+	return error instanceof Error && error.message.includes('NEXT_REDIRECT');
+}
 
 /** Busca o V (R$/m²) vigente para até 10 endereços — só acessível para usuários DEV. */
 export async function buscarValorReferenciaAction(
@@ -12,7 +20,7 @@ export async function buscarValorReferenciaAction(
 	try {
 		await requireDev();
 	} catch (error) {
-		if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error;
+		if (ehRedirect(error)) throw error;
 		return { ok: false, error: 'Sem permissão para esta operação.' };
 	}
 
@@ -24,34 +32,24 @@ export async function buscarValorReferenciaAction(
 	}
 }
 
-export interface CandidatoAssuntoBi {
-	assunto: string;
-	idSugerido: number | null;
-	dataEmissao?: string;
-}
-
-/** Busca no BI (dbo.Cadastros → dbo.Assuntos) os assuntos de um processo, pelo número do processo. */
-export async function buscarAssuntoPorProcessoAction(
+/** Consulta BI + GeoSampa e devolve o rascunho do memorial (macrozona, SQL, tipologias…). */
+export async function buscarDadosProcessoOodcAction(
 	numProcesso: string,
-): Promise<{ ok: boolean; candidatos?: CandidatoAssuntoBi[]; error?: string }> {
+): Promise<{ ok: boolean; rascunho?: RascunhoCalculoOodc; error?: string }> {
 	try {
 		await requireDev();
 	} catch (error) {
-		if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error;
+		if (ehRedirect(error)) throw error;
 		return { ok: false, error: 'Sem permissão para esta operação.' };
 	}
 
 	if (!numProcesso.trim()) return { ok: false, error: 'Informe o número do processo.' };
 
 	try {
-		const encontrados = await buscarAssuntosPorProcessoNoBi(numProcesso);
-		const candidatos = encontrados.map((e) => ({
-			assunto: e.assunto,
-			idSugerido: mapearAssuntoBiParaIdOodc(e.assunto),
-			dataEmissao: e.dataEmissao,
-		}));
-		return { ok: true, candidatos };
+		const rascunho = await montarRascunhoPorNumeroProcesso(numProcesso);
+		return { ok: true, rascunho };
 	} catch (error) {
+		if (error instanceof OodcMemorialError) return { ok: false, error: error.message };
 		return { ok: false, error: (error as Error).message };
 	}
 }
