@@ -6,10 +6,13 @@
  * eram armazenados como texto e passaram a `Decimal` no schema.
  */
 
+import { desembrulharCelula } from './excel-cell';
+
 /** Limpa texto: remove NBSP, normaliza espaços e trata vazio/"nan". */
 export function limparTexto(value: unknown): string | undefined {
-	if (value === null || value === undefined) return undefined;
-	const text = String(value).replace(/ /g, ' ').trim();
+	const bruto = desembrulharCelula(value);
+	if (bruto === null || bruto === undefined) return undefined;
+	const text = String(bruto).replace(/ /g, ' ').trim();
 	if (!text || text.toLowerCase() === 'nan') return undefined;
 	return text;
 }
@@ -19,9 +22,10 @@ export function limparTexto(value: unknown): string | undefined {
  * Retorna `undefined` para vazio, "-" ou valores não numéricos.
  */
 export function parseNumeroBr(value: unknown): number | undefined {
-	if (value === null || value === undefined || value === '') return undefined;
-	if (typeof value === 'number') return isNaN(value) ? undefined : value;
-	const text = limparTexto(value);
+	const bruto = desembrulharCelula(value);
+	if (bruto === null || bruto === undefined || bruto === '') return undefined;
+	if (typeof bruto === 'number') return isNaN(bruto) ? undefined : bruto;
+	const text = limparTexto(bruto);
 	if (!text || text === '-') return undefined;
 	const normalized = text
 		.replace(/R\$\s?/gi, '')

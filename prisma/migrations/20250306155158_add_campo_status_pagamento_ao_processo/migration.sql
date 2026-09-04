@@ -1,2 +1,0 @@
--- AlterTable
-ALTER TABLE `processos` ADD COLUMN `status_pagamento` ENUM('EM_PAGAMENTO', 'QUITADO', 'QUEBRA') NOT NULL DEFAULT 'EM_PAGAMENTO';

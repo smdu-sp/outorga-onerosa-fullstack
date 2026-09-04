@@ -11,8 +11,9 @@ import {
 } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { parseNumeroBr } from '../lib/parse-numero-br';
+import { desembrulharCelula, serialExcelParaData } from '../lib/excel-cell';
 import {
   normalizarSituacaoParcela,
   situacaoEmQuebra,
@@ -115,8 +116,9 @@ function planilhaExiste(chave: ChavePlanilha): boolean {
 }
 
 function cleanText(value: unknown): string | undefined {
-  if (value === null || value === undefined) return undefined;
-  const text = String(value).replace(/\u00a0/g, ' ').trim();
+  const bruto = desembrulharCelula(value);
+  if (bruto === null || bruto === undefined) return undefined;
+  const text = String(bruto).replace(/\u00a0/g, ' ').trim();
   if (!text || text.toLowerCase() === 'nan') return undefined;
   return text;
 }
@@ -135,22 +137,23 @@ function isValidDbDate(date?: Date): date is Date {
 }
 
 function parseExcelDate(value: unknown): Date | undefined {
-  if (value === null || value === undefined || value === '') return undefined;
-  if (value instanceof Date && !isNaN(value.getTime())) {
-    const date = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  const bruto = desembrulharCelula(value);
+  if (bruto === null || bruto === undefined || bruto === '') return undefined;
+  if (bruto instanceof Date && !isNaN(bruto.getTime())) {
+    const date = new Date(bruto.getFullYear(), bruto.getMonth(), bruto.getDate());
     return isValidDbDate(date) ? date : undefined;
   }
-  if (typeof value === 'number') {
+  if (typeof bruto === 'number') {
     // Serial Excel (dias desde 1899-12-30)
-    if (value > 20000 && value < 80000) {
-      const parsed = XLSX.SSF.parse_date_code(value);
-      if (!parsed) return undefined;
-      const date = new Date(parsed.y, parsed.m - 1, parsed.d);
+    if (bruto > 20000 && bruto < 80000) {
+      const serial = serialExcelParaData(bruto);
+      if (!serial) return undefined;
+      const date = new Date(serial.getUTCFullYear(), serial.getUTCMonth(), serial.getUTCDate());
       return isValidDbDate(date) ? date : undefined;
     }
     return undefined;
   }
-  const text = cleanText(value);
+  const text = cleanText(bruto);
   if (!text) return undefined;
   if (/^\d{2}\/\d{2}\/\d{4}$/.test(text)) {
     const [d, m, y] = text.split('/').map(Number);
@@ -237,16 +240,93 @@ function parcelaQuitada(situacao: unknown, statusSheet: StatusPagamento): boolea
   return statusSheet === 'QUITADO';
 }
 
-function readSheetRows(filePath: string, sheetName: string): unknown[][] {
-  const wb = XLSX.readFile(filePath, { cellDates: true });
-  const sheet = wb.Sheets[sheetName];
-  if (!sheet) return [];
-  return XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null }) as unknown[][];
+const workbookCache = new Map<string, ExcelJS.Workbook>();
+
+async function carregarWorkbook(filePath: string): Promise<ExcelJS.Workbook> {
+  const cached = workbookCache.get(filePath);
+  if (cached) return cached;
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(filePath);
+  workbookCache.set(filePath, wb);
+  return wb;
 }
 
-function listSheets(filePath: string): string[] {
-  const wb = XLSX.readFile(filePath, { cellDates: true });
-  return wb.SheetNames;
+/** Linhas cruas (array por linha, 0-indexado), incluindo a linha de cabeçalho. */
+async function readSheetRows(filePath: string, sheetName: string): Promise<unknown[][]> {
+  const wb = await carregarWorkbook(filePath);
+  const sheet = wb.getWorksheet(sheetName);
+  if (!sheet) return [];
+  const numCols = sheet.columnCount;
+  const rows: unknown[][] = [];
+  sheet.eachRow({ includeEmpty: true }, (row) => {
+    const arr: unknown[] = new Array(numCols).fill(null);
+    for (let c = 1; c <= numCols; c++) {
+      const value = row.getCell(c).value;
+      arr[c - 1] = value === undefined ? null : value;
+    }
+    rows.push(arr);
+  });
+  return rows;
+}
+
+async function listSheets(filePath: string): Promise<string[]> {
+  const wb = await carregarWorkbook(filePath);
+  return wb.worksheets.map((ws) => ws.name);
+}
+
+/** Texto do cabeçalho, com dedupe igual ao `sheet_to_json` do SheetJS (`X`, `X_1`, `X_2`, …). */
+function construirCabecalhos(headerRow: ExcelJS.Row, numCols: number): string[] {
+  const contagem: Record<string, number> = {};
+  const headers: string[] = [];
+  for (let c = 1; c <= numCols; c++) {
+    const bruto = desembrulharCelula(headerRow.getCell(c).value);
+    const base = bruto === null || bruto === undefined || String(bruto).trim() === ''
+      ? '__EMPTY'
+      : String(bruto).trim();
+    const usados = contagem[base] || 0;
+    if (!usados) {
+      headers[c - 1] = base;
+      contagem[base] = 1;
+    } else {
+      let candidato = '';
+      let n = usados;
+      do {
+        candidato = `${base}_${n}`;
+        n++;
+      } while (contagem[candidato]);
+      contagem[base] = n;
+      contagem[candidato] = 1;
+      headers[c - 1] = candidato;
+    }
+  }
+  return headers;
+}
+
+/** Linhas como objetos {cabeçalho: valor}, igual ao `sheet_to_json` do SheetJS (pula linhas vazias). */
+async function readSheetAsObjects(
+  filePath: string,
+  sheetName: string,
+  headerRowNumber: number,
+): Promise<Record<string, unknown>[]> {
+  const wb = await carregarWorkbook(filePath);
+  const sheet = wb.getWorksheet(sheetName);
+  if (!sheet) return [];
+  const numCols = sheet.columnCount;
+  const headers = construirCabecalhos(sheet.getRow(headerRowNumber), numCols);
+  const rows: Record<string, unknown>[] = [];
+  for (let r = headerRowNumber + 1; r <= sheet.rowCount; r++) {
+    const row = sheet.getRow(r);
+    const obj: Record<string, unknown> = {};
+    let vazia = true;
+    for (let c = 1; c <= numCols; c++) {
+      const value = row.getCell(c).value;
+      const v = value === undefined ? null : value;
+      obj[headers[c - 1]] = v;
+      if (v !== null) vazia = false;
+    }
+    if (!vazia) rows.push(obj);
+  }
+  return rows;
 }
 
 function mergeProcesso(processo: ProcessoImport) {
@@ -455,17 +535,17 @@ function parseParcelSheet(
   flush();
 }
 
-function importarProcessosFinanceiros() {
+async function importarProcessosFinanceiros() {
   if (!planilhaExiste('aprovaDigital')) {
     console.log('Aprova Digital: arquivo não encontrado, pulando.');
   } else {
     const adPath = caminhoPlanilha('aprovaDigital');
     console.log('Aprova Digital:', path.basename(adPath));
-  for (const sheet of listSheets(adPath)) {
+  for (const sheet of await listSheets(adPath)) {
     const upper = sheet.toUpperCase();
     if (upper.includes('FERIADOS') || upper.includes('VERIFICAR')) continue;
     const status = statusFromSheetName(sheet);
-    const rows = readSheetRows(adPath, sheet);
+    const rows = await readSheetRows(adPath, sheet);
     if (upper.includes('DPCI') || upper.includes('VISTA')) {
       parseParcelSheet(rows, status, 'ad_dpci');
     } else if (
@@ -484,8 +564,8 @@ function importarProcessosFinanceiros() {
   } else {
   const fisicoPath = caminhoPlanilha('fisicosSei');
   console.log('Físicos/SEI:', path.basename(fisicoPath));
-  for (const sheet of listSheets(fisicoPath)) {
-    const rows = readSheetRows(fisicoPath, sheet);
+  for (const sheet of await listSheets(fisicoPath)) {
+    const rows = await readSheetRows(fisicoPath, sheet);
     parseParcelSheet(rows, statusFromSheetName(sheet), 'fisico');
   }
   }
@@ -640,11 +720,7 @@ async function importarMonitoramentoOutorga() {
   }
   const filePath = caminhoPlanilha('monitoramentoOutorga');
   console.log('Monitoramento OO:', path.basename(filePath));
-  const wb = XLSX.readFile(filePath, { cellDates: true });
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-    wb.Sheets['Outorga Onerosa Lei 16.050'],
-    { range: 1, defval: null },
-  );
+  const rows = await readSheetAsObjects(filePath, 'Outorga Onerosa Lei 16.050', 2);
 
   let importados = 0;
 
@@ -933,16 +1009,8 @@ async function importarMonitoramentoCota() {
   }
   const filePath = caminhoPlanilha('cotaSolidariedade');
   console.log('Monitoramento cota:', path.basename(filePath));
-  const wb = XLSX.readFile(filePath, { cellDates: true });
-  const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-    wb.Sheets['COTA DE SOLIDARIEDADE'],
-    { defval: null },
-  );
-
-  const extRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-    wb.Sheets['Ext. info, 14_06_2023'],
-    { defval: null },
-  );
+  const rows = await readSheetAsObjects(filePath, 'COTA DE SOLIDARIEDADE', 1);
+  const extRows = await readSheetAsObjects(filePath, 'Ext. info, 14_06_2023', 1);
   const extMap = new Map<string, Record<string, unknown>>();
   for (const ext of extRows) {
     const proc = normalizeProcesso(
@@ -1078,7 +1146,7 @@ export async function importarPlanilhas() {
 
   processosMap.clear();
   if (planilhaExiste('aprovaDigital') || planilhaExiste('fisicosSei')) {
-    importarProcessosFinanceiros();
+    await importarProcessosFinanceiros();
     await upsertProcessos();
   } else {
     console.log('Planilhas financeiras (Aprova Digital / Físicos SEI) não encontradas — pulando parcelas.');

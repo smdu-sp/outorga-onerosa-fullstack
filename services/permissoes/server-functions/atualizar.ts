@@ -2,7 +2,7 @@
 
 'use server';
 
-import { revalidateTag } from 'next/cache';
+import { updateTag } from 'next/cache';
 import { requirePermissao } from '@/lib/auth/session';
 import { atualizarPermissao } from '@/lib/server/permissoes';
 import { IPermissao, IRespostaPermissao, IUpdatePermissao } from '@/types/permissao';
@@ -14,7 +14,7 @@ export async function atualizar(
 	try {
 		await requirePermissao('permissao_atualizar');
 		const atualizado = await atualizarPermissao(id, data);
-		revalidateTag('permissao');
+		updateTag('permissao');
 		return { ok: true, error: null, data: atualizado as unknown as IPermissao, status: 200 };
 	} catch (error) {
 		return {

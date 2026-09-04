@@ -92,7 +92,12 @@ function deserializarValor(
 		const text = String(valor).trim();
 		if (text === '' || text === '-') return null;
 		if (typeof valor === 'string' || typeof valor === 'number') {
-			return new Prisma.Decimal(String(valor).replace(',', '.'));
+			try {
+				return new Prisma.Decimal(String(valor).replace(',', '.'));
+			} catch {
+				console.warn(`[serializar-prisma] Valor decimal inválido em "${chave}": ${JSON.stringify(valor)} — gravando null.`);
+				return null;
+			}
 		}
 	}
 	if (CAMPOS_DATA.has(chave) && typeof valor === 'string') {

@@ -8,32 +8,14 @@
  * `projeto/contexto-dominio.md` §5.
  */
 
+import { desembrulharCelula } from './excel-cell';
+
 /** Status canônico de uma parcela. `INDEFINIDO` = célula ilegível/vazia/lixo. */
 export type SituacaoParcela = 'QUITADO' | 'A_VENCER' | 'QUEBRA' | 'INDEFINIDO';
 
-/**
- * Desembrulha o valor bruto de uma célula. Planilhas (via exceljs) guardam status
- * como texto simples, mas também como *rich text* (`{ richText: [...] }`, ex.: um
- * "Pago" colorido) ou como resultado de fórmula (`{ result: ... }`). Retorna o
- * valor "cru" por baixo dessas embalagens.
- */
-function desembrulhar(valor: unknown): unknown {
-	if (valor && typeof valor === 'object' && !(valor instanceof Date)) {
-		const obj = valor as Record<string, unknown>;
-		if (Array.isArray(obj.richText)) {
-			return (obj.richText as Array<{ text?: unknown }>)
-				.map((parte) => parte?.text ?? '')
-				.join('');
-		}
-		if ('result' in obj) return obj.result; // fórmula: usa o resultado calculado
-		if ('text' in obj) return obj.text; // hyperlink / texto simples embrulhado
-	}
-	return valor;
-}
-
 /** Texto em caixa alta, sem acento e sem espaços redundantes; `undefined` para lixo. */
 function textoBase(valor: unknown): string | undefined {
-	const bruto = desembrulhar(valor);
+	const bruto = desembrulharCelula(valor);
 	if (bruto === null || bruto === undefined) return undefined;
 	// Data vazada na coluna Situação (inclusive resultado de fórmula) não é status.
 	if (bruto instanceof Date) return undefined;

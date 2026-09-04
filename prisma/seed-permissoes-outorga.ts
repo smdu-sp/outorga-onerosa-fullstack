@@ -52,6 +52,10 @@ const PERMISSOES = [
 		permissao: 'parcelas_reverter_antecipacao',
 		nome: 'Desfazer antecipação de parcela (restaurar status anterior)',
 	},
+	{
+		permissao: 'planejamento_orcamentario_editar',
+		nome: 'Gerar e editar planejamento orçamentário',
+	},
 ] as const;
 
 // Permissões já existentes no projeto (fora deste script) que os grupos abaixo reaproveitam.

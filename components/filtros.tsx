@@ -273,7 +273,7 @@ export function Filtros({ camposFiltraveis }: FiltrosProps) {
 					</PopoverTrigger>
 					<PopoverContent className="w-auto p-0" align="start">
 					<Calendar
-						initialFocus
+						autoFocus
 						mode="range"
 						defaultMonth={date && date.from}
 						selected={date}

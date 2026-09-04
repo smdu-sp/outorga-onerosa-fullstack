@@ -2,7 +2,7 @@
 
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Building2, HeartPulse, LandPlot } from 'lucide-react';
+import { Building2, HeartPulse, LandPlot, Target } from 'lucide-react';
 import { TableSkeleton } from '@/components/data-table';
 import { relatorio } from '@/services/relatorios';
 import { IRelatorio } from '@/types/relatorio';
@@ -123,7 +123,24 @@ async function RelatoriosHome({ params }: { params: Record<string, string | stri
 					<ProjecaoFechamento d={d} />
 				</div>
 
-				<div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+				<div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
+					<Link
+						href="/relatorios/planejamento-orcamentario"
+						className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-primary/40 hover:bg-primary/5">
+						<div className="flex items-center gap-3">
+							<Target className="h-5 w-5 text-primary" />
+							<div>
+								<div className="text-sm font-semibold">Planejamento × Executado</div>
+								<div className="text-xs text-muted-foreground">
+									Orçamento planejado comparado com a arrecadação real.
+								</div>
+							</div>
+						</div>
+						<span className="shrink-0 text-xs text-muted-foreground group-hover:text-primary">
+							Ver →
+						</span>
+					</Link>
+
 					<Link
 						href="/relatorios/saude-arrecadacao"
 						className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-primary/40 hover:bg-primary/5">
