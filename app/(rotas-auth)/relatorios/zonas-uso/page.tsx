@@ -14,60 +14,98 @@ import { temIntervaloDatas } from '@/lib/parcelas-utils';
 import { FiltrosPeriodoDatas } from '../_components/filtros-periodo-datas';
 import { BotaoExportarExcel } from '../_components/botao-exportar-excel';
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 type SearchParams = Promise<Record<string, string | string[] | undefined>>;
 
 const fmtBrl = (v: number) =>
-	v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+  v.toLocaleString("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  });
 const fmtPct = (v: number) => `${v.toFixed(1)}%`;
 
 const MESES = [
-	'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-	'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  "Janeiro",
+  "Fevereiro",
+  "Março",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
 ];
-const MESES_CURTO = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const MESES_CURTO = [
+  "Jan",
+  "Fev",
+  "Mar",
+  "Abr",
+  "Mai",
+  "Jun",
+  "Jul",
+  "Ago",
+  "Set",
+  "Out",
+  "Nov",
+  "Dez",
+];
 
-function descreverPeriodoMesAno(ano: number | null, mes: number | null): string {
-	if (ano == null && mes == null) return 'Todo o período';
-	if (ano != null && mes != null) return `${MESES[mes]} de ${ano}`;
-	if (ano != null) return `Ano de ${ano}`;
-	return `${MESES[mes!]} (todos os anos)`;
+function descreverPeriodoMesAno(
+  ano: number | null,
+  mes: number | null,
+): string {
+  if (ano == null && mes == null) return "Todo o período";
+  if (ano != null && mes != null) return `${MESES[mes]} de ${ano}`;
+  if (ano != null) return `Ano de ${ano}`;
+  return `${MESES[mes!]} (todos os anos)`;
 }
 
 /** Nomes das zonas (Lei 16.402/2016) para tooltip. */
 const ZONA_NOME: Record<string, string> = {
-	ZEU: 'Zona de Eixo de Estruturação da Transformação Urbana',
-	ZEUP: 'Zona de Eixo de Estruturação da Transformação Urbana Previsto',
-	ZEUa: 'Zona de Eixo de Estruturação da Transformação Urbana Ambiental',
-	ZEUPa: 'Zona de Eixo de Estruturação da Transformação Urbana Previsto Ambiental',
-	ZM: 'Zona Mista',
-	ZMa: 'Zona Mista Ambiental',
-	ZC: 'Zona de Centralidade',
-	ZEM: 'Zona de Estruturação Metropolitana',
-	ZEMP: 'Zona de Estruturação Metropolitana Prevista',
-	'ZEIS-1': 'Zona Especial de Interesse Social 1',
-	'ZEIS-3': 'Zona Especial de Interesse Social 3',
-	'ZEIS-5': 'Zona Especial de Interesse Social 5',
-	'ZDE-1': 'Zona de Desenvolvimento Econômico 1',
-	'ZDE-2': 'Zona de Desenvolvimento Econômico 2',
-	'ZER-1': 'Zona Exclusivamente Residencial 1',
-	'ZPI-1': 'Zona Predominantemente Industrial 1',
-	'ZCOR-2': 'Zona Corredor 2',
-	ZOE: 'Zona de Ocupação Especial',
-	'PRAÇA/CANTEIRO': 'Praça / canteiro (área pública)',
+  ZEU: "Zona de Eixo de Estruturação da Transformação Urbana",
+  ZEUP: "Zona de Eixo de Estruturação da Transformação Urbana Previsto",
+  ZEUa: "Zona de Eixo de Estruturação da Transformação Urbana Ambiental",
+  ZEUPa:
+    "Zona de Eixo de Estruturação da Transformação Urbana Previsto Ambiental",
+  ZM: "Zona Mista",
+  ZMa: "Zona Mista Ambiental",
+  ZC: "Zona de Centralidade",
+  ZEM: "Zona de Estruturação Metropolitana",
+  ZEMP: "Zona de Estruturação Metropolitana Prevista",
+  "ZEIS-1": "Zona Especial de Interesse Social 1",
+  "ZEIS-3": "Zona Especial de Interesse Social 3",
+  "ZEIS-5": "Zona Especial de Interesse Social 5",
+  "ZDE-1": "Zona de Desenvolvimento Econômico 1",
+  "ZDE-2": "Zona de Desenvolvimento Econômico 2",
+  "ZER-1": "Zona Exclusivamente Residencial 1",
+  "ZPI-1": "Zona Predominantemente Industrial 1",
+  "ZCOR-2": "Zona Corredor 2",
+  ZOE: "Zona de Ocupação Especial",
+  "PRAÇA/CANTEIRO": "Praça / canteiro (área pública)",
 };
 
-export default async function ZonasUsoPage({ searchParams }: { searchParams: SearchParams }) {
-	const params = await searchParams;
-	const filtro = parseFiltroPeriodo(params, { anoPadrao: 'corrente', mesPadrao: 'omitir' });
-	const temRange = temIntervaloDatas(filtro);
+export default async function ZonasUsoPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const params = await searchParams;
+  const filtro = parseFiltroPeriodo(params, {
+    anoPadrao: "corrente",
+    mesPadrao: "omitir",
+  });
+  const temRange = temIntervaloDatas(filtro);
 
-	const ano = temRange ? undefined : filtro.ano;
-	const mes = temRange ? undefined : filtro.mes;
-	const intervalo = temRange
-		? { dataInicio: filtro.dataInicio, dataFim: filtro.dataFim }
-		: undefined;
+  const ano = temRange ? undefined : filtro.ano;
+  const mes = temRange ? undefined : filtro.mes;
+  const intervalo = temRange
+    ? { dataInicio: filtro.dataInicio, dataFim: filtro.dataFim }
+    : undefined;
 
 	return (
 		<Suspense
@@ -84,19 +122,19 @@ export default async function ZonasUsoPage({ searchParams }: { searchParams: Sea
 }
 
 async function Conteudo({
-	ano,
-	mes,
-	intervalo,
-	periodoLabel,
+  ano,
+  mes,
+  intervalo,
+  periodoLabel,
 }: {
-	ano?: number;
-	mes?: number;
-	intervalo?: { dataInicio?: Date; dataFim?: Date };
-	periodoLabel: string;
+  ano?: number;
+  mes?: number;
+  intervalo?: { dataInicio?: Date; dataFim?: Date };
+  periodoLabel: string;
 }) {
-	const resp = await relatorioZonas(ano, mes, intervalo);
-	if (!resp.ok || !resp.data) notFound();
-	const d = resp.data;
+  const resp = await relatorioZonas(ano, mes, intervalo);
+  if (!resp.ok || !resp.data) notFound();
+  const d = resp.data;
 
 	return (
 		<PageShell>
@@ -135,19 +173,19 @@ async function Conteudo({
 }
 
 function Filtros({
-	anos,
-	anoAtual,
-	mesAtual,
+  anos,
+  anoAtual,
+  mesAtual,
 }: {
-	anos: number[];
-	anoAtual: number | null;
-	mesAtual: number | null;
+  anos: number[];
+  anoAtual: number | null;
+  mesAtual: number | null;
 }) {
-	// Preserva o outro parâmetro ao trocar ano ou mês
-	const hrefAno = (a: number | 'todos') =>
-		`?ano=${a}${mesAtual != null ? `&mes=${mesAtual}` : ''}`;
-	const hrefMes = (m: number | 'todos') =>
-		`?ano=${anoAtual ?? 'todos'}&mes=${m}`;
+  // Preserva o outro parâmetro ao trocar ano ou mês
+  const hrefAno = (a: number | "todos") =>
+    `?ano=${a}${mesAtual != null ? `&mes=${mesAtual}` : ""}`;
+  const hrefMes = (m: number | "todos") =>
+    `?ano=${anoAtual ?? "todos"}&mes=${m}`;
 
 	return (
 		<>
@@ -175,13 +213,13 @@ function Filtros({
 }
 
 function Tabela({ d }: { d: IRelatorioZonas }) {
-	const totalOutorga = d.linhas.reduce((s, l) => s + l.outorgaValor, 0);
-	const totalCota = d.linhas.reduce((s, l) => s + l.cotaValor, 0);
-	const totalProc = d.linhas.reduce((s, l) => s + l.totalProc, 0);
-	const somaZonas = totalOutorga + totalCota;
-	const maxTotal = d.linhas[0]?.totalValor ?? 1;
-	// Dupla contagem: empreendimentos com mais de uma zona entram em cada uma
-	const haDuplaContagem = somaZonas > d.totalGeral + 1;
+  const totalOutorga = d.linhas.reduce((s, l) => s + l.outorgaValor, 0);
+  const totalCota = d.linhas.reduce((s, l) => s + l.cotaValor, 0);
+  const totalProc = d.linhas.reduce((s, l) => s + l.totalProc, 0);
+  const somaZonas = totalOutorga + totalCota;
+  const maxTotal = d.linhas[0]?.totalValor ?? 1;
+  // Dupla contagem: empreendimentos com mais de uma zona entram em cada uma
+  const haDuplaContagem = somaZonas > d.totalGeral + 1;
 
 	return (
 		<div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
@@ -281,18 +319,20 @@ function Tabela({ d }: { d: IRelatorioZonas }) {
 			</div>
 
 			<div className="border-t border-border px-5 py-3 text-[11px] leading-relaxed text-muted-foreground">
-				A planilha DEUSO tem 6 campos de zona de uso (um por lei de zoneamento); zonas
-				repetidas num mesmo empreendimento são contadas uma só vez.{' '}
+				A planilha DEUSO tem 6 campos de zona de uso (um por lei de zoneamento);
+				zonas repetidas num mesmo empreendimento são contadas uma só vez.{' '}
 				{haDuplaContagem ? (
 					<>
-						Empreendimentos com mais de uma zona têm o valor contado em <strong>cada</strong> zona,
-						então a soma das zonas ({fmtBrl(somaZonas)}) supera a arrecadação real (
+						Empreendimentos com mais de uma zona têm o valor contado em{' '}
+						<strong>cada</strong> zona, então a soma das zonas (
+						{fmtBrl(somaZonas)}) supera a arrecadação real (
 						{fmtBrl(d.totalGeral)}).
 					</>
 				) : (
 					<>
-						Empreendimentos com mais de uma zona terão o valor contado em cada zona (hoje, apenas o
-						campo da Lei 16.402/2016 está preenchido, então não há dupla contagem).
+						Empreendimentos com mais de uma zona terão o valor contado em cada
+						zona (hoje, apenas o campo da Lei 16.402/2016 está preenchido, então
+						não há dupla contagem).
 					</>
 				)}
 			</div>

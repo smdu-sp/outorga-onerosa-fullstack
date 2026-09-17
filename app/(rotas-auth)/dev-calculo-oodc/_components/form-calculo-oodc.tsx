@@ -30,7 +30,7 @@ import type {
 	TipologiaCalculo,
 	ValorUnitarioEncontrado,
 } from '@/lib/oodc/tipos';
-import { buscarAssuntoPorProcessoAction, buscarValorReferenciaAction } from '../actions';
+import { buscarDadosProcessoOodcAction, buscarValorReferenciaAction } from '../actions';
 
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
@@ -169,6 +169,7 @@ export function FormCalculoOodc() {
 	const [isPending, startTransition] = useTransition();
 	const [numProcesso, setNumProcesso] = useState('');
 	const [isPendingAssunto, startTransitionAssunto] = useTransition();
+	const [tipologiasOrigem, setTipologiasOrigem] = useState<Record<string, string>>({});
 
 	const piuCentral = (IDS_LEGISLACAO_PIU_CENTRAL as readonly number[]).includes(entrada.idLegislacao);
 
@@ -224,26 +225,38 @@ export function FormCalculoOodc() {
 		setEntrada((prev) => ({ ...prev, tipologias: prev.tipologias.filter((t) => t.chave !== chave) }));
 	}
 
-	function buscarAssunto() {
+	function buscarProcesso() {
 		if (!numProcesso.trim()) {
 			toast.error('Informe o número do processo.');
 			return;
 		}
 		startTransitionAssunto(async () => {
-			const resposta = await buscarAssuntoPorProcessoAction(numProcesso);
-			if (!resposta.ok) {
-				toast.error(resposta.error ?? 'Não foi possível buscar o assunto no BI.');
+			const resposta = await buscarDadosProcessoOodcAction(numProcesso);
+			if (!resposta.ok || !resposta.rascunho) {
+				toast.error(resposta.error ?? 'Não foi possível buscar o processo.');
 				return;
 			}
-			const candidatos = resposta.candidatos ?? [];
-			if (!candidatos.length) {
-				toast.warning('Nenhum assunto encontrado no BI para esse processo.');
+			const { rascunho } = resposta;
+			const tipologias = rascunho.entrada.tipologias.length
+				? rascunho.entrada.tipologias
+				: [tipologiaVazia()];
+			setEntrada({ ...rascunho.entrada, tipologias });
+			setValoresEncontrados(rascunho.valoresEncontrados);
+			setVMax(rascunho.vMax);
+			setTipologiasOrigem(rascunho.tipologiasOrigemBi);
+			const nomesTipologias = Object.values(rascunho.tipologiasOrigemBi);
+			const partes = [
+				rascunho.entrada.idMacrozona ? 'macrozona' : null,
+				rascunho.entrada.idMacroarea ? 'macroárea' : null,
+				rascunho.entrada.enderecos.some((e) => e.setor && e.quadra) ? 'SQL' : null,
+				rascunho.entrada.enderecos.some((e) => e.codlog) ? 'CODLOG' : null,
+				nomesTipologias.length ? `tipologias (${nomesTipologias.join(', ')})` : null,
+			].filter(Boolean);
+			if (!partes.length) {
+				toast.warning('Processo localizado, mas sem enquadramento/SQL/tipologias para preencher.');
 				return;
 			}
-			const melhor = candidatos.find((c) => c.idSugerido != null) ?? candidatos[0];
-			if (melhor.idSugerido != null) atualizar('idAssunto', melhor.idSugerido);
-			const outros = candidatos.length > 1 ? ` (+${candidatos.length - 1} outro(s) registro(s) no BI)` : '';
-			toast.success(`BI: "${melhor.assunto}"${outros}`);
+			toast.success(`Preenchido: ${partes.join(', ')}.`);
 		});
 	}
 
@@ -272,15 +285,23 @@ export function FormCalculoOodc() {
 	return (
 		<div className="flex flex-col gap-5">
 			<Secao titulo="Cabeçalho">
-				<Campo label="Processo" hint="Busca o assunto no BI (dbo.Cadastros → dbo.Assuntos) pelo número do processo">
+				<Campo
+					label="Processo"
+					hint="Consulta BI (assunto, tipologias, SQL) e GeoSampa (macrozona, macroárea, zona, CODLOG)">
 					<div className="flex gap-2">
 						<Input
 							placeholder="0000.0000/0000000-0"
 							value={numProcesso}
 							onChange={(e) => setNumProcesso(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === 'Enter') {
+									e.preventDefault();
+									buscarProcesso();
+								}
+							}}
 						/>
-						<Button type="button" variant="outline" size="sm" onClick={buscarAssunto} disabled={isPendingAssunto}>
-							{isPendingAssunto ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Buscar no BI'}
+						<Button type="button" variant="outline" size="sm" onClick={buscarProcesso} disabled={isPendingAssunto}>
+							{isPendingAssunto ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Buscar'}
 						</Button>
 					</div>
 				</Campo>
@@ -458,6 +479,9 @@ export function FormCalculoOodc() {
 									<Trash2 className="h-4 w-4" />
 								</Button>
 							</div>
+							{tipologiasOrigem[t.chave] && (
+								<p className="mb-2 text-[11px] text-muted-foreground">{tipologiasOrigem[t.chave]}</p>
+							)}
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
 								<div className="lg:col-span-2">
 									<Campo label="Classe — Descrição">

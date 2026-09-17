@@ -5,6 +5,7 @@
  * confirmado pelo usuário em `OodcMemorialCalculo` (+ endereços e tipologias).
  */
 
+import { parseSqlParaLocalizacao } from '@/lib/geosampa-sql.util';
 import { prisma } from '@/lib/prisma';
 import {
 	sugerirCaPorZona,
@@ -29,7 +30,14 @@ import {
 	sugerirIdTipologiaDeCategoria,
 } from '@/lib/server/bi-categoria';
 import { buscarCodlogPadraoPorProcessoNoBi, buscarSetoresQuadrasPorProcessoNoBi } from '@/lib/server/bi-sql-incra';
+import {
+	consultarGeoSampa,
+	consultarProcessoNoWfs,
+	GeoSampaConsultaError,
+	RE_PROCESSO,
+} from '@/lib/server/geosampa';
 import { buscarValorReferencia } from '@/lib/server/oodc-valor-referencia';
+import type { IGeoSampaResult } from '@/types/geosampa';
 
 export class OodcMemorialError extends Error {}
 
@@ -50,27 +58,85 @@ export interface RascunhoCalculoOodc {
 	tipologiasOrigemBi: Record<string, string>;
 }
 
+function padCadastro(valor: string | null | undefined, tamanho: number): string {
+	const t = valor?.trim() ?? '';
+	if (!t) return '';
+	const digits = t.replace(/\D/g, '');
+	return (digits || t).padStart(tamanho, '0');
+}
+
 function enderecoVazio(): EnderecoValorUnitario {
 	return { setor: '', quadra: '', codlog: '' };
 }
 
-/** Busca o processo + ficha de monitoramento e monta um rascunho de
- * `EntradaCalculoOodc` com tudo que já dá para localizar automaticamente
- * (assunto no BI, macrozona/macroárea/zona no enquadramento urbanístico, legislação
- * sugerida, endereço #1 + V/V_MÁXIMO). O resto fica zerado para o usuário preencher. */
-export async function montarRascunhoCalculo(processoId: string): Promise<RascunhoCalculoOodc> {
-	const processo = await prisma.processo.findUnique({
-		where: { id: processoId },
-		include: {
-			monitoramento: {
-				include: { localizacao_lote: true, enquadramento_urbanistico: true },
-			},
-		},
-	});
-	if (!processo) throw new OodcMemorialError('Processo não encontrado.');
+function camposPreenchidos<T extends object>(obj?: T | null): Partial<T> {
+	if (!obj) return {};
+	return Object.fromEntries(
+		Object.entries(obj).filter(([, v]) => v != null && v !== ''),
+	) as Partial<T>;
+}
 
-	const enquadramento: EnquadramentoParaSugestao = processo.monitoramento?.enquadramento_urbanistico ?? {};
-	const localizacao = processo.monitoramento?.localizacao_lote;
+/** Tokens tipo `HIS/R2v` do GeoSampa — ignora o código canônico R/nR (uso, não tipologia). */
+function tokensTipologiaGeoSampa(geo?: IGeoSampaResult | null): string[] {
+	const brutos = [
+		geo?.enquadramento_urbanistico?.tipologia_uso_oodc,
+		geo?.subcategorias_uso?.uso_r_hmp_his,
+		geo?.subcategorias_uso?.uso_r_hmp_his_2,
+		geo?.subcategorias_uso?.uso_r_hmp_his_3,
+		geo?.subcategorias_uso?.uso_nr,
+		geo?.subcategorias_uso?.uso_nr_2,
+		geo?.subcategorias_uso?.uso_nr_3,
+		geo?.subcategorias_uso?.uso_extra,
+	];
+	const vistos = new Set<string>();
+	const out: string[] = [];
+	for (const bruto of brutos) {
+		if (!bruto?.trim()) continue;
+		for (const parte of bruto.split(/[/\\,;|+]+/)) {
+			const token = parte.trim();
+			if (!token || token === 'R' || token === 'nR' || token === 'R/nR') continue;
+			const chave = token.toUpperCase();
+			if (vistos.has(chave)) continue;
+			vistos.add(chave);
+			out.push(token);
+		}
+	}
+	return out;
+}
+
+async function buscarGeoSampaParaMemorial(numProcesso: string): Promise<IGeoSampaResult | null> {
+	try {
+		return (await consultarGeoSampa(undefined, numProcesso)).data;
+	} catch (error) {
+		if (!(error instanceof GeoSampaConsultaError)) {
+			console.error('[OODC] Falha ao consultar GeoSampa:', error);
+		}
+	}
+	try {
+		return await consultarProcessoNoWfs(numProcesso);
+	} catch (error) {
+		if (!(error instanceof GeoSampaConsultaError)) {
+			console.error('[OODC] Falha na camada outorga_onerosa:', error);
+		}
+		return null;
+	}
+}
+
+interface FontesRascunho {
+	numProcesso: string;
+	dataEntrada?: Date | null;
+	protocoloAd?: string | null;
+	enquadramento: EnquadramentoParaSugestao;
+	localizacao?: {
+		setor?: string | null;
+		quadra?: string | null;
+		codigo_logradouro?: string | null;
+	} | null;
+	geo?: IGeoSampaResult | null;
+}
+
+async function montarRascunhoComFontes(fontes: FontesRascunho): Promise<RascunhoCalculoOodc> {
+	const { numProcesso, dataEntrada, protocoloAd, enquadramento, localizacao, geo } = fontes;
 
 	const { idMacrozona, idMacroarea } = sugerirMacrozonaMacroarea(enquadramento);
 	const { idZona, origemLei } = sugerirZonaEOrigemLegal(enquadramento);
@@ -78,31 +144,30 @@ export async function montarRascunhoCalculo(processoId: string): Promise<Rascunh
 	const legislacaoSugestao = sugerirLegislacao({
 		origemLei,
 		dentroPerimetroAiu,
-		dataEntrada: processo.data_entrada,
+		dataEntrada: dataEntrada ?? null,
 	});
 	const caSugerido = sugerirCaPorZona(idZona);
 
 	let assuntoCandidatos: CandidatoAssunto[] = [];
 	try {
-		const encontrados = await buscarAssuntosPorProcessoNoBi(processo.num_processo);
+		const encontrados = await buscarAssuntosPorProcessoNoBi(numProcesso);
 		assuntoCandidatos = encontrados.map((e) => ({
 			assunto: e.assunto,
 			idSugerido: mapearAssuntoBiParaIdOodc(e.assunto),
 		}));
 	} catch {
-		// BI indisponível ou processo sem registro — usuário escolhe o assunto manualmente.
 		assuntoCandidatos = [];
 	}
 	const idAssunto = assuntoCandidatos.find((c) => c.idSugerido != null)?.idSugerido ?? 0;
 
-	const categoriasBi = await buscarCategoriasPorProcessoNoBi(processo.num_processo);
+	const categoriasBi = await buscarCategoriasPorProcessoNoBi(numProcesso);
 	const tipologiasOrigemBi: Record<string, string> = {};
 	const tipologiasIniciais: TipologiaCalculo[] = categoriasBi.map((cat, idx) => {
 		const chave = `bi-${idx}`;
 		tipologiasOrigemBi[chave] = descricaoCategoriaBi(cat);
 		return {
 			chave,
-			idTipologia: sugerirIdTipologiaDeCategoria(cat.codsubcategoria) ?? 0,
+			idTipologia: sugerirIdTipologiaDeCategoria(cat.codsubcategoria, cat.codcategoria) ?? 0,
 			caBasico: caSugerido?.caBasico ?? 0,
 			caMaximo: caSugerido?.caMaximo ?? 0,
 			terrenoM2: 0,
@@ -111,32 +176,56 @@ export async function montarRascunhoCalculo(processoId: string): Promise<Rascunh
 			outorgaAdquiridaM2: 0,
 		};
 	});
+	const origemJaVista = [
+		...Object.values(tipologiasOrigemBi),
+		...categoriasBi.map((c) => `${c.codcategoria ?? ''} ${c.codsubcategoria ?? ''}`),
+	]
+		.join(' ')
+		.toUpperCase();
+	for (const token of tokensTipologiaGeoSampa(geo)) {
+		if (origemJaVista.includes(token.toUpperCase())) continue;
+		const chave = `geo-${tipologiasIniciais.length}`;
+		tipologiasOrigemBi[chave] = `GeoSampa: ${token}`;
+		tipologiasIniciais.push({
+			chave,
+			idTipologia: sugerirIdTipologiaDeCategoria(token, token) ?? 0,
+			caBasico: caSugerido?.caBasico ?? 0,
+			caMaximo: caSugerido?.caMaximo ?? 0,
+			terrenoM2: 0,
+			computavelM2: 0,
+			tdcM2: 0,
+			outorgaAdquiridaM2: 0,
+		});
+	}
 	const idClassificacaoEmpreendimentoSugerido = sugerirIdClassificacaoEmpreendimento(categoriasBi);
 
+	const locSql = geo?.sql_formatado ? parseSqlParaLocalizacao(geo.sql_formatado) : null;
 	const enderecoInicial: EnderecoValorUnitario =
-		localizacao?.setor && localizacao?.quadra && localizacao?.codigo_logradouro
+		localizacao?.setor && localizacao?.quadra
 			? {
-					setor: localizacao.setor,
-					quadra: localizacao.quadra,
-					codlog: localizacao.codigo_logradouro,
+					setor: padCadastro(localizacao.setor, 3),
+					quadra: padCadastro(localizacao.quadra, 3),
+					codlog: padCadastro(localizacao.codigo_logradouro, 6),
 				}
-			: enderecoVazio();
+			: locSql
+				? {
+						setor: locSql.setor,
+						quadra: locSql.quadra,
+						codlog: padCadastro(geo?.localizacao_lote?.codigo_logradouro, 6),
+					}
+				: enderecoVazio();
 
 	// Um processo pode ter vários lotes (terreno remembrado) — o BI (dbo.prata_sql_incra)
 	// traz todos os SQLs distintos; deduplicamos por setor+quadra (é o que a busca do V
 	// usa). O endereço local (localizacao_lote, já conferido pelo GeoSampa) sempre vem
 	// primeiro; os demais entram com o mesmo codlog como sugestão — sem vínculo direto
 	// SQL→codlog nas tabelas do BI, então fica editável.
-	const setoresQuadrasBi = await buscarSetoresQuadrasPorProcessoNoBi(
-		processo.num_processo,
-		() => {},
-		{ protocoloAd: processo.protocolo_ad },
-	);
+	const setoresQuadrasBi = await buscarSetoresQuadrasPorProcessoNoBi(numProcesso, () => {}, {
+		protocoloAd,
+	});
 	const codlogFallback =
 		enderecoInicial.codlog ||
-		(await buscarCodlogPadraoPorProcessoNoBi(processo.num_processo, () => {}, {
-			protocoloAd: processo.protocolo_ad,
-		})) ||
+		(await buscarCodlogPadraoPorProcessoNoBi(numProcesso, () => {}, { protocoloAd })) ||
 		'';
 
 	const enderecos: EnderecoValorUnitario[] = [];
@@ -197,6 +286,75 @@ export async function montarRascunhoCalculo(processoId: string): Promise<Rascunh
 	};
 
 	return { entrada, legislacaoSugestao, caSugerido, assuntoCandidatos, vMax, valoresEncontrados, tipologiasOrigemBi };
+}
+
+/** Busca o processo + ficha de monitoramento e monta um rascunho de
+ * `EntradaCalculoOodc` com tudo que já dá para localizar automaticamente
+ * (assunto no BI, macrozona/macroárea/zona no enquadramento urbanístico, legislação
+ * sugerida, endereço #1 + V/V_MÁXIMO). O resto fica zerado para o usuário preencher. */
+export async function montarRascunhoCalculo(processoId: string): Promise<RascunhoCalculoOodc> {
+	const processo = await prisma.processo.findUnique({
+		where: { id: processoId },
+		include: {
+			monitoramento: {
+				include: { localizacao_lote: true, enquadramento_urbanistico: true },
+			},
+		},
+	});
+	if (!processo) throw new OodcMemorialError('Processo não encontrado.');
+
+	const enquadramento: EnquadramentoParaSugestao = processo.monitoramento?.enquadramento_urbanistico ?? {};
+	const localizacao = processo.monitoramento?.localizacao_lote;
+
+	return montarRascunhoComFontes({
+		numProcesso: processo.num_processo,
+		dataEntrada: processo.data_entrada,
+		protocoloAd: processo.protocolo_ad,
+		enquadramento,
+		localizacao,
+	});
+}
+
+/**
+ * Rascunho para a tela DEV (sem processo no banco): consulta BI + GeoSampa ao vivo
+ * pelo número SEI e preenche macrozona, macroárea, zona, SQL/CODLOG e tipologias
+ * (HIS, R2v/RV2, etc.).
+ */
+export async function montarRascunhoPorNumeroProcesso(numProcesso: string): Promise<RascunhoCalculoOodc> {
+	const identificador = numProcesso.trim();
+	if (!RE_PROCESSO.test(identificador)) {
+		throw new OodcMemorialError('Número inválido. Formato esperado: 0000.0000/0000000-0.');
+	}
+
+	const [processoLocal, geo] = await Promise.all([
+		prisma.processo.findUnique({
+			where: { num_processo: identificador },
+			include: {
+				monitoramento: {
+					include: { localizacao_lote: true, enquadramento_urbanistico: true },
+				},
+			},
+		}),
+		buscarGeoSampaParaMemorial(identificador),
+	]);
+
+	const enquadramentoDb = processoLocal?.monitoramento?.enquadramento_urbanistico ?? {};
+	const enquadramentoGeo = geo?.enquadramento_urbanistico ?? {};
+	const localizacaoGeo = geo?.localizacao_lote;
+	const localizacaoDb = processoLocal?.monitoramento?.localizacao_lote;
+
+	return montarRascunhoComFontes({
+		numProcesso: identificador,
+		dataEntrada: processoLocal?.data_entrada ?? (geo?.data_autuacao ? new Date(geo.data_autuacao) : null),
+		protocoloAd: processoLocal?.protocolo_ad,
+		enquadramento: { ...enquadramentoDb, ...camposPreenchidos(enquadramentoGeo) },
+		localizacao: {
+			setor: localizacaoGeo?.setor || localizacaoDb?.setor,
+			quadra: localizacaoGeo?.quadra || localizacaoDb?.quadra,
+			codigo_logradouro: localizacaoGeo?.codigo_logradouro || localizacaoDb?.codigo_logradouro,
+		},
+		geo,
+	});
 }
 
 export interface FlagsMemorialCalculo {
