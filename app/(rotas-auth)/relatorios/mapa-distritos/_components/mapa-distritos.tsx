@@ -6,26 +6,14 @@ import { scaleSequential } from 'd3-scale';
 import { normalizarDistrito } from '@/lib/geo/normalizar-distrito';
 import type { IRelatorioDistrito } from '@/types/relatorio';
 
-type GeoGeometry = {
-	type: string;
-	coordinates: unknown;
-};
-
 type DistritoProperties = {
 	nm_distrito_municipal?: string;
 	sg_distrito_municipal?: string;
 };
 
-type DistritoFeature = {
-	type: 'Feature';
-	geometry: GeoGeometry;
-	properties: DistritoProperties;
-};
+type DistritoFeature = GeoJSON.Feature<GeoJSON.Geometry, DistritoProperties>;
 
-type DistritoFeatureCollection = {
-	type: 'FeatureCollection';
-	features: DistritoFeature[];
-};
+type DistritoFeatureCollection = GeoJSON.FeatureCollection<GeoJSON.Geometry, DistritoProperties>;
 
 const fmtM = (v: number) =>
 	`R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M`;

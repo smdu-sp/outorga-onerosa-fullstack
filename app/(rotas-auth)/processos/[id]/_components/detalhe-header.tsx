@@ -107,48 +107,46 @@ export function DetalheHeader({
 				<span className="font-mono text-xs text-foreground">{processo.num_processo}</span>
 			</Link>
 
-			<div className="flex flex-wrap items-start justify-between gap-4">
-				<div className="min-w-0 space-y-3">
-					<div className="flex flex-wrap items-center gap-2.5">
-						<h1 className="m-0 font-mono text-[26px] font-bold tracking-[-0.01em]">
-							{processo.num_processo}
-						</h1>
-						{tipo && (
-							<span
-								className={cn(
-									'inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold',
-									TIPO_CLASS[tipo] ?? 'bg-secondary text-muted-foreground',
-								)}>
-								{tipoLabel}
-							</span>
-						)}
-						{status && (
-							<span
-								className={cn(
-									'inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold',
-									STATUS_CLASS[status] ?? 'bg-secondary text-muted-foreground',
-								)}>
-								{STATUS_PAGAMENTO[status] ?? status}
-							</span>
-						)}
-						{processoEhNovo(processo) && (
-							<span className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary-foreground">
-								Novo
-							</span>
-						)}
-					</div>
+			<div className="rounded-2xl border border-border/70 bg-card px-5 py-4 shadow-xs">
+				<div className="flex flex-wrap items-center gap-2.5">
+					<h1 className="m-0 font-mono text-2xl font-bold tracking-[-0.01em]">
+						{processo.num_processo}
+					</h1>
+					{tipo && (
+						<span
+							className={cn(
+								'inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold',
+								TIPO_CLASS[tipo] ?? 'bg-secondary text-muted-foreground',
+							)}>
+							{tipoLabel}
+						</span>
+					)}
+					{status && (
+						<span
+							className={cn(
+								'inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold',
+								STATUS_CLASS[status] ?? 'bg-secondary text-muted-foreground',
+							)}>
+							{STATUS_PAGAMENTO[status] ?? status}
+						</span>
+					)}
+					{processoEhNovo(processo) && (
+						<span className="inline-flex rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary-foreground">
+							Novo
+						</span>
+					)}
+				</div>
 
-					<div className="flex flex-wrap gap-6">
-						<Metrica label="Valor total" value={fmtBRL(valorTotal)} />
-						<Metrica label="Valor da Outorga" value={fmtBRL(valorOutorga)} />
-						<Metrica label="Valor da Cota" value={fmtBRL(valorCota)} />
-						<Metrica
-							label="Valor devido"
-							value={fmtBRL(valorDevido)}
-							destaque={valorDevido > 0}
-						/>
-						<Metrica label="Data de entrada" value={formatarDataCivil(processo.data_entrada)} />
-					</div>
+				<div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-border pt-4 sm:grid-cols-3 lg:grid-cols-5">
+					<Metrica label="Valor total" value={fmtBRL(valorTotal)} />
+					<Metrica label="Valor da Outorga" value={fmtBRL(valorOutorga)} />
+					<Metrica label="Valor da Cota" value={fmtBRL(valorCota)} />
+					<Metrica
+						label="Valor devido"
+						value={fmtBRL(valorDevido)}
+						destaque={valorDevido > 0}
+					/>
+					<Metrica label="Data de entrada" value={formatarDataCivil(processo.data_entrada)} />
 				</div>
 			</div>
 

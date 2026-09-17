@@ -2,6 +2,14 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback } from 'react';
+import {
+	FiltroBar,
+	FiltroClearButton,
+	filtroInputClass,
+	filtroLabelClass,
+	filtroSelectClass,
+	filtroSepClass,
+} from '@/components/filtro-ui';
 
 interface FiltrosRelatorioProps {
 	subprefeituras: string[];
@@ -84,37 +92,29 @@ export function FiltrosRelatorio({ subprefeituras, anosDisponiveis }: FiltrosRel
 	const temRange = Boolean(de || ate);
 	const ano = temRange ? 'todos' : (params.get('ano') ?? String(anoAtual));
 
-	const selectCls =
-		'h-[30px] rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring';
-	const inputCls =
-		'h-[30px] rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring';
-	const labelCls =
-		'text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground';
-	const sepCls = 'mx-1 h-4 w-px bg-border shrink-0';
-
 	return (
-		<div className="mb-6 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2.5">
-			<span className={labelCls}>Tipo</span>
-			<select className={selectCls} value={tipo} onChange={(e) => update('tipo', e.target.value, 'todos')}>
+		<FiltroBar className="gap-2.5">
+			<span className={filtroLabelClass}>Tipo</span>
+			<select className={filtroSelectClass} value={tipo} onChange={(e) => update('tipo', e.target.value, 'todos')}>
 				<option value="todos">Todos</option>
 				<option value="PDE">PDE</option>
 				<option value="COTA">COTA</option>
 			</select>
 
-			<div className={sepCls} />
+			<div className={filtroSepClass} />
 
-			<span className={labelCls}>Status</span>
-			<select className={selectCls} value={status} onChange={(e) => update('status', e.target.value, 'todos')}>
+			<span className={filtroLabelClass}>Status</span>
+			<select className={filtroSelectClass} value={status} onChange={(e) => update('status', e.target.value, 'todos')}>
 				<option value="todos">Todos</option>
 				<option value="quitado">Quitado</option>
 				<option value="andamento">Em andamento</option>
 				<option value="quebra">Quebra</option>
 			</select>
 
-			<div className={sepCls} />
+			<div className={filtroSepClass} />
 
-			<span className={labelCls}>Subprefeitura</span>
-			<select className={selectCls} value={sub} onChange={(e) => update('sub', e.target.value, 'todas')}>
+			<span className={filtroLabelClass}>Subprefeitura</span>
+			<select className={filtroSelectClass} value={sub} onChange={(e) => update('sub', e.target.value, 'todas')}>
 				<option value="todas">Todas</option>
 				{subprefeituras.map((s) => (
 					<option key={s} value={s}>
@@ -123,11 +123,11 @@ export function FiltrosRelatorio({ subprefeituras, anosDisponiveis }: FiltrosRel
 				))}
 			</select>
 
-			<div className={sepCls} />
+			<div className={filtroSepClass} />
 
-			<span className={labelCls}>Ano</span>
+			<span className={filtroLabelClass}>Ano</span>
 			<select
-				className={selectCls}
+				className={filtroSelectClass}
 				value={ano}
 				disabled={temRange}
 				onChange={(e) => updateAno(e.target.value)}>
@@ -139,32 +139,25 @@ export function FiltrosRelatorio({ subprefeituras, anosDisponiveis }: FiltrosRel
 				))}
 			</select>
 
-			<div className={sepCls} />
+			<div className={filtroSepClass} />
 
-			<span className={labelCls}>De</span>
+			<span className={filtroLabelClass}>De</span>
 			<input
 				type="date"
-				className={inputCls}
+				className={filtroInputClass}
 				value={de}
 				onChange={(e) => updateData('de', e.target.value)}
 			/>
-			<span className={labelCls}>Até</span>
+			<span className={filtroLabelClass}>Até</span>
 			<input
 				type="date"
-				className={inputCls}
+				className={filtroInputClass}
 				value={ate}
 				min={de || undefined}
 				onChange={(e) => updateData('ate', e.target.value)}
 			/>
 
-			{temRange && (
-				<button
-					type="button"
-					onClick={limparPeriodo}
-					className="ml-1 rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted">
-					Limpar período
-				</button>
-			)}
-		</div>
+			{temRange && <FiltroClearButton onClick={limparPeriodo}>Limpar período</FiltroClearButton>}
+		</FiltroBar>
 	);
 }

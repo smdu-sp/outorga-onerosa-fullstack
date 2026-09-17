@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback } from 'react';
+import { FiltroClearButton, filtroInputClass, filtroLabelClass } from '@/components/filtro-ui';
 
 /** Inputs de/até reutilizáveis; limpa ano/mês ao preencher. */
 export function FiltrosPeriodoDatas({ className }: { className?: string }) {
@@ -36,36 +37,24 @@ export function FiltrosPeriodoDatas({ className }: { className?: string }) {
 		router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
 	}, [params, pathname, router]);
 
-	const inputCls =
-		'h-[30px] rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring';
-	const labelCls =
-		'text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground';
-
 	return (
 		<div className={className ?? 'flex flex-wrap items-center gap-2'}>
-			<span className={labelCls}>De</span>
+			<span className={filtroLabelClass}>De</span>
 			<input
 				type="date"
-				className={inputCls}
+				className={filtroInputClass}
 				value={de}
 				onChange={(e) => update('de', e.target.value)}
 			/>
-			<span className={labelCls}>Até</span>
+			<span className={filtroLabelClass}>Até</span>
 			<input
 				type="date"
-				className={inputCls}
+				className={filtroInputClass}
 				value={ate}
 				min={de || undefined}
 				onChange={(e) => update('ate', e.target.value)}
 			/>
-			{(de || ate) && (
-				<button
-					type="button"
-					onClick={limpar}
-					className="rounded-md border border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted">
-					Limpar período
-				</button>
-			)}
+			{(de || ate) && <FiltroClearButton onClick={limpar}>Limpar período</FiltroClearButton>}
 		</div>
 	);
 }

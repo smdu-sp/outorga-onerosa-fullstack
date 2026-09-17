@@ -182,10 +182,10 @@ function TabelaParcelas({ parcelas }: { parcelas: Record<string, unknown>[] }) {
 
 	return (
 		<Table className='border'>
-			<TableHeader className='bg-primary hover:opacity-100'>
-				<TableRow className='hover:opacity-100'>
+			<TableHeader>
+				<TableRow>
 					{colunas.map((chave) => (
-						<TableHead key={chave} className='text-secondary text-center text-xs'>
+						<TableHead key={chave} className='text-center'>
 							{LABELS_PARCELA[chave]}
 						</TableHead>
 					))}
@@ -343,10 +343,10 @@ function TabelaLicencas({ licencas }: { licencas: Record<string, unknown>[] }) {
 
 	return (
 		<Table className='border'>
-			<TableHeader className='bg-primary hover:opacity-100'>
-				<TableRow className='hover:opacity-100'>
+			<TableHeader>
+				<TableRow>
 					{colunas.map((chave) => (
-						<TableHead key={chave} className='text-secondary text-center text-xs'>
+						<TableHead key={chave} className='text-center'>
 							{LABELS_LICENCA[chave]}
 						</TableHead>
 					))}
@@ -415,10 +415,10 @@ function TabelaSqls({ sqls }: { sqls: Record<string, unknown>[] }) {
 
 	return (
 		<Table className='border'>
-			<TableHeader className='bg-primary hover:opacity-100'>
-				<TableRow className='hover:opacity-100'>
+			<TableHeader>
+				<TableRow>
 					{colunas.map((chave) => (
-						<TableHead key={chave} className='text-secondary text-center text-xs'>
+						<TableHead key={chave} className='text-center'>
 							{LABELS_SQL[chave]}
 						</TableHead>
 					))}

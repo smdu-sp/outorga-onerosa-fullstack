@@ -2,6 +2,7 @@
 
 import { ORDEM_PENDENCIAS, PENDENCIAS_META } from '@/lib/pendencias-processo';
 import { cn } from '@/lib/utils';
+import { FiltroBar, FiltroSegmented, filtroSelectClass } from '@/components/filtro-ui';
 import { Search } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useState } from 'react';
@@ -57,9 +58,9 @@ export function ToolbarLista({
 	);
 
 	return (
-		<div className="mb-4 flex flex-wrap items-center gap-3">
-			<div className="flex min-w-[280px] max-w-[420px] flex-1 items-center gap-[7px] rounded-lg border border-border bg-secondary px-2.5 py-[7px]">
-				<Search className="h-[15px] w-[15px] shrink-0 text-muted-foreground" />
+		<FiltroBar>
+			<div className="flex h-8 min-w-[120px] max-w-[420px] flex-1 items-center gap-1.5 rounded-lg border border-border bg-secondary px-2 sm:h-9 sm:min-w-[220px] sm:gap-[7px] sm:px-2.5">
+				<Search className="h-[13px] w-[13px] shrink-0 text-muted-foreground sm:h-[15px] sm:w-[15px]" />
 				<input
 					value={busca}
 					onChange={(e) => {
@@ -72,11 +73,11 @@ export function ToolbarLista({
 						}
 					}}
 					placeholder="Buscar por número, interessado ou CPF/CNPJ…"
-					className="w-full border-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+					className="w-full min-w-0 border-none bg-transparent text-xs outline-none placeholder:text-muted-foreground sm:text-sm"
 				/>
 			</div>
 
-			<div className="flex flex-wrap gap-2">
+			<div className="shrink-0">
 				<FiltroGrupo
 					valor={tipoInicial}
 					onChange={(tipo) => atualizarParams({ tipo })}
@@ -87,6 +88,8 @@ export function ToolbarLista({
 						{ value: 'AIU', label: 'AIU' },
 					]}
 				/>
+			</div>
+			<div className="shrink-0">
 				<FiltroGrupo
 					valor={statusInicial}
 					onChange={(status) => atualizarParams({ status })}
@@ -97,7 +100,9 @@ export function ToolbarLista({
 						{ value: 'QUEBRA', label: 'Quebra' },
 					]}
 				/>
-				{mostrarFiltroNovo && (
+			</div>
+			{mostrarFiltroNovo && (
+				<div className="shrink-0">
 					<FiltroGrupo
 						valor={novoInicial}
 						onChange={(novo) => atualizarParams({ novo })}
@@ -106,27 +111,18 @@ export function ToolbarLista({
 							{ value: 'SIM', label: 'Novos' },
 						]}
 					/>
-				)}
-			</div>
+				</div>
+			)}
 
-			<div className="flex items-center gap-1.5 rounded-lg border border-border bg-secondary p-1">
-				{VENC_CHIPS.map((chip) => (
-					<button
-						key={chip.value}
-						type="button"
-						onClick={() => {
-							setVencimento(chip.value);
-							atualizarParams({ vencimento: chip.value || null });
-						}}
-						className={cn(
-							'rounded-md px-3 py-1 text-[12.5px] font-medium transition-colors',
-							vencimento === chip.value
-								? 'bg-primary text-primary-foreground shadow-xs'
-								: 'text-muted-foreground hover:bg-muted hover:text-foreground',
-						)}>
-						{chip.label}
-					</button>
-				))}
+			<div className="shrink-0">
+				<FiltroSegmented
+					opcoes={VENC_CHIPS.map((c) => ({ value: c.value, label: c.label }))}
+					valor={vencimento}
+					onChange={(value) => {
+						setVencimento(value);
+						atualizarParams({ vencimento: value || null });
+					}}
+				/>
 			</div>
 
 			<select
@@ -136,13 +132,13 @@ export function ToolbarLista({
 					atualizarParams({ pendencia: e.target.value || null });
 				}}
 				title="Filtrar por dados faltantes para os relatórios"
-				className="h-[34px] rounded-lg border border-border bg-secondary px-2.5 text-[12.5px] font-medium text-foreground outline-none focus:ring-1 focus:ring-ring">
+				className={cn(filtroSelectClass, 'w-[120px] shrink-0 sm:w-auto')}>
 				{PENDENCIA_OPCOES.map((opcao) => (
 					<option key={opcao.value} value={opcao.value}>
 						{opcao.label}
 					</option>
 				))}
 			</select>
-		</div>
+		</FiltroBar>
 	);
 }

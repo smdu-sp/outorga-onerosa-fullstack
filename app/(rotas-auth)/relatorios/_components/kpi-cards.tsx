@@ -18,7 +18,7 @@ interface KpiCardProps {
 
 function KpiCard({ label, value, sub, icon, color, bar }: KpiCardProps) {
 	return (
-		<div className="rounded-xl border border-border bg-card px-5 py-4 shadow-xs">
+		<div className="bg-card px-5 py-4">
 			<div className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
 				{icon}
 				{label}
@@ -145,7 +145,7 @@ export function KpiCards({ d }: { d: IRelatorio | null }) {
 	];
 
 	return (
-		<div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+		<div className="grid grid-cols-2 gap-px bg-border md:grid-cols-3 xl:grid-cols-4">
 			{cards.map((c) => (
 				<KpiCard key={c.label} {...c} />
 			))}

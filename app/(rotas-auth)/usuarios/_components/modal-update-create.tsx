@@ -11,39 +11,43 @@ import {
 } from '@/components/ui/dialog';
 import { IUsuario } from '@/types/usuario';
 import { Plus, SquarePen } from 'lucide-react';
+import type { ReactNode } from 'react';
 import FormUsuario from './form-usuario';
 
 export default function ModalUpdateAndCreate({
 	isUpdating,
 	user,
+	trigger,
 }: {
 	isUpdating: boolean;
 	user?: Partial<IUsuario>;
+	trigger?: ReactNode;
 }) {
-	console.log(isUpdating);
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<Button
-					size={'icon'}
-					variant={'outline'}
-					className={`${
-						isUpdating
-							? 'bg-background hover:bg-primary '
-							: 'bg-primary hover:bg-primary hover:opacity-70'
-					} group transition-all ease-linear duration-200`}>
-					{isUpdating ? (
-						<SquarePen
-							size={24}
-							className='text-primary group-hover:text-white group'
-						/>
-					) : (
-						<Plus
-							size={24}
-							className='text-white group'
-						/>
-					)}
-				</Button>
+				{trigger ?? (
+					<Button
+						size={'icon'}
+						variant={'outline'}
+						className={`${
+							isUpdating
+								? 'bg-background hover:bg-primary '
+								: 'bg-primary hover:bg-primary hover:opacity-70'
+						} group transition-all ease-linear duration-200`}>
+						{isUpdating ? (
+							<SquarePen
+								size={24}
+								className='text-primary group-hover:text-white group'
+							/>
+						) : (
+							<Plus
+								size={24}
+								className='text-white group'
+							/>
+						)}
+					</Button>
+				)}
 			</DialogTrigger>
 			<DialogContent>
 				<DialogHeader>

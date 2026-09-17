@@ -1,13 +1,17 @@
 /** @format */
 
-import DataTable, { TableSkeleton } from '@/components/data-table';
+import DataTable from '@/components/data-table';
 import Pagination from '@/components/pagination';
+import { PageHeader, PageShell } from '@/components/page-shell';
+import { AdminListaSkeleton } from '@/components/skeleton-blocks';
+import { Button } from '@/components/ui/button';
 import { auth } from '@/lib/auth/auth';
 import * as gruposPermissao from '@/services/grupos-permissao';
 import {
 	IGrupoPermissao,
 	IPaginadoGrupoPermissao,
 } from '@/types/grupo-permissao';
+import { Plus } from 'lucide-react';
 import { Suspense } from 'react';
 import { columns } from './_components/columns';
 import ModalUpdateAndCreate from './_components/modal-update-create';
@@ -18,7 +22,7 @@ export default function UsuariosSuspense({
 	searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
 	return (
-		<Suspense fallback={<TableSkeleton />}>
+		<Suspense fallback={<AdminListaSkeleton />}>
 			<Permissoes searchParams={searchParams} />
 		</Suspense>
 	);
@@ -56,35 +60,27 @@ async function Permissoes({
 	}
 
 	return (
-		<>
-			<div className='container w-full relative h-full'>
-				<div>
-					<div className='flex flex-col gap-2 mb-5'>
-						<h1 className='text-4xl font-bold'>Grupos de Permissão</h1>
-						<p className='text-muted-foreground'>
-							Gerenciamento e consulta de grupos de permissão
-						</p>
-					</div>
-					<div className='flex flex-col gap-10'>
-						{dados && (
-							<DataTable
-								columns={columns}
-								data={dados || []}
-							/>
-						)}
-						{dados && dados.length > 0 && (
-							<Pagination
-								total={+total}
-								limite={+limite}
-								pagina={+pagina}
-							/>
-						)}
-					</div>
-				</div>
+		<PageShell>
+			<PageHeader
+				title='Grupos de Permissão'
+				actions={
+					<ModalUpdateAndCreate
+						isUpdating={false}
+						trigger={
+							<Button className='gap-2'>
+								<Plus className='size-4' />
+								Novo grupo
+							</Button>
+						}
+					/>
+				}
+			/>
+			<div className='flex flex-col gap-6'>
+				{dados && <DataTable columns={columns} data={dados || []} />}
+				{dados && dados.length > 0 && (
+					<Pagination total={+total} limite={+limite} pagina={+pagina} />
+				)}
 			</div>
-			<div className='absolute bottom-4 right-4 hover:scale-110'>
-				<ModalUpdateAndCreate isUpdating={false} />
-			</div>
-		</>
+		</PageShell>
 	);
 }

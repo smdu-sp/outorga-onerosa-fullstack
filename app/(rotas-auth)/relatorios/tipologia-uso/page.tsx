@@ -4,7 +4,9 @@ import { Suspense } from 'react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ArrowLeft, Home } from 'lucide-react';
-import { TableSkeleton } from '@/components/data-table';
+import { RelatorioSubpaginaSkeleton } from '@/components/skeleton-blocks';
+import { PageHeader, PageShell, StatGroup } from '@/components/page-shell';
+import { FiltroBar, FiltroChip, filtroLabelClass } from '@/components/filtro-ui';
 import { relatorioTipologia } from '@/services/relatorios/tipologia';
 import { parseFiltroPeriodo, descreverPeriodo } from '@/lib/server/periodo-relatorio';
 import { FiltrosPeriodoDatas } from '../_components/filtros-periodo-datas';
@@ -25,7 +27,7 @@ export default async function TipologiaUsoPage({ searchParams }: { searchParams:
 	const filtro = parseFiltroPeriodo(params, { anoPadrao: 'todos', mesPadrao: 'omitir' });
 
 	return (
-		<Suspense fallback={<TableSkeleton />}>
+		<Suspense fallback={<RelatorioSubpaginaSkeleton />}>
 			<Conteudo filtro={filtro} periodoLabel={descreverPeriodo(filtro)} />
 		</Suspense>
 	);
@@ -43,44 +45,43 @@ async function Conteudo({
 	const d = resp.data;
 
 	return (
-		<div className="mx-auto w-full px-4 py-7 pb-[60px] sm:px-8">
-			<div className="mb-6 flex items-center gap-3 text-sm text-muted-foreground">
-				<Link
-					href="/relatorios"
-					className="flex items-center gap-1 transition-colors hover:text-foreground">
-					<ArrowLeft className="h-3.5 w-3.5" />
-					Relatórios
-				</Link>
-				<span>/</span>
-				<span className="font-semibold text-foreground">Tipologia de uso</span>
-			</div>
+		<PageShell>
+			<PageHeader
+				icon={Home}
+				title="Tipologia de uso OODC"
+				breadcrumb={
+					<Link
+						href="/relatorios"
+						className="inline-flex items-center gap-1 text-sm text-muted-foreground no-underline hover:text-foreground">
+						<ArrowLeft className="h-3.5 w-3.5" />
+						Relatórios
+						<span className="mx-1 opacity-40">/</span>
+						<span className="text-foreground">Tipologia de uso</span>
+					</Link>
+				}
+				actions={
+					<Suspense>
+						<BotaoExportarExcel tipo="tipologia" />
+					</Suspense>
+				}>
+				<span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+					Residencial, Não Residencial e Uso Misto · {periodoLabel}
+				</span>
+			</PageHeader>
 
-			<div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-				<div>
-					<h1 className="flex items-center gap-2 text-[28px] font-bold tracking-tight">
-						<Home className="h-6 w-6 text-primary" />
-						Tipologia de uso OODC
-					</h1>
-					<p className="mt-1 text-sm text-muted-foreground">
-						Residencial, Não Residencial e Uso Misto · {periodoLabel}
-					</p>
-				</div>
-				<Suspense>
-					<BotaoExportarExcel tipo="tipologia" />
-				</Suspense>
-			</div>
-
-			<div className="mb-6 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card px-3.5 py-2.5">
+			<FiltroBar className="gap-4">
 				<FiltroAnoChips />
 				<FiltrosPeriodoDatas />
-			</div>
+			</FiltroBar>
 
-			<div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-				<Kpi label="Processos" valor={String(d.totais.qtdProcessos)} />
-				<Kpi label="Arrecadado" valor={fmtBrl(d.totais.valorArrecadado)} />
-				<Kpi label="Em aberto" valor={fmtBrl(d.totais.valorEmAberto)} />
-				<Kpi label="Quebra" valor={fmtBrl(d.totais.valorQuebra)} />
-			</div>
+			<StatGroup className="mb-6">
+				<div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+					<Kpi label="Processos" valor={String(d.totais.qtdProcessos)} />
+					<Kpi label="Arrecadado" valor={fmtBrl(d.totais.valorArrecadado)} />
+					<Kpi label="Em aberto" valor={fmtBrl(d.totais.valorEmAberto)} />
+					<Kpi label="Quebra" valor={fmtBrl(d.totais.valorQuebra)} />
+				</div>
+			</StatGroup>
 
 			<div className="mb-6 grid grid-cols-1 gap-6 xl:grid-cols-2">
 				<GraficoTipologiaPizza d={d} />
@@ -88,7 +89,7 @@ async function Conteudo({
 			</div>
 
 			<TabelaTipologia d={d} />
-		</div>
+		</PageShell>
 	);
 }
 
@@ -97,21 +98,14 @@ function FiltroAnoChips() {
 	const anos = [ano, ano - 1, ano - 2, ano - 3, ano - 4];
 	return (
 		<div className="flex flex-wrap items-center gap-2">
-			<span className="text-[11px] font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-				Ano
-			</span>
-			<Link
-				href="?ano=todos"
-				className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:border-foreground hover:text-foreground">
+			<span className={filtroLabelClass}>Ano</span>
+			<FiltroChip href="?ano=todos" ativo={false}>
 				Todos
-			</Link>
+			</FiltroChip>
 			{anos.map((a) => (
-				<Link
-					key={a}
-					href={`?ano=${a}`}
-					className="rounded-full border border-border px-3 py-1 text-xs text-muted-foreground hover:border-foreground hover:text-foreground">
+				<FiltroChip key={a} href={`?ano=${a}`} ativo={false}>
 					{a}
-				</Link>
+				</FiltroChip>
 			))}
 		</div>
 	);
@@ -119,7 +113,7 @@ function FiltroAnoChips() {
 
 function Kpi({ label, valor }: { label: string; valor: string }) {
 	return (
-		<div className="rounded-xl border border-border bg-card p-4 shadow-xs">
+		<div className="bg-card p-4">
 			<div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
 				{label}
 			</div>
@@ -130,53 +124,55 @@ function Kpi({ label, valor }: { label: string; valor: string }) {
 
 function TabelaTipologia({ d }: { d: IRelatorioTipologia }) {
 	return (
-		<div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
-			<table className="w-full text-sm">
-				<thead>
-					<tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
-						<th className="px-4 py-3 font-semibold">Tipologia</th>
-						<th className="px-4 py-3 text-right font-semibold">Processos</th>
-						<th className="px-4 py-3 text-right font-semibold">Total parcelas</th>
-						<th className="px-4 py-3 text-right font-semibold">Arrecadado</th>
-						<th className="px-4 py-3 text-right font-semibold">Em aberto</th>
-						<th className="px-4 py-3 text-right font-semibold">Quebra</th>
-					</tr>
-				</thead>
-				<tbody>
-					{d.linhas.map((l) => (
-						<tr key={l.codigo} className="border-b border-border/60">
-							<td className="px-4 py-2.5 font-medium">{l.label}</td>
-							<td className="px-4 py-2.5 text-right font-mono">{l.qtdProcessos}</td>
-							<td className="px-4 py-2.5 text-right font-mono">{fmtBrl(l.valorTotal)}</td>
-							<td className="px-4 py-2.5 text-right font-mono">
-								{fmtBrl(l.valorArrecadado)}
-							</td>
-							<td className="px-4 py-2.5 text-right font-mono">
-								{fmtBrl(l.valorEmAberto)}
-							</td>
-							<td className="px-4 py-2.5 text-right font-mono">{fmtBrl(l.valorQuebra)}</td>
+		<div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
+			<div className="overflow-x-auto">
+				<table className="w-full border-separate border-spacing-0 text-sm">
+					<thead>
+						<tr className="bg-primary">
+							<th className="whitespace-nowrap px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Tipologia</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Processos</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Total parcelas</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Arrecadado</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Em aberto</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Quebra</th>
 						</tr>
-					))}
-				</tbody>
-				<tfoot>
-					<tr className="bg-muted/30 text-sm font-semibold">
-						<td className="px-4 py-3">Total</td>
-						<td className="px-4 py-3 text-right font-mono">{d.totais.qtdProcessos}</td>
-						<td className="px-4 py-3 text-right font-mono">
-							{fmtBrl(d.totais.valorTotal)}
-						</td>
-						<td className="px-4 py-3 text-right font-mono">
-							{fmtBrl(d.totais.valorArrecadado)}
-						</td>
-						<td className="px-4 py-3 text-right font-mono">
-							{fmtBrl(d.totais.valorEmAberto)}
-						</td>
-						<td className="px-4 py-3 text-right font-mono">
-							{fmtBrl(d.totais.valorQuebra)}
-						</td>
-					</tr>
-				</tfoot>
-			</table>
+					</thead>
+					<tbody>
+						{d.linhas.map((l) => (
+							<tr key={l.codigo} className="border-t border-border transition-colors hover:bg-primary-soft">
+								<td className="px-3.5 py-2.5 font-medium">{l.label}</td>
+								<td className="px-3.5 py-2.5 text-right font-mono">{l.qtdProcessos}</td>
+								<td className="px-3.5 py-2.5 text-right font-mono">{fmtBrl(l.valorTotal)}</td>
+								<td className="px-3.5 py-2.5 text-right font-mono">
+									{fmtBrl(l.valorArrecadado)}
+								</td>
+								<td className="px-3.5 py-2.5 text-right font-mono">
+									{fmtBrl(l.valorEmAberto)}
+								</td>
+								<td className="px-3.5 py-2.5 text-right font-mono">{fmtBrl(l.valorQuebra)}</td>
+							</tr>
+						))}
+					</tbody>
+					<tfoot>
+						<tr className="border-t border-border bg-muted/30 text-sm font-semibold">
+							<td className="px-3.5 py-3">Total</td>
+							<td className="px-3.5 py-3 text-right font-mono">{d.totais.qtdProcessos}</td>
+							<td className="px-3.5 py-3 text-right font-mono">
+								{fmtBrl(d.totais.valorTotal)}
+							</td>
+							<td className="px-3.5 py-3 text-right font-mono">
+								{fmtBrl(d.totais.valorArrecadado)}
+							</td>
+							<td className="px-3.5 py-3 text-right font-mono">
+								{fmtBrl(d.totais.valorEmAberto)}
+							</td>
+							<td className="px-3.5 py-3 text-right font-mono">
+								{fmtBrl(d.totais.valorQuebra)}
+							</td>
+						</tr>
+					</tfoot>
+				</table>
+			</div>
 		</div>
 	);
 }

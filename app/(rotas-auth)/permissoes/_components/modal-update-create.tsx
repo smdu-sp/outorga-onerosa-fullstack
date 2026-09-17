@@ -10,39 +10,44 @@ import {
 	DialogTrigger,
 } from '@/components/ui/dialog';
 import { Plus, SquarePen } from 'lucide-react';
+import type { ReactNode } from 'react';
 import FormPermissao from './form-permissao';
 import { IPermissao } from '@/types/permissao';
 
 export default function ModalUpdateAndCreate({
 	isUpdating,
 	permissao,
+	trigger,
 }: {
 	isUpdating: boolean;
 	permissao?: Partial<IPermissao>;
+	trigger?: ReactNode;
 }) {
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<Button
-					size={'icon'}
-					variant={'outline'}
-					className={`${
-						isUpdating
-							? 'bg-background hover:bg-primary '
-							: 'bg-primary hover:bg-primary hover:opacity-70'
-					} group transition-all ease-linear duration-200`}>
-					{isUpdating ? (
-						<SquarePen
-							size={24}
-							className='text-primary group-hover:text-white group'
-						/>
-					) : (
-						<Plus
-							size={24}
-							className=' text-white group'
-						/>
-					)}
-				</Button>
+				{trigger ?? (
+					<Button
+						size={'icon'}
+						variant={'outline'}
+						className={`${
+							isUpdating
+								? 'bg-background hover:bg-primary '
+								: 'bg-primary hover:bg-primary hover:opacity-70'
+						} group transition-all ease-linear duration-200`}>
+						{isUpdating ? (
+							<SquarePen
+								size={24}
+								className='text-primary group-hover:text-white group'
+							/>
+						) : (
+							<Plus
+								size={24}
+								className=' text-white group'
+							/>
+						)}
+					</Button>
+				)}
 			</DialogTrigger>
 			<DialogContent>
 				<DialogHeader>

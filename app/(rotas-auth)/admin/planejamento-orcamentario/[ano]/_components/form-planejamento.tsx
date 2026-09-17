@@ -17,6 +17,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
 import { formatCurrency, formatDate } from '@/app/utils/funcoes-utilitarias';
+import { useNavigationGuard } from '@/providers/NavigationGuardProvider';
+import { useReportarAlteracoes } from './status-salvamento';
 import { gerarSugestao, salvar, salvarConfiguracao } from '@/services/planejamento-orcamentario';
 import type {
 	IConfiguracaoPlanejamento,
@@ -110,6 +112,23 @@ export function FormPlanejamento({
 	const [sobrescreverEditados, setSobrescreverEditados] = useState(false);
 	const [motivoRevisao, setMotivoRevisao] = useState('');
 
+	// Alterações não salvas: compara o estado atual com o último snapshot salvo
+	// (inicial, ou logo após "Salvar"). Usado para confirmar antes de sair.
+	// Um planejamento novo (planoInicial nulo) nunca começa como "salvo" — mesmo
+	// sem edições, nada foi persistido ainda.
+	const [jaSalvo, setJaSalvo] = useState(planoInicial != null);
+	const snapshotAtual = useMemo(
+		() => JSON.stringify({ parametros, meses, historico, mediaBase, distribuicao }),
+		[parametros, meses, historico, mediaBase, distribuicao],
+	);
+	const [snapshotSalvo, setSnapshotSalvo] = useState(snapshotAtual);
+	const dirty = !jaSalvo || snapshotAtual !== snapshotSalvo;
+	useNavigationGuard(
+		dirty,
+		`Você tem alterações não salvas no planejamento de ${ano}. Deseja realmente sair sem salvar?`,
+	);
+	useReportarAlteracoes(dirty);
+
 	const bloqueado = !editavel && !isDev;
 	const totalAnual = useMemo(
 		() => meses.reduce((s, m) => s + (Number.isFinite(m.valor) ? m.valor : 0), 0),
@@ -182,6 +201,8 @@ export function FormPlanejamento({
 			}
 			toast.success(emRevisao ? 'Revisão salva.' : 'Planejamento salvo.');
 			setMotivoRevisao('');
+			setSnapshotSalvo(snapshotAtual);
+			setJaSalvo(true);
 			router.refresh();
 		});
 	}

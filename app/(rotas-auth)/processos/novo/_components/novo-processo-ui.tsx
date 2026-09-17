@@ -14,7 +14,7 @@ export function NovoCard({
 	return (
 		<div
 			className={cn(
-				'rounded-[var(--radius)] border border-border bg-card',
+				'rounded-xl border border-border/70 bg-card shadow-xs',
 				className,
 			)}>
 			{children}
@@ -34,9 +34,9 @@ export function NovoCardHead({
 	extra?: ReactNode;
 }) {
 	return (
-		<div className="flex items-center gap-3 border-b border-border px-[22px] py-[18px]">
-			<div className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-[9px] bg-primary-soft text-primary">
-				<Icon className="h-[18px] w-[18px]" />
+		<div className="flex items-center gap-3 border-b border-border px-5 py-4">
+			<div className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+				<Icon className="size-[18px]" />
 			</div>
 			<div className="min-w-0 flex-1">
 				<div className="text-[15px] font-bold">{title}</div>

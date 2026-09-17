@@ -30,7 +30,7 @@ export function DetalhePainel({
 	const secao = secaoPorId(secaoId);
 	if (!secao) {
 		return (
-			<div className="rounded-[var(--radius)] border border-border bg-card p-8 text-center text-muted-foreground">
+			<div className="rounded-2xl border border-border/70 bg-card p-8 text-center text-muted-foreground shadow-xs">
 				Seção não encontrada.
 			</div>
 		);
@@ -46,7 +46,7 @@ export function DetalhePainel({
 	const editavelDadosIniciais = secaoId === 'processo' && permissoes.podeEditarDadosIniciais;
 
 	return (
-		<div className="min-h-[60vh] min-w-0 flex-1 rounded-[var(--radius)] border border-border bg-card">
+		<div className="min-h-[60vh] min-w-0 flex-1 rounded-2xl border border-border/70 bg-card shadow-xs">
 			<div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-6 py-5">
 				<div>
 					<h2 className="text-lg font-bold">{secao.titulo}</h2>

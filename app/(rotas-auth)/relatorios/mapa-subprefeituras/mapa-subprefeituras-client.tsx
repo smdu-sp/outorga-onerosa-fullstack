@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { FiltroPeriodoSubprefeitura } from '@/lib/server/relatorios-subprefeituras';
 import type { IRelatorioSubprefeituraDetalhe } from '@/types/relatorio';
+import { PageHeader, PageShell } from '@/components/page-shell';
 import { FiltrosMapaSubprefeituras } from './_components/filtros-mapa-subprefeituras';
 import { MapaSubprefeituras } from './_components/mapa-subprefeituras';
 import { TabelasMapaSubprefeituras } from './_components/tabelas-mapa-subprefeituras';
@@ -38,32 +39,34 @@ export function MapaSubprefeiturasClient({
 	}, [filtro.ano, filtro.mes, filtro.dataInicio, filtro.dataFim]);
 
 	return (
-		<div className="mx-auto w-full px-4 py-7 pb-[60px] sm:px-8">
-			<div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-				<div>
+		<PageShell>
+			<PageHeader
+				title="Mapa por Subprefeitura"
+				breadcrumb={
 					<Link
 						href="/relatorios"
-						className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+						className="inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline hover:text-foreground">
 						<ArrowLeft className="h-4 w-4" />
 						Voltar aos relatórios
 					</Link>
-					<h1 className="text-[28px] font-bold tracking-tight">Mapa por Subprefeitura</h1>
-					<p className="mt-1 text-sm text-muted-foreground">
-						Arrecadação de Outorga Onerosa por subprefeitura · {periodoLabel}
-					</p>
-				</div>
-				<div className="flex flex-wrap items-center gap-2">
-					<BotaoExportarExcel tipo="subprefeituras" />
-					{subAtiva && (
-						<button
-							type="button"
-							onClick={() => setSelecionado(null)}
-							className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted">
-							Limpar seleção
-						</button>
-					)}
-				</div>
-			</div>
+				}
+				actions={
+					<div className="flex flex-wrap items-center gap-2">
+						<BotaoExportarExcel tipo="subprefeituras" />
+						{subAtiva && (
+							<button
+								type="button"
+								onClick={() => setSelecionado(null)}
+								className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+								Limpar seleção
+							</button>
+						)}
+					</div>
+				}>
+				<span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+					Arrecadação por subprefeitura · {periodoLabel}
+				</span>
+			</PageHeader>
 
 			<FiltrosMapaSubprefeituras
 				anosDisponiveis={anosDisponiveis}
@@ -103,6 +106,6 @@ export function MapaSubprefeiturasClient({
 				selecionado={selecionado}
 				onSelecionarSubprefeitura={setSelecionado}
 			/>
-		</div>
+		</PageShell>
 	);
 }

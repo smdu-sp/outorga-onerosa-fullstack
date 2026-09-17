@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { FiltroPeriodoDistrito } from '@/lib/server/relatorios-distritos';
 import type { IRelatorioDistrito } from '@/types/relatorio';
+import { PageHeader, PageShell } from '@/components/page-shell';
 import { FiltrosMapaDistritos } from './_components/filtros-mapa-distritos';
 import { MapaDistritos } from './_components/mapa-distritos';
 import { TabelasMapaDistritos } from './_components/tabelas-mapa-distritos';
@@ -38,32 +39,34 @@ export function MapaDistritosClient({
 	}, [filtro.ano, filtro.mes, filtro.dataInicio, filtro.dataFim]);
 
 	return (
-		<div className="mx-auto w-full px-4 py-7 pb-[60px] sm:px-8">
-			<div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-				<div>
+		<PageShell>
+			<PageHeader
+				title="Mapa por Distrito"
+				breadcrumb={
 					<Link
 						href="/relatorios"
-						className="mb-3 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+						className="inline-flex items-center gap-1.5 text-sm text-muted-foreground no-underline hover:text-foreground">
 						<ArrowLeft className="h-4 w-4" />
 						Voltar aos relatórios
 					</Link>
-					<h1 className="text-[28px] font-bold tracking-tight">Mapa por Distrito</h1>
-					<p className="mt-1 text-sm text-muted-foreground">
-						Arrecadação de Outorga Onerosa por distrito municipal · {periodoLabel}
-					</p>
-				</div>
-				<div className="flex flex-wrap items-center gap-2">
-					<BotaoExportarExcel tipo="distritos" />
-					{distritoAtivo && (
-						<button
-							type="button"
-							onClick={() => setSelecionado(null)}
-							className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted">
-							Limpar seleção
-						</button>
-					)}
-				</div>
-			</div>
+				}
+				actions={
+					<div className="flex flex-wrap items-center gap-2">
+						<BotaoExportarExcel tipo="distritos" />
+						{distritoAtivo && (
+							<button
+								type="button"
+								onClick={() => setSelecionado(null)}
+								className="rounded-md border border-border px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+								Limpar seleção
+							</button>
+						)}
+					</div>
+				}>
+				<span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+					Arrecadação por distrito municipal · {periodoLabel}
+				</span>
+			</PageHeader>
 
 			<FiltrosMapaDistritos
 				anosDisponiveis={anosDisponiveis}
@@ -103,6 +106,6 @@ export function MapaDistritosClient({
 				selecionado={selecionado}
 				onSelecionarDistrito={setSelecionado}
 			/>
-		</div>
+		</PageShell>
 	);
 }

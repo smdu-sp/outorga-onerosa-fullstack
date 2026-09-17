@@ -4,7 +4,8 @@ import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, ChevronLeft, ChevronRight } from 'lucide-react';
-import { TableSkeleton } from '@/components/data-table';
+import { RelatorioSubpaginaSkeleton } from '@/components/skeleton-blocks';
+import { PageHeader, PageShell, StatGroup } from '@/components/page-shell';
 import { relatorioMes } from '@/services/relatorios/mes';
 import { KpiMes } from './_components/kpi-mes';
 import { GraficoSemanas } from './_components/grafico-semanas';
@@ -19,7 +20,7 @@ type Params = Promise<{ ano: string; mes: string }>;
 export default async function RelatorioMesPage({ params }: { params: Params }) {
 	const { ano: anoStr, mes: mesStr } = await params;
 	return (
-		<Suspense fallback={<TableSkeleton />}>
+		<Suspense fallback={<RelatorioSubpaginaSkeleton />}>
 			<RelatorioMesHome anoStr={anoStr} mesStr={mesStr} />
 		</Suspense>
 	);
@@ -43,56 +44,53 @@ async function RelatorioMesHome({ anoStr, mesStr }: { anoStr: string; mesStr: st
 		(mesProx.ano === hoje.getFullYear() && mesProx.mes > hoje.getMonth() + 1);
 
 	return (
-		<div className="mx-auto w-full px-4 py-7 pb-[60px] sm:px-8">
-			{/* Breadcrumb + navegação */}
-			<div className="mb-6 flex flex-wrap items-center justify-between gap-4">
-				<div className="flex items-center gap-3 text-sm text-muted-foreground">
-					<Link href="/relatorios" className="flex items-center gap-1 hover:text-foreground transition-colors">
-						<ArrowLeft className="h-3.5 w-3.5" />
-						Relatórios
-					</Link>
-					<span>/</span>
-					<span>{ano}</span>
-					<span>/</span>
-					<span className="font-semibold text-foreground">{d.nomeMes}</span>
-				</div>
-
-				<div className="flex items-center gap-2">
-					<Suspense>
-						<BotaoExportarExcel
-							tipo="mes"
-							extraParams={{ ano: String(ano), mes: String(mes) }}
-						/>
-					</Suspense>
-					<Link
-						href={`/relatorios/mes/${mesPrev.ano}/${mesPrev.mes}`}
-						className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
-						<ChevronLeft className="h-3.5 w-3.5" />
-						Mês anterior
-					</Link>
-					{!mesProxFuturo && (
+		<PageShell>
+			<PageHeader
+				title={`${d.nomeMes} ${ano}`}
+				breadcrumb={
+					<div className="flex items-center gap-2 text-sm text-muted-foreground">
 						<Link
-							href={`/relatorios/mes/${mesProx.ano}/${mesProx.mes}`}
-							className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
-							Próximo mês
-							<ChevronRight className="h-3.5 w-3.5" />
+							href="/relatorios"
+							className="flex items-center gap-1 no-underline hover:text-foreground transition-colors">
+							<ArrowLeft className="h-3.5 w-3.5" />
+							Relatórios
 						</Link>
-					)}
-				</div>
-			</div>
-
-			{/* Título */}
-			<div className="mb-6">
-				<h1 className="text-[28px] font-bold tracking-tight">
-					{d.nomeMes} {ano}
-				</h1>
-				<p className="mt-1 text-sm text-muted-foreground">
-					Outorga Onerosa do Direito de Construir — São Paulo · Detalhe mensal
-				</p>
-			</div>
+						<span className="opacity-40">/</span>
+						<span>{ano}</span>
+						<span className="opacity-40">/</span>
+						<span className="font-semibold text-foreground">{d.nomeMes}</span>
+					</div>
+				}
+				actions={
+					<>
+						<Suspense>
+							<BotaoExportarExcel
+								tipo="mes"
+								extraParams={{ ano: String(ano), mes: String(mes) }}
+							/>
+						</Suspense>
+						<Link
+							href={`/relatorios/mes/${mesPrev.ano}/${mesPrev.mes}`}
+							className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
+							<ChevronLeft className="h-3.5 w-3.5" />
+							Mês anterior
+						</Link>
+						{!mesProxFuturo && (
+							<Link
+								href={`/relatorios/mes/${mesProx.ano}/${mesProx.mes}`}
+								className="flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors">
+								Próximo mês
+								<ChevronRight className="h-3.5 w-3.5" />
+							</Link>
+						)}
+					</>
+				}
+			/>
 
 			<div className="flex flex-col gap-6">
-				<KpiMes d={d} />
+				<StatGroup>
+					<KpiMes d={d} />
+				</StatGroup>
 
 				<div className="grid grid-cols-1 gap-6 xl:grid-cols-[2fr_1fr]">
 					<GraficoSemanas d={d} />
@@ -105,6 +103,6 @@ async function RelatorioMesHome({ anoStr, mesStr }: { anoStr: string; mesStr: st
 
 				<TabelaProcessosMes processos={d.processos} />
 			</div>
-		</div>
+		</PageShell>
 	);
 }

@@ -1,6 +1,6 @@
 /** @format */
 
-import { TableSkeleton } from '@/components/data-table';
+import { DetalheProcessoSkeleton } from '@/components/skeleton-blocks';
 import { requireAuth, usuarioPermitido } from '@/lib/auth/session';
 import { buscarDetalhe } from '@/services/processos/query-functions/buscar-detalhe';
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
@@ -39,7 +39,7 @@ export default async function ProcessoDetalhePage({
 	]);
 
 	return (
-		<Suspense fallback={<TableSkeleton />}>
+		<Suspense fallback={<DetalheProcessoSkeleton />}>
 			<DetalheLayout
 				processo={processo}
 				permissoes={{

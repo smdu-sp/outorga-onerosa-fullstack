@@ -76,7 +76,7 @@ export function TabelaProcessosMes({ processos }: { processos: IRelatorioMesProc
 	};
 
 	return (
-		<div className="rounded-xl border border-border bg-card shadow-xs">
+		<div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
 			<div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-5 py-4">
 				<div className="text-sm font-semibold">Contratos com vencimento no mês</div>
 				<div className="flex flex-wrap gap-2">
@@ -98,17 +98,17 @@ export function TabelaProcessosMes({ processos }: { processos: IRelatorioMesProc
 			</div>
 
 			<div className="overflow-x-auto">
-				<table className="w-full text-sm">
+				<table className="w-full border-separate border-spacing-0 text-sm">
 					<thead>
-						<tr className="border-b border-border text-xs text-muted-foreground">
-							<th className="w-8 px-2 py-3" aria-label="Detalhes"></th>
-							<th className="px-5 py-3 text-left font-medium">Processo</th>
-							<th className="px-4 py-3 text-left font-medium">Interessado</th>
-							<th className="px-4 py-3 text-left font-medium">Tipo</th>
-							<th className="px-4 py-3 text-right font-medium">Valor previsto</th>
-							<th className="px-4 py-3 text-left font-medium">Vencimento</th>
-							<th className="px-4 py-3 text-left font-medium">Quitação</th>
-							<th className="px-4 py-3 text-left font-medium">Status</th>
+						<tr className="bg-primary">
+							<th className="w-8 whitespace-nowrap px-2 py-3" aria-label="Detalhes"></th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Processo</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Interessado</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Tipo</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Valor previsto</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Vencimento</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Quitação</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Status</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -125,7 +125,7 @@ export function TabelaProcessosMes({ processos }: { processos: IRelatorioMesProc
 							<Fragment key={p.id}>
 							<tr
 								onClick={() => toggleExpandido(p.id)}
-								className="cursor-pointer border-b border-border/60 last:border-0 hover:bg-muted/30 transition-colors">
+								className="cursor-pointer border-t border-border transition-colors hover:bg-primary-soft">
 								<td className="px-2 py-3 text-center">
 									<button
 										type="button"

@@ -3,6 +3,7 @@
 import { cn } from '@/lib/utils';
 import {
 	AlertTriangle,
+	ArrowRight,
 	Building,
 	Calculator,
 	Check,
@@ -16,6 +17,7 @@ import {
 	Search,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import type { IGeoSampaResult } from '@/types/geosampa';
 import {
@@ -27,12 +29,17 @@ import {
 import type { DadosPdfCalculo } from '@/types/pdf-calculo-outorga';
 import { resumoEnquadramento, resumoEndereco, resumoParametros } from '@/lib/geosampa-resumo';
 import { parseNumeroBr } from '@/lib/parse-numero-br';
+import {
+	formatarNumeroProcesso,
+	numeroProcessoValido,
+	PLACEHOLDER_NUMERO_PROCESSO,
+	type FormatoNumeroProcesso,
+} from '@/lib/mascara-processo';
+import { FiltroSegmented } from '@/components/filtro-ui';
 import { TIPOLOGIA_USO_OODC } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
 import { CampoKV, NovoCard, NovoCardHead } from './novo-processo-ui';
 
 type Fase = 'idle' | 'loading' | 'done' | 'error' | 'anexar' | 'confirmando' | 'confirmado';
-
-const reProc = /^\d{4}\.\d{4}\/\d{7}-\d$/;
 
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
@@ -46,7 +53,9 @@ const TIPO_OPCOES: { valor: TipoNovoProcesso; label: string; hint: string }[] = 
 ];
 
 export default function FormNovoProcessoTecnico() {
+	const router = useRouter();
 	const [tipo, setTipo] = useState<TipoNovoProcesso>('OUTORGA');
+	const [formato, setFormato] = useState<FormatoNumeroProcesso>('SEI');
 	const [valor, setValor] = useState('');
 	const [areaComputavel, setAreaComputavel] = useState('');
 	const [areaTerreno, setAreaTerreno] = useState('');
@@ -63,6 +72,10 @@ export default function FormNovoProcessoTecnico() {
 
 	const cotaValida = (parseNumeroBr(valorCota) ?? 0) > 0;
 	const multaValida = !incluirMulta || (parseNumeroBr(valorMulta) ?? 0) > 0;
+	// A API de cálculo da outorga exige o número SEI (consulta o processo por ele).
+	// Processo físico com Outorga/AIU não tem como calcular automaticamente aqui —
+	// segue para a criação manual (sem cálculo), onde o valor é preenchido depois.
+	const bloqueadoPorFisico = formato === 'FISICO' && tipo !== 'COTA';
 
 	function trocarTipo(novoTipo: TipoNovoProcesso) {
 		setTipo(novoTipo);
@@ -70,10 +83,17 @@ export default function FormNovoProcessoTecnico() {
 		setErroApi('');
 	}
 
+	function trocarFormato(novoFormato: FormatoNumeroProcesso) {
+		setFormato(novoFormato);
+		setValor((atual) => formatarNumeroProcesso(atual, novoFormato));
+		if (erro) setErro('');
+	}
+
 	function validar(v: string, computavel: number, terreno: number) {
 		if (!v.trim()) return 'Informe o número do processo.';
-		if (!reProc.test(v.trim())) return 'Número inválido. Formato esperado: 0000.0000/0000000-0.';
-		if (tipo === 'COTA') return '';
+		if (!numeroProcessoValido(v, formato))
+			return `Número incompleto. Formato esperado: ${PLACEHOLDER_NUMERO_PROCESSO[formato]}.`;
+		if (tipo === 'COTA' || bloqueadoPorFisico) return '';
 		if (!(computavel > 0)) return 'Informe a área computável (m²).';
 		if (!(terreno > 0)) return 'Informe a área do terreno (m²).';
 		return '';
@@ -103,6 +123,13 @@ export default function FormNovoProcessoTecnico() {
 			// Sem cálculo via API — o valor já foi digitado; em seguida vem o memorial em PDF.
 			setResultado(null);
 			setFase('done');
+			return;
+		}
+
+		if (bloqueadoPorFisico) {
+			// Sem número SEI não há como consultar a API de cálculo — segue para a
+			// criação manual (mesmo fluxo de busca por SQL/número), sem cálculo automático.
+			router.push(`/processos/novo/criar?modo=PROCESSO&id=${encodeURIComponent(v)}`);
 			return;
 		}
 
@@ -233,7 +260,7 @@ export default function FormNovoProcessoTecnico() {
 	if (fase === 'confirmado') {
 		return (
 			<NovoCard className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-				<div className="px-[22px] py-8 text-center">
+				<div className="px-5 py-8 text-center">
 					<div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-full bg-success-soft text-success">
 						<CheckCircle2 className="h-7 w-7" />
 					</div>
@@ -349,7 +376,7 @@ export default function FormNovoProcessoTecnico() {
 					)}
 				</div>
 
-				<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-[22px] py-[18px] sm:flex-row sm:items-center">
+				<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-5 py-4 sm:flex-row sm:items-center">
 					<p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
 						<Info className="h-3.5 w-3.5 shrink-0" />
 						O processo só é gravado e enviado à CAP nesta etapa.
@@ -398,7 +425,7 @@ export default function FormNovoProcessoTecnico() {
 					title="Tipo de obrigação"
 					subtitle="Define o que este processo vai cobrar do interessado"
 				/>
-				<div className="grid grid-cols-1 gap-3 px-[22px] py-5 sm:grid-cols-3">
+				<div className="grid grid-cols-1 gap-3 px-5 py-5 sm:grid-cols-3">
 					{TIPO_OPCOES.map((opcao) => (
 						<button
 							key={opcao.valor}
@@ -431,15 +458,28 @@ export default function FormNovoProcessoTecnico() {
 					subtitle={
 						tipo === 'COTA'
 							? 'Informe o número do processo e o valor da Cota de Solidariedade'
-							: 'Informe o número do processo para consultar o cálculo da outorga'
+							: bloqueadoPorFisico
+								? 'Processo físico: sem cálculo automático (a API exige número SEI) — a criação segue manual'
+								: 'Informe o número do processo para consultar o cálculo da outorga'
+					}
+					extra={
+						<FiltroSegmented
+							opcoes={[
+								{ value: 'SEI', label: 'SEI' },
+								{ value: 'FISICO', label: 'Físico' },
+							]}
+							valor={formato}
+							onChange={trocarFormato}
+							disabled={fase === 'loading'}
+						/>
 					}
 				/>
-				<div className="px-[22px] py-5">
+				<div className="px-5 py-5">
 					<form onSubmit={handleSubmit}>
 						<label
 							htmlFor="identificador"
 							className="mb-[7px] block text-[11px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">
-							Número do processo (SEI)
+							Número do processo
 						</label>
 						<div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
 							<div
@@ -453,12 +493,13 @@ export default function FormNovoProcessoTecnico() {
 									ref={inputRef}
 									value={valor}
 									onChange={(e) => {
-										setValor(e.target.value);
+										setValor(formatarNumeroProcesso(e.target.value, formato));
 										if (erro) setErro('');
 									}}
-									placeholder="0000.0000/0000000-0"
+									placeholder={PLACEHOLDER_NUMERO_PROCESSO[formato]}
 									disabled={fase === 'loading'}
 									autoFocus
+									inputMode="numeric"
 									spellCheck={false}
 									autoComplete="off"
 									className="h-12 w-full border-none bg-transparent font-mono text-base outline-none placeholder:text-muted-foreground"
@@ -473,6 +514,11 @@ export default function FormNovoProcessoTecnico() {
 										<Loader2 className="h-4 w-4 animate-spin" />
 										Consultando…
 									</>
+								) : bloqueadoPorFisico ? (
+									<>
+										Criar manualmente
+										<ArrowRight className="h-4 w-4" />
+									</>
 								) : (
 									<>
 										<Calculator className="h-4 w-4" />
@@ -482,7 +528,16 @@ export default function FormNovoProcessoTecnico() {
 							</button>
 						</div>
 
-						{tipo === 'COTA' ? (
+						{bloqueadoPorFisico ? (
+							<div className="mt-4 flex items-start gap-2.5 rounded-[10px] border border-warning/30 bg-warning-soft px-4 py-3 text-[13px] text-[oklch(0.5_0.13_70)]">
+								<Info className="mt-0.5 h-4 w-4 shrink-0" />
+								<span>
+									A API de cálculo da outorga só consulta pelo número SEI. Ao continuar, você
+									será levado para criar o processo manualmente — o valor da contrapartida é
+									preenchido depois, na página do processo.
+								</span>
+							</div>
+						) : tipo === 'COTA' ? (
 							<div className="mt-4">
 								<label
 									htmlFor="valorCota"
@@ -559,7 +614,8 @@ export default function FormNovoProcessoTecnico() {
 						) : (
 							<div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
 								<Info className="h-3.5 w-3.5 shrink-0" />
-								Formato SEI: <span className="font-mono">0000.0000/0000000-0</span>
+								Formato {formato === 'SEI' ? 'SEI' : 'físico'}:{' '}
+								<span className="font-mono">{PLACEHOLDER_NUMERO_PROCESSO[formato]}</span>
 							</div>
 						)}
 					</form>
@@ -568,7 +624,7 @@ export default function FormNovoProcessoTecnico() {
 
 			{fase === 'error' && (
 				<NovoCard className="border-destructive animate-in fade-in slide-in-from-bottom-2 duration-300">
-					<div className="px-[22px] py-5">
+					<div className="px-5 py-5">
 						<div className="flex items-start gap-3">
 							<AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
 							<div>
@@ -686,7 +742,6 @@ export default function FormNovoProcessoTecnico() {
 											value={valorCota}
 											onChange={(e) => setValorCota(e.target.value)}
 											placeholder="0,00"
-											disabled={fase === 'confirmando'}
 											autoComplete="off"
 											className="h-11 w-full rounded-[10px] border border-border bg-secondary px-3.5 text-sm outline-none placeholder:text-muted-foreground"
 										/>
@@ -698,7 +753,6 @@ export default function FormNovoProcessoTecnico() {
 									<button
 										type="button"
 										onClick={() => setIncluirMulta(true)}
-										disabled={fase === 'confirmando'}
 										className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-60">
 										Incluir Multa
 									</button>
@@ -716,7 +770,6 @@ export default function FormNovoProcessoTecnico() {
 													setIncluirMulta(false);
 													setValorMulta('');
 												}}
-												disabled={fase === 'confirmando'}
 												className="text-xs text-muted-foreground underline-offset-2 hover:underline">
 												Remover
 											</button>
@@ -728,7 +781,6 @@ export default function FormNovoProcessoTecnico() {
 											value={valorMulta}
 											onChange={(e) => setValorMulta(e.target.value)}
 											placeholder="0,00"
-											disabled={fase === 'confirmando'}
 											autoComplete="off"
 											className="h-11 w-full rounded-[10px] border border-border bg-secondary px-3.5 text-sm outline-none placeholder:text-muted-foreground"
 										/>
@@ -738,7 +790,7 @@ export default function FormNovoProcessoTecnico() {
 						)}
 					</div>
 
-					<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-[22px] py-[18px] sm:flex-row sm:items-center">
+					<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-5 py-4 sm:flex-row sm:items-center">
 						<p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
 							<Check className="h-3.5 w-3.5 shrink-0" />
 							Na próxima etapa você baixa o memorial em PDF para juntar ao processo SEI.
@@ -785,7 +837,6 @@ export default function FormNovoProcessoTecnico() {
 							<button
 								type="button"
 								onClick={() => setIncluirMulta(true)}
-								disabled={fase === 'confirmando'}
 								className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-2 text-sm font-medium hover:bg-secondary disabled:opacity-60">
 								Incluir Multa
 							</button>
@@ -803,7 +854,6 @@ export default function FormNovoProcessoTecnico() {
 											setIncluirMulta(false);
 											setValorMulta('');
 										}}
-										disabled={fase === 'confirmando'}
 										className="text-xs text-muted-foreground underline-offset-2 hover:underline">
 										Remover
 									</button>
@@ -815,14 +865,13 @@ export default function FormNovoProcessoTecnico() {
 									value={valorMulta}
 									onChange={(e) => setValorMulta(e.target.value)}
 									placeholder="0,00"
-									disabled={fase === 'confirmando'}
 									autoComplete="off"
 									className="h-11 w-full rounded-[10px] border border-border bg-secondary px-3.5 text-sm outline-none placeholder:text-muted-foreground"
 								/>
 							</div>
 						)}
 					</div>
-					<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-[22px] py-[18px] sm:flex-row sm:items-center">
+					<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-5 py-4 sm:flex-row sm:items-center">
 						<p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
 							<Check className="h-3.5 w-3.5 shrink-0" />
 							Na próxima etapa você baixa o memorial em PDF para juntar ao processo SEI.

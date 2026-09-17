@@ -61,14 +61,14 @@ export function PainelAlertasKpi({
 	];
 
 	return (
-		<div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+		<div className="grid grid-cols-1 gap-px bg-border sm:grid-cols-2 xl:grid-cols-4">
 			{itens.map((item) => {
 				const Icon = item.icone;
 				return (
 					<Link
 						key={item.label}
 						href={item.href}
-						className="rounded-xl border border-border/70 bg-card p-4 shadow-xs transition-colors hover:border-primary/40 hover:bg-primary/5">
+						className="bg-card p-4 transition-colors hover:bg-primary/5">
 						<div className="flex items-start justify-between gap-3">
 							<div>
 								<p className="text-[11px] font-semibold uppercase tracking-[0.03em] text-muted-foreground">

@@ -3,6 +3,7 @@
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
 import { IPermissoesProcesso } from '@/types/permissoes-processo';
 import { useEffect, useState } from 'react';
+import { PageShell } from '@/components/page-shell';
 import { DetalheHeader } from './detalhe-header';
 import { DetalhePainel } from './detalhe-painel';
 import { DetalheVnav } from './detalhe-vnav';
@@ -43,7 +44,7 @@ export default function DetalheLayout({
 	}, [busca, activeId]);
 
 	return (
-		<div className="mx-auto w-full max-w-[1240px] pb-10">
+		<PageShell max="wide" className="pb-10">
 			<DetalheHeader
 				processo={detalhe}
 				busca={busca}
@@ -67,6 +68,6 @@ export default function DetalheLayout({
 					permissoes={permissoes}
 				/>
 			</div>
-		</div>
+		</PageShell>
 	);
 }
