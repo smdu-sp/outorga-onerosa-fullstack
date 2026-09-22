@@ -45,6 +45,7 @@ model Usuario {
 
   processos_criados       Processo[]                 @relation("ProcessoCriador")
   memoriais_oodc_criados  OodcMemorialCalculo[]      @relation("OodcMemorialCriador")
+  memoriais_cota_criados  CotaMemorialCalculo[]      @relation("CotaMemorialCriador")
   planejamentos_criados   PlanejamentoOrcamentario[] @relation("PlanejamentoCriador")
   planejamentos_revisados PlanejamentoRevisao[]      @relation("PlanejamentoRevisor")
 
@@ -124,6 +125,7 @@ model Processo {
   monitoramento      MonitoramentoFicha?
   monitoramento_cota MonitoramentoCotaSolidariedade?
   memoriais_oodc     OodcMemorialCalculo[]
+  memoriais_cota     CotaMemorialCalculo[]
 
   // Vínculo opcional com processo de licenciamento edilício (0..1)
   processo_licenciamento ProcessoLicenciamento?
@@ -1021,6 +1023,74 @@ model OodcMemorialTipologia {
 
   @@unique([memorial_id, ordem])
   @@map("oodc_memorial_tipologias")
+}
+
+/// Valor de referência (R$/m²) da Cota de Solidariedade por setor/quadra/codlog —
+/// origem: aba `Quadro 14` da planilha oficial `UC-CO-V2023_02_16-LEI-16050-desbloqueada.xlsm`
+/// (~180 mil linhas, valor único "2020-atual", sem vigência por data — diferente da
+/// tabela `v` da OODC), importada por prisma/import-cota-valor-referencia.ts.
+model CotaValorReferencia {
+  id         String  @id @default(uuid())
+  setor      String
+  quadra     String
+  codlog     String
+  valor      Decimal @db.Decimal(14, 4)
+  observacao String? @db.Text
+
+  criado_em DateTime @default(now())
+
+  @@unique([setor, quadra, codlog])
+  @@index([setor, quadra, codlog])
+  @@map("cota_valores_referencia")
+}
+
+/// Memorial de cálculo da Cota de Solidariedade (art. 112 da Lei 16.050/2014 e
+/// Decreto 56.538/2015) gerado pela tela `processos/[id]/calculo-cota`. Um processo
+/// pode ter várias linhas (histórico); a mais recente (`criado_em`) é a vigente.
+/// Espelha `EntradaCalculoCota` + `ResultadoCalculoCota` de `lib/cota/tipos.ts`.
+model CotaMemorialCalculo {
+  id          String   @id @default(uuid())
+  processo_id String
+  processo    Processo @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  area_terreno_escritura_m2 Decimal @db.Decimal(14, 2)
+  area_terreno_real_m2      Decimal @db.Decimal(14, 2)
+  /// menor valor entre escritura/real — o que a fórmula da planilha realmente usa (SMALL)
+  terreno_usado_m2          Decimal @db.Decimal(14, 2)
+
+  /// campos informativos do cabeçalho da planilha — não entram na fórmula
+  ano_calculo     Int?
+  numero_parcelas Int?
+
+  v_max                  Decimal? @db.Decimal(14, 4)
+  valor_total_rs         Decimal  @db.Decimal(14, 2)
+  valor_cinquenta_pct_rs Decimal  @db.Decimal(14, 2)
+
+  criado_por String?
+  usuario    Usuario? @relation("CotaMemorialCriador", fields: [criado_por], references: [id], onDelete: SetNull)
+  criado_em  DateTime @default(now())
+
+  enderecos CotaMemorialEndereco[]
+
+  @@index([processo_id])
+  @@map("cota_memorial_calculo")
+}
+
+/// Até 6 endereços (setor/quadra/codlog) usados na busca do V/Maior Valor de um memorial.
+model CotaMemorialEndereco {
+  id          String              @id @default(uuid())
+  memorial_id String
+  memorial    CotaMemorialCalculo @relation(fields: [memorial_id], references: [id], onDelete: Cascade)
+
+  ordem  Int
+  setor  String
+  quadra String
+  codlog String
+
+  valor_encontrado Decimal? @db.Decimal(14, 4)
+
+  @@unique([memorial_id, ordem])
+  @@map("cota_memorial_enderecos")
 }
 
 // --- Módulo de Planejamento Orçamentário ---

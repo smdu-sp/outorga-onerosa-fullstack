@@ -81,14 +81,12 @@ export function DetalheHeader({
 	onBusca,
 	onDetalheAtualizado,
 	podeRecalcular = false,
-	isDev = false,
 }: {
 	processo: IProcessoDetalhe;
 	busca: string;
 	onBusca: (v: string) => void;
 	onDetalheAtualizado?: (detalhe: IProcessoDetalhe) => void;
 	podeRecalcular?: boolean;
-	isDev?: boolean;
 }) {
 	const buscaRef = useRef<HTMLInputElement>(null);
 	const { valorTotal, valorDevido, valorOutorga, valorCota } = calcularMetricas(processo);
@@ -176,15 +174,20 @@ export function DetalheHeader({
 					{onDetalheAtualizado && podeRecalcular && (
 						<BotaoRecalcular processoId={processo.id} onAtualizado={onDetalheAtualizado} />
 					)}
-					{isDev && (
-						<Link
-							href={`/processos/${processo.id}/calculo-oodc`}
-							title="Cálculo da OODC com preenchimento automático (dev)"
-							className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground no-underline hover:bg-secondary">
-							<Calculator className="h-4 w-4" />
-							Cálculo OODC (dev)
-						</Link>
-					)}
+					<Link
+						href={`/processos/${processo.id}/calculo-oodc`}
+						title="Cálculo da OODC (memorial de cálculo)"
+						className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground no-underline hover:bg-secondary">
+						<Calculator className="h-4 w-4" />
+						Cálculo OODC
+					</Link>
+					<Link
+						href={`/processos/${processo.id}/calculo-cota`}
+						title="Cálculo da Cota de Solidariedade (memorial de cálculo)"
+						className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground no-underline hover:bg-secondary">
+						<Calculator className="h-4 w-4" />
+						Cálculo Cota
+					</Link>
 					<div className="flex items-center gap-2 rounded-lg border border-border bg-secondary px-2.5 py-1.5">
 						<Search className="h-3.5 w-3.5 text-muted-foreground" />
 						<input

@@ -49,7 +49,6 @@ export default async function ProcessoDetalhePage({
 					podeEditarMonitoramento,
 					podeRecalcular,
 					podeReverterAntecipacao,
-					isDev: !!session.usuario.dev,
 				}}
 			/>
 		</Suspense>

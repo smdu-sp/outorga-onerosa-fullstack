@@ -1,3 +1,9 @@
+// Não usado no momento — `/processos/novo` passou a calcular a Outorga e a Cota
+// pelos motores internos (`lib/oodc/calculo.ts`/`lib/cota/calculo.ts`), mais fiéis
+// à planilha oficial. Mantido no código pois consulta a API Antares
+// (procurarProcesso/calcularOutorga); pode voltar a ser usado se essa API for a
+// fonte de verdade novamente.
+
 import { normalizarSql, parseSqlParaLocalizacao } from '@/lib/geosampa-sql.util';
 import { parseNumeroBr } from '@/lib/parse-numero-br';
 import { prisma } from '@/lib/prisma';

@@ -350,6 +350,51 @@ export async function salvarCotaSolidariedade(processoId: string, payload: Recor
 	return buscarDetalheProcesso(processoId);
 }
 
+/**
+ * Grava só o resumo do cálculo da OODC (área/valor m²/contrapartida) na ficha de
+ * monitoramento, a partir do memorial calculado em `lib/oodc/calculo.ts` — usado por
+ * `/processos/novo` (criação de processo), que não passa mais pelo GeoSampa/API
+ * externa para a Outorga. `fpUsoR`/`fsUsoR` só fazem sentido com uma única
+ * tipologia (o memorial pode ter várias, cada uma com seu Fp/Fs) — ficam de fora
+ * quando há mais de uma.
+ */
+export async function salvarResumoCalculoOodcNoProcesso(
+	processoId: string,
+	resumo: {
+		areaTerreno: number;
+		areaComputavel: number;
+		valorM2: number | null;
+		contrapartidaTotal: number;
+		fpUsoR?: number;
+		fsUsoR?: number;
+	},
+) {
+	const processo = await prisma.processo.findUnique({ where: { id: processoId } });
+	if (!processo) throw new Error('Processo não encontrado.');
+
+	const dados = {
+		area_terreno: resumo.areaTerreno,
+		area_computavel_total: resumo.areaComputavel,
+		valor_m2_quadro14: resumo.valorM2 ?? undefined,
+		contrapartida_total: resumo.contrapartidaTotal,
+		fp_uso_r: resumo.fpUsoR,
+		fs_uso_r: resumo.fsUsoR,
+	};
+
+	await prisma.$transaction(async (tx) => {
+		const ficha = await tx.monitoramentoFicha.upsert({
+			where: { processo_id: processoId },
+			create: { processo_id: processoId },
+			update: {},
+		});
+		await tx.monitoramentoCalculoOutorga.upsert({
+			where: { monitoramento_ficha_id: ficha.id },
+			create: { monitoramento_ficha_id: ficha.id, ...dados },
+			update: dados,
+		});
+	});
+}
+
 export async function salvarDadosGeoSampaNoProcesso(
 	processoId: string,
 	modo: 'SQL' | 'PROCESSO',

@@ -2,16 +2,20 @@
 
 import { garantirAcessoProcesso, requireAuth } from '@/lib/auth/session';
 import { prisma } from '@/lib/prisma';
-import type { EnderecoValorUnitario, EntradaCalculoOodc, ResultadoCalculoOodc, ValorUnitarioEncontrado } from '@/lib/oodc/tipos';
-import { buscarValorReferencia } from '@/lib/server/oodc-valor-referencia';
-import { salvarMemorialCalculo, type FlagsMemorialCalculo } from '@/lib/server/oodc-memorial';
+import type {
+	EnderecoValorUnitarioCota,
+	EntradaCalculoCota,
+	ResultadoCalculoCota,
+	ValorUnitarioEncontradoCota,
+} from '@/lib/cota/tipos';
+import { buscarValorReferenciaCota } from '@/lib/server/cota-valor-referencia';
+import { salvarMemorialCalculoCota } from '@/lib/server/cota-memorial';
 
 function ehRedirect(error: unknown): error is Error {
 	return error instanceof Error && error.message.includes('NEXT_REDIRECT');
 }
 
-/** Mesmo nível de acesso da tela de detalhe do processo (ver `garantirAcessoProcesso`) —
- * o cálculo da OODC deixou de ser uma ferramenta só de DEV. */
+/** Mesmo nível de acesso da tela de detalhe do processo (ver `garantirAcessoProcesso`). */
 async function garantirAcesso(processoId: string) {
 	const session = await requireAuth();
 	const processo = await prisma.processo.findUnique({
@@ -23,11 +27,11 @@ async function garantirAcesso(processoId: string) {
 	return session;
 }
 
-/** Busca o V (R$/m²) vigente para até 10 endereços. */
-export async function buscarValorReferenciaAction(
+/** Busca o Vm² (R$/m²) para até 6 endereços. */
+export async function buscarValorReferenciaCotaAction(
 	processoId: string,
-	enderecos: EnderecoValorUnitario[],
-): Promise<{ ok: boolean; valores?: ValorUnitarioEncontrado[]; vMax?: number | null; error?: string }> {
+	enderecos: EnderecoValorUnitarioCota[],
+): Promise<{ ok: boolean; valores?: ValorUnitarioEncontradoCota[]; vMax?: number | null; error?: string }> {
 	try {
 		await garantirAcesso(processoId);
 	} catch (error) {
@@ -36,19 +40,18 @@ export async function buscarValorReferenciaAction(
 	}
 
 	try {
-		const { valores, vMax } = await buscarValorReferencia(enderecos);
+		const { valores, vMax } = await buscarValorReferenciaCota(enderecos);
 		return { ok: true, valores, vMax };
 	} catch (error) {
 		return { ok: false, error: (error as Error).message };
 	}
 }
 
-/** Salva uma nova versão do memorial de cálculo para o processo. */
-export async function salvarMemorialCalculoAction(
+/** Salva uma nova versão do memorial de cálculo da Cota de Solidariedade para o processo. */
+export async function salvarMemorialCalculoCotaAction(
 	processoId: string,
-	entrada: EntradaCalculoOodc,
-	resultado: ResultadoCalculoOodc,
-	flags: FlagsMemorialCalculo,
+	entrada: EntradaCalculoCota,
+	resultado: ResultadoCalculoCota,
 ): Promise<{ ok: boolean; id?: string; error?: string }> {
 	let session;
 	try {
@@ -59,7 +62,7 @@ export async function salvarMemorialCalculoAction(
 	}
 
 	try {
-		const memorial = await salvarMemorialCalculo(processoId, entrada, resultado, flags, session.usuario.sub);
+		const memorial = await salvarMemorialCalculoCota(processoId, entrada, resultado, session.usuario.sub);
 		return { ok: true, id: memorial.id };
 	} catch (error) {
 		return { ok: false, error: (error as Error).message };
