@@ -161,10 +161,32 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Aumento sutil da fonte base em todo o sistema (16px -> 17px). */
+    font-size: 106.25%;
+  }
   body {
     @apply bg-app-background text-foreground;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
     text-wrap: pretty;
+  }
+}
+
+@layer utilities {
+  /* Barra de filtros: quando rola horizontalmente, deixa a rolagem sempre
+     visível (não depende de hover) — sinaliza que há mais filtros ao lado. */
+  .scroll-x-visible {
+    scrollbar-width: thin;
+  }
+  .scroll-x-visible::-webkit-scrollbar {
+    height: 6px;
+  }
+  .scroll-x-visible::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-x-visible::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 9999px;
   }
 }

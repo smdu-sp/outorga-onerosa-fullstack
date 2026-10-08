@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { requireAuth } from '@/lib/auth/session';
 import { buscarDetalheLicenciamento } from '@/services/licenciamento/query-functions';
+import { PageHeader, PageShell, SectionCard } from '@/components/page-shell';
 
 function fmtData(v: unknown) {
 	if (!v || typeof v !== 'string') return '—';
@@ -40,23 +41,19 @@ export default async function DetalheLicenciamentoPage({
 	const oficios = (p.oficios as Array<Record<string, unknown>>) ?? [];
 
 	return (
-		<div className="mx-auto w-full max-w-[1100px] px-4 py-7 pb-[60px] sm:px-8">
-			<p className="text-sm text-muted-foreground">
-				<Link href="/gestao-licenciamento/processos" className="hover:underline">
-					Processos
-				</Link>
-				<span className="mx-1.5">/</span>
-				{String(p.num_processo)}
-			</p>
-
-			<header className="mt-2 mb-8 rounded-2xl border border-border/70 bg-card px-5 py-5 shadow-xs">
-				<div className="flex flex-wrap items-start justify-between gap-4">
-					<div>
-						<h1 className="text-2xl font-semibold tracking-tight">{String(p.num_processo)}</h1>
-						<p className="mt-1 text-muted-foreground">
-							{assunto?.nome ?? 'Sem assunto'}
-						</p>
-					</div>
+		<PageShell max="wide">
+			<PageHeader
+				title={String(p.num_processo)}
+				breadcrumb={
+					<Link
+						href="/gestao-licenciamento/processos"
+						className="inline-flex items-center gap-1 text-sm text-muted-foreground no-underline hover:text-foreground">
+						Processos
+						<span className="mx-1 opacity-40">/</span>
+						<span className="text-foreground">{String(p.num_processo)}</span>
+					</Link>
+				}
+				actions={
 					<div className="flex flex-wrap gap-2 text-xs">
 						<span className="rounded-full border border-border px-2.5 py-1">
 							{String(p.coordenadoria)}
@@ -70,14 +67,19 @@ export default async function DetalheLicenciamentoPage({
 							</span>
 						) : null}
 						{p.prioritario ? (
-							<span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-amber-800">
+							<span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-amber-800 dark:text-amber-300">
 								Prioritário
 							</span>
 						) : null}
 					</div>
-				</div>
+				}>
+				<span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+					{assunto?.nome ?? 'Sem assunto'}
+				</span>
+			</PageHeader>
 
-				<dl className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
+			<SectionCard className="mb-8">
+				<dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-sm">
 					<div>
 						<dt className="text-muted-foreground">Situação</dt>
 						<dd className="font-medium">{situacao?.nome ?? '—'}</dd>
@@ -108,7 +110,7 @@ export default async function DetalheLicenciamentoPage({
 				) : (
 					<p className="mt-4 text-sm text-muted-foreground">Sem vínculo com Outorga.</p>
 				)}
-			</header>
+			</SectionCard>
 
 			<div className="grid gap-6 lg:grid-cols-2">
 				<Secao titulo="Imóveis / SQLs">
@@ -228,7 +230,7 @@ export default async function DetalheLicenciamentoPage({
 				)}
 			</Secao>
 
-			{(p.observacao || p.data_autuacao) && (
+			{Boolean(p.observacao || p.data_autuacao) && (
 				<Secao titulo="Observações / datas" className="mt-6">
 					<dl className="grid gap-3 text-sm sm:grid-cols-2">
 						<div>
@@ -248,7 +250,7 @@ export default async function DetalheLicenciamentoPage({
 					</dl>
 				</Secao>
 			)}
-		</div>
+		</PageShell>
 	);
 }
 

@@ -35,7 +35,7 @@ export function BotaoRecalcular({
 			onClick={recalcular}
 			title="Recalcula o valor total das parcelas e a contrapartida da outorga onerosa deste processo"
 			className={cn(
-				'inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground hover:bg-secondary disabled:opacity-60',
+				'inline-flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground shadow-xs hover:bg-primary/90 disabled:opacity-60',
 			)}>
 			{pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Calculator className="h-4 w-4" />}
 			Recalcular contrapartida

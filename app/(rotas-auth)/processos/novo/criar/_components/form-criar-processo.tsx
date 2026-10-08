@@ -20,6 +20,14 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import type { IEnquadramentoResult } from '@/types/geosampa';
 import { resumoEnquadramento, resumoEndereco, resumoParametros } from '@/lib/geosampa-resumo';
+import {
+	detectarFormatoNumeroProcesso,
+	formatarNumeroProcesso,
+	numeroProcessoValido,
+	PLACEHOLDER_NUMERO_PROCESSO,
+	type FormatoNumeroProcesso,
+} from '@/lib/mascara-processo';
+import { FiltroSegmented } from '@/components/filtro-ui';
 import { TIPOLOGIA_USO_OODC } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
 import {
 	CampoKV,
@@ -78,15 +86,31 @@ export default function FormCriarProcesso({
 }: Props) {
 	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
-	const [numProcesso, setNumProcesso] = useState(modo === 'PROCESSO' ? identificador : '');
+	const identificadorInicial = modo === 'PROCESSO' ? identificador : '';
+	const [formato, setFormato] = useState<FormatoNumeroProcesso>(
+		() => detectarFormatoNumeroProcesso(identificadorInicial) ?? 'SEI',
+	);
+	const [numProcesso, setNumProcesso] = useState(() =>
+		formatarNumeroProcesso(identificadorInicial, detectarFormatoNumeroProcesso(identificadorInicial) ?? 'SEI'),
+	);
 	const [tipo, setTipo] = useState<'PDE' | 'COTA' | 'AIU'>('PDE');
 	const [protocolo, setProtocolo] = useState('');
 	const [erro, setErro] = useState('');
+
+	function trocarFormato(novoFormato: FormatoNumeroProcesso) {
+		setFormato(novoFormato);
+		setNumProcesso((atual) => formatarNumeroProcesso(atual, novoFormato));
+		if (erro) setErro('');
+	}
 
 	function handleSubmit(e: React.FormEvent) {
 		e.preventDefault();
 		if (!numProcesso.trim()) {
 			setErro('O número do processo é obrigatório.');
+			return;
+		}
+		if (!numeroProcessoValido(numProcesso, formato)) {
+			setErro(`Número incompleto. Formato esperado: ${PLACEHOLDER_NUMERO_PROCESSO[formato]}.`);
 			return;
 		}
 		setErro('');
@@ -224,24 +248,38 @@ export default function FormCriarProcesso({
 					icon={ClipboardList}
 					title="Dados do processo"
 					subtitle="Preencha as informações para registrar o processo"
+					extra={
+						<FiltroSegmented
+							opcoes={[
+								{ value: 'SEI', label: 'SEI' },
+								{ value: 'FISICO', label: 'Físico' },
+							]}
+							valor={formato}
+							onChange={trocarFormato}
+							disabled={isPending}
+						/>
+					}
 				/>
 				<form id="form-criar" onSubmit={handleSubmit} className="space-y-5 px-6 py-5">
 					<CampoForm label="Nº Processo" required erro={erro}>
-						<input
-							id="num_processo"
-							value={numProcesso}
-							onChange={(e) => {
-								setNumProcesso(e.target.value);
-								if (erro) setErro('');
-							}}
-							placeholder="6068.0000/0000000-0"
-							disabled={isPending}
-							autoFocus={!numProcesso}
-							className={cn(
-								'h-11 w-full rounded-lg border border-border bg-secondary px-3 font-mono text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20',
-								erro && 'border-destructive',
-							)}
-						/>
+						<div className="flex flex-col gap-2.5">
+							<input
+								id="num_processo"
+								value={numProcesso}
+								onChange={(e) => {
+									setNumProcesso(formatarNumeroProcesso(e.target.value, formato));
+									if (erro) setErro('');
+								}}
+								placeholder={PLACEHOLDER_NUMERO_PROCESSO[formato]}
+								disabled={isPending}
+								autoFocus={!numProcesso}
+								inputMode="numeric"
+								className={cn(
+									'h-11 w-full rounded-lg border border-border bg-secondary px-3 font-mono text-sm outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-primary/20',
+									erro && 'border-destructive',
+								)}
+							/>
+						</div>
 					</CampoForm>
 
 					<div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -271,7 +309,7 @@ export default function FormCriarProcesso({
 					</div>
 				</form>
 
-				<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-[22px] py-[18px] sm:flex-row sm:items-center">
+				<div className="flex flex-col items-start justify-between gap-4 border-t border-border bg-secondary px-5 py-4 sm:flex-row sm:items-center">
 					<p className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground">
 						<Info className="h-3.5 w-3.5 shrink-0" />
 						Após criar, o processo ficará disponível na lista para edição.

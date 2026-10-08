@@ -1,19 +1,18 @@
 /** @format */
 
-import { Suspense } from "react";
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft, LandPlot } from "lucide-react";
-import { TableSkeleton } from "@/components/data-table";
-import { relatorioZonas } from "@/services/relatorios/zonas";
-import type { IRelatorioZonas } from "@/types/relatorio";
-import {
-  parseFiltroPeriodo,
-  descreverPeriodo,
-} from "@/lib/server/periodo-relatorio";
-import { temIntervaloDatas } from "@/lib/parcelas-utils";
-import { FiltrosPeriodoDatas } from "../_components/filtros-periodo-datas";
-import { BotaoExportarExcel } from "../_components/botao-exportar-excel";
+import { Suspense } from 'react';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ArrowLeft, LandPlot } from 'lucide-react';
+import { RelatorioSubpaginaSkeleton } from '@/components/skeleton-blocks';
+import { PageHeader, PageShell } from '@/components/page-shell';
+import { FiltroBar, FiltroChip, filtroLabelClass, filtroSepClass } from '@/components/filtro-ui';
+import { relatorioZonas } from '@/services/relatorios/zonas';
+import type { IRelatorioZonas } from '@/types/relatorio';
+import { parseFiltroPeriodo, descreverPeriodo } from '@/lib/server/periodo-relatorio';
+import { temIntervaloDatas } from '@/lib/parcelas-utils';
+import { FiltrosPeriodoDatas } from '../_components/filtros-periodo-datas';
+import { BotaoExportarExcel } from '../_components/botao-exportar-excel';
 
 export const dynamic = "force-dynamic";
 
@@ -108,19 +107,18 @@ export default async function ZonasUsoPage({
     ? { dataInicio: filtro.dataInicio, dataFim: filtro.dataFim }
     : undefined;
 
-  return (
-    <Suspense
-      key={`${ano ?? "t"}-${mes ?? "t"}-${filtro.dataInicio?.toISOString() ?? ""}-${filtro.dataFim?.toISOString() ?? ""}`}
-      fallback={<TableSkeleton />}
-    >
-      <Conteudo
-        ano={ano}
-        mes={mes}
-        intervalo={intervalo}
-        periodoLabel={descreverPeriodo(filtro)}
-      />
-    </Suspense>
-  );
+	return (
+		<Suspense
+			key={`${ano ?? 't'}-${mes ?? 't'}-${filtro.dataInicio?.toISOString() ?? ''}-${filtro.dataFim?.toISOString() ?? ''}`}
+			fallback={<RelatorioSubpaginaSkeleton />}>
+			<Conteudo
+				ano={ano}
+				mes={mes}
+				intervalo={intervalo}
+				periodoLabel={descreverPeriodo(filtro)}
+			/>
+		</Suspense>
+	);
 }
 
 async function Conteudo({
@@ -138,44 +136,40 @@ async function Conteudo({
   if (!resp.ok || !resp.data) notFound();
   const d = resp.data;
 
-  return (
-    <div className="mx-auto w-full px-4 py-7 pb-[60px] sm:px-8">
-      <div className="mb-6 flex items-center gap-3 text-sm text-muted-foreground">
-        <Link
-          href="/relatorios"
-          className="flex items-center gap-1 hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Relatórios
-        </Link>
-        <span>/</span>
-        <span className="font-semibold text-foreground">Por zona de uso</span>
-      </div>
+	return (
+		<PageShell>
+			<PageHeader
+				icon={LandPlot}
+				title="Arrecadação por zona de uso"
+				breadcrumb={
+					<Link
+						href="/relatorios"
+						className="inline-flex items-center gap-1 text-sm text-muted-foreground no-underline hover:text-foreground">
+						<ArrowLeft className="h-3.5 w-3.5" />
+						Relatórios
+						<span className="mx-1 opacity-40">/</span>
+						<span className="text-foreground">Por zona de uso</span>
+					</Link>
+				}
+				actions={
+					<Suspense>
+						<BotaoExportarExcel tipo="zonas" />
+					</Suspense>
+				}>
+				<span className="inline-flex items-center rounded-full border border-border bg-secondary px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+					Outorga × Cota (Lei 16.402/2016), AIU não incluída · {periodoLabel}
+				</span>
+			</PageHeader>
 
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-[28px] font-bold tracking-tight">
-            <LandPlot className="h-6 w-6 text-primary" />
-            Arrecadação por zona de uso
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Outorga × Cota por zona de uso (Lei 16.402/2016). Valor arrecadado;
-            AIU não incluída · {periodoLabel}
-          </p>
-        </div>
-        <Suspense>
-          <BotaoExportarExcel tipo="zonas" />
-        </Suspense>
-      </div>
+			<FiltroBar>
+				<Filtros anos={d.anos} anoAtual={d.ano} mesAtual={d.mes} />
+				<div className={filtroSepClass} />
+				<FiltrosPeriodoDatas />
+			</FiltroBar>
 
-      <Filtros anos={d.anos} anoAtual={d.ano} mesAtual={d.mes} />
-      <div className="mb-6">
-        <FiltrosPeriodoDatas />
-      </div>
-
-      <Tabela d={d} />
-    </div>
-  );
+			<Tabela d={d} />
+		</PageShell>
+	);
 }
 
 function Filtros({
@@ -193,34 +187,29 @@ function Filtros({
   const hrefMes = (m: number | "todos") =>
     `?ano=${anoAtual ?? "todos"}&mes=${m}`;
 
-  const chip = (label: string, ativo: boolean, href: string) => (
-    <Link
-      key={label + href}
-      href={href}
-      className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
-        ativo
-          ? "border-foreground bg-foreground text-background"
-          : "border-border text-muted-foreground hover:border-foreground hover:text-foreground"
-      }`}
-    >
-      {label}
-    </Link>
-  );
-
-  return (
-    <div className="mb-6 flex flex-col gap-2.5">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="w-10 text-xs text-muted-foreground">Ano:</span>
-        {chip("Todos", anoAtual == null, hrefAno("todos"))}
-        {anos.map((a) => chip(String(a), anoAtual === a, hrefAno(a)))}
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="w-10 text-xs text-muted-foreground">Mês:</span>
-        {chip("Todos", mesAtual == null, hrefMes("todos"))}
-        {MESES_CURTO.map((m, i) => chip(m, mesAtual === i, hrefMes(i)))}
-      </div>
-    </div>
-  );
+	return (
+		<>
+			<span className={filtroLabelClass}>Ano</span>
+			<FiltroChip href={hrefAno('todos')} ativo={anoAtual == null}>
+				Todos
+			</FiltroChip>
+			{anos.map((a) => (
+				<FiltroChip key={a} href={hrefAno(a)} ativo={anoAtual === a}>
+					{a}
+				</FiltroChip>
+			))}
+			<div className={filtroSepClass} />
+			<span className={filtroLabelClass}>Mês</span>
+			<FiltroChip href={hrefMes('todos')} ativo={mesAtual == null}>
+				Todos
+			</FiltroChip>
+			{MESES_CURTO.map((m, i) => (
+				<FiltroChip key={m} href={hrefMes(i)} ativo={mesAtual === i}>
+					{m}
+				</FiltroChip>
+			))}
+		</>
+	);
 }
 
 function Tabela({ d }: { d: IRelatorioZonas }) {
@@ -232,149 +221,121 @@ function Tabela({ d }: { d: IRelatorioZonas }) {
   // Dupla contagem: empreendimentos com mais de uma zona entram em cada uma
   const haDuplaContagem = somaZonas > d.totalGeral + 1;
 
-  return (
-    <div className="rounded-xl border border-border bg-card shadow-xs">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-4">
-        <div className="text-sm font-semibold">
-          Outorga × Cota por zona
-          <span className="ml-2 text-xs font-normal text-muted-foreground">
-            · {descreverPeriodoMesAno(d.ano, d.mes)}
-          </span>
-        </div>
-        <div className="text-xs text-muted-foreground">
-          {d.linhas.length} zonas · arrecadação real{" "}
-          <span className="font-semibold text-foreground">
-            {fmtBrl(d.totalGeral)}
-          </span>
-        </div>
-      </div>
+	return (
+		<div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
+			<div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-5 py-4">
+				<div className="text-sm font-semibold">
+					Outorga × Cota por zona
+					<span className="ml-2 text-xs font-normal text-muted-foreground">
+						· {descreverPeriodoMesAno(d.ano, d.mes)}
+					</span>
+				</div>
+				<div className="text-xs text-muted-foreground">
+					{d.linhas.length} zonas · arrecadação real{' '}
+					<span className="font-semibold text-foreground">{fmtBrl(d.totalGeral)}</span>
+				</div>
+			</div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-xs text-muted-foreground">
-              <th className="px-5 py-3 text-left font-medium">Zona</th>
-              <th className="px-4 py-3 text-right font-medium">Outorga</th>
-              <th className="px-3 py-3 text-right font-medium">Proc.</th>
-              <th className="px-4 py-3 text-right font-medium">Cota</th>
-              <th className="px-3 py-3 text-right font-medium">Proc.</th>
-              <th className="px-4 py-3 text-right font-medium">Total</th>
-              <th className="px-4 py-3 text-left font-medium">% do total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {d.linhas.length === 0 && (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="px-5 py-8 text-center text-sm text-muted-foreground"
-                >
-                  Sem arrecadação no período.
-                </td>
-              </tr>
-            )}
-            {d.linhas.map((l) => {
-              const pctTotal =
-                somaZonas > 0 ? (l.totalValor / somaZonas) * 100 : 0;
-              return (
-                <tr
-                  key={l.zona}
-                  className="border-b border-border/60 last:border-0 hover:bg-muted/30"
-                >
-                  <td
-                    className="px-5 py-3 font-medium"
-                    title={ZONA_NOME[l.zona] ?? l.zona}
-                  >
-                    {l.zona}
-                  </td>
-                  <td
-                    className="px-4 py-3 text-right tabular-nums"
-                    style={{ color: "#1e3a7a" }}
-                  >
-                    {l.outorgaValor > 0 ? fmtBrl(l.outorgaValor) : "—"}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular-nums text-muted-foreground">
-                    {l.outorgaProc || "—"}
-                  </td>
-                  <td
-                    className="px-4 py-3 text-right tabular-nums"
-                    style={{ color: "#c2410c" }}
-                  >
-                    {l.cotaValor > 0 ? fmtBrl(l.cotaValor) : "—"}
-                  </td>
-                  <td className="px-3 py-3 text-right tabular-nums text-muted-foreground">
-                    {l.cotaProc || "—"}
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold tabular-nums">
-                    {fmtBrl(l.totalValor)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{
-                            width: `${(l.totalValor / maxTotal) * 100}%`,
-                          }}
-                        />
-                      </div>
-                      <span className="w-10 text-right text-[11px] text-muted-foreground tabular-nums">
-                        {fmtPct(pctTotal)}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-          {d.linhas.length > 0 && (
-            <tfoot>
-              <tr className="border-t-2 border-border bg-muted/30 text-sm font-semibold">
-                <td className="px-5 py-3">Soma das zonas</td>
-                <td
-                  className="px-4 py-3 text-right tabular-nums"
-                  style={{ color: "#1e3a7a" }}
-                >
-                  {fmtBrl(totalOutorga)}
-                </td>
-                <td className="px-3 py-3"></td>
-                <td
-                  className="px-4 py-3 text-right tabular-nums"
-                  style={{ color: "#c2410c" }}
-                >
-                  {fmtBrl(totalCota)}
-                </td>
-                <td className="px-3 py-3"></td>
-                <td className="px-4 py-3 text-right tabular-nums">
-                  {fmtBrl(somaZonas)}
-                </td>
-                <td className="px-4 py-3 text-left text-xs font-normal text-muted-foreground">
-                  {totalProc} processos
-                </td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </div>
+			<div className="overflow-x-auto">
+				<table className="w-full border-separate border-spacing-0 text-sm">
+					<thead>
+						<tr className="bg-primary">
+							<th className="whitespace-nowrap px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Zona</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Outorga</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Proc.</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Cota</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Proc.</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Total</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-left text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">% do total</th>
+						</tr>
+					</thead>
+					<tbody>
+						{d.linhas.length === 0 && (
+							<tr>
+								<td colSpan={7} className="px-5 py-8 text-center text-sm text-muted-foreground">
+									Sem arrecadação no período.
+								</td>
+							</tr>
+						)}
+						{d.linhas.map((l) => {
+							const pctTotal = somaZonas > 0 ? (l.totalValor / somaZonas) * 100 : 0;
+							return (
+								<tr key={l.zona} className="border-t border-border transition-colors hover:bg-primary-soft">
+									<td className="px-5 py-3 font-medium" title={ZONA_NOME[l.zona] ?? l.zona}>
+										{l.zona}
+									</td>
+									<td className="px-4 py-3 text-right tabular-nums" style={{ color: '#1e3a7a' }}>
+										{l.outorgaValor > 0 ? fmtBrl(l.outorgaValor) : '—'}
+									</td>
+									<td className="px-3 py-3 text-right tabular-nums text-muted-foreground">
+										{l.outorgaProc || '—'}
+									</td>
+									<td className="px-4 py-3 text-right tabular-nums" style={{ color: '#c2410c' }}>
+										{l.cotaValor > 0 ? fmtBrl(l.cotaValor) : '—'}
+									</td>
+									<td className="px-3 py-3 text-right tabular-nums text-muted-foreground">
+										{l.cotaProc || '—'}
+									</td>
+									<td className="px-4 py-3 text-right font-semibold tabular-nums">
+										{fmtBrl(l.totalValor)}
+									</td>
+									<td className="px-4 py-3">
+										<div className="flex items-center gap-2">
+											<div className="h-1.5 w-24 overflow-hidden rounded-full bg-muted">
+												<div
+													className="h-full rounded-full bg-primary"
+													style={{ width: `${(l.totalValor / maxTotal) * 100}%` }}
+												/>
+											</div>
+											<span className="w-10 text-right text-[11px] text-muted-foreground tabular-nums">
+												{fmtPct(pctTotal)}
+											</span>
+										</div>
+									</td>
+								</tr>
+							);
+						})}
+					</tbody>
+					{d.linhas.length > 0 && (
+						<tfoot>
+							<tr className="border-t-2 border-border bg-muted/30 text-sm font-semibold">
+								<td className="px-5 py-3">Soma das zonas</td>
+								<td className="px-4 py-3 text-right tabular-nums" style={{ color: '#1e3a7a' }}>
+									{fmtBrl(totalOutorga)}
+								</td>
+								<td className="px-3 py-3"></td>
+								<td className="px-4 py-3 text-right tabular-nums" style={{ color: '#c2410c' }}>
+									{fmtBrl(totalCota)}
+								</td>
+								<td className="px-3 py-3"></td>
+								<td className="px-4 py-3 text-right tabular-nums">{fmtBrl(somaZonas)}</td>
+								<td className="px-4 py-3 text-left text-xs font-normal text-muted-foreground">
+									{totalProc} processos
+								</td>
+							</tr>
+						</tfoot>
+					)}
+				</table>
+			</div>
 
-      <div className="border-t border-border px-5 py-3 text-[11px] leading-relaxed text-muted-foreground">
-        A planilha DEUSO tem 6 campos de zona de uso (um por lei de zoneamento);
-        zonas repetidas num mesmo empreendimento são contadas uma só vez.{" "}
-        {haDuplaContagem ? (
-          <>
-            Empreendimentos com mais de uma zona têm o valor contado em{" "}
-            <strong>cada</strong> zona, então a soma das zonas (
-            {fmtBrl(somaZonas)}) supera a arrecadação real (
-            {fmtBrl(d.totalGeral)}).
-          </>
-        ) : (
-          <>
-            Empreendimentos com mais de uma zona terão o valor contado em cada
-            zona (hoje, apenas o campo da Lei 16.402/2016 está preenchido, então
-            não há dupla contagem).
-          </>
-        )}
-      </div>
-    </div>
-  );
+			<div className="border-t border-border px-5 py-3 text-[11px] leading-relaxed text-muted-foreground">
+				A planilha DEUSO tem 6 campos de zona de uso (um por lei de zoneamento);
+				zonas repetidas num mesmo empreendimento são contadas uma só vez.{' '}
+				{haDuplaContagem ? (
+					<>
+						Empreendimentos com mais de uma zona têm o valor contado em{' '}
+						<strong>cada</strong> zona, então a soma das zonas (
+						{fmtBrl(somaZonas)}) supera a arrecadação real (
+						{fmtBrl(d.totalGeral)}).
+					</>
+				) : (
+					<>
+						Empreendimentos com mais de uma zona terão o valor contado em cada
+						zona (hoje, apenas o campo da Lei 16.402/2016 está preenchido, então
+						não há dupla contagem).
+					</>
+				)}
+			</div>
+		</div>
+	);
 }

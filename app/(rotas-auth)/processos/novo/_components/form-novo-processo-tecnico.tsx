@@ -1,5 +1,7 @@
 'use client';
 
+import { FiltroSegmented } from '@/components/filtro-ui';
+import { formatarNumeroProcesso, numeroProcessoValido, PLACEHOLDER_NUMERO_PROCESSO, type FormatoNumeroProcesso } from '@/lib/mascara-processo';
 import { cn } from '@/lib/utils';
 import {
 	AlertTriangle,
@@ -34,7 +36,6 @@ import { NovoCard, NovoCardHead } from './novo-processo-ui';
 
 type Fase = 'preenchendo' | 'anexar' | 'confirmando' | 'confirmado';
 
-const reProc = /^\d{4}\.\d{4}\/\d{7}-\d$/;
 
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
@@ -48,6 +49,7 @@ const TIPO_OPCOES: { valor: TipoNovoProcesso; label: string; hint: string }[] = 
 
 export default function FormNovoProcessoTecnico() {
 	const [tipo, setTipo] = useState<TipoNovoProcesso>('OUTORGA');
+	const [formato, setFormato] = useState<FormatoNumeroProcesso>('SEI');
 	const [valor, setValor] = useState('');
 	const [incluirMulta, setIncluirMulta] = useState(false);
 	const [valorMulta, setValorMulta] = useState('');
@@ -80,7 +82,7 @@ export default function FormNovoProcessoTecnico() {
 
 	function buscarDadosBi() {
 		const v = valor.trim();
-		if (!reProc.test(v)) {
+		if (!numeroProcessoValido(v, formato)) {
 			setErro('Informe um número de processo válido (0000.0000/0000000-0) antes de buscar.');
 			inputRef.current?.focus();
 			return;
@@ -169,7 +171,7 @@ export default function FormNovoProcessoTecnico() {
 			inputRef.current?.focus();
 			return;
 		}
-		if (!reProc.test(v)) {
+		if (!numeroProcessoValido(v, formato)) {
 			setErro('Número inválido. Formato esperado: 0000.0000/0000000-0.');
 			inputRef.current?.focus();
 			return;
@@ -475,10 +477,10 @@ export default function FormNovoProcessoTecnico() {
 								ref={inputRef}
 								value={valor}
 								onChange={(e) => {
-									setValor(e.target.value);
+									setValor(formatarNumeroProcesso(e.target.value, formato));
 									if (erro) setErro('');
 								}}
-								placeholder="0000.0000/0000000-0"
+								placeholder={PLACEHOLDER_NUMERO_PROCESSO[formato]}
 								autoFocus
 								spellCheck={false}
 								autoComplete="off"
@@ -517,7 +519,7 @@ export default function FormNovoProcessoTecnico() {
 					) : (
 						<div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
 							<Info className="h-3.5 w-3.5 shrink-0" />
-							Formato SEI: <span className="font-mono">0000.0000/0000000-0</span>
+							Formato {formato === 'SEI' ? 'SEI' : 'f?sico'}: <span className="font-mono">{PLACEHOLDER_NUMERO_PROCESSO[formato]}</span>
 						</div>
 					)}
 				</div>

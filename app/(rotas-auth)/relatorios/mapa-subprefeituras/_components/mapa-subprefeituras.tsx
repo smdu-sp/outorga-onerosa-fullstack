@@ -6,26 +6,17 @@ import { scaleSequential } from 'd3-scale';
 import { normalizarSubprefeitura } from '@/lib/geo/normalizar-subprefeitura';
 import type { IRelatorioSubprefeituraDetalhe } from '@/types/relatorio';
 
-type GeoGeometry = {
-	type: string;
-	coordinates: unknown;
-};
-
 type SubprefeituraProperties = {
 	nm_subprefeitura?: string;
 	sg_subprefeitura?: string;
 };
 
-type SubprefeituraFeature = {
-	type: 'Feature';
-	geometry: GeoGeometry;
-	properties: SubprefeituraProperties;
-};
+type SubprefeituraFeature = GeoJSON.Feature<GeoJSON.Geometry, SubprefeituraProperties>;
 
-type SubprefeituraFeatureCollection = {
-	type: 'FeatureCollection';
-	features: SubprefeituraFeature[];
-};
+type SubprefeituraFeatureCollection = GeoJSON.FeatureCollection<
+	GeoJSON.Geometry,
+	SubprefeituraProperties
+>;
 
 const fmtM = (v: number) =>
 	`R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M`;

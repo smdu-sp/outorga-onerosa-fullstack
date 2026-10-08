@@ -1,6 +1,7 @@
 /** @format */
 
-import { TableSkeleton } from '@/components/data-table';
+import { ProcessosSkeleton } from '@/components/skeleton-blocks';
+import { PageHeader, PageShell, StatGroup } from '@/components/page-shell';
 import { requireAuth, usuarioPermitido } from '@/lib/auth/session';
 import { buscarTudo } from '@/services/processos/query-functions/buscar-tudo';
 import { buscarEstatisticas } from '@/services/processos/query-functions/estatisticas';
@@ -22,7 +23,7 @@ export default function Processos({
 	searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
 	return (
-		<Suspense fallback={<TableSkeleton />}>
+		<Suspense fallback={<ProcessosSkeleton />}>
 			<Home searchParams={searchParams} />
 		</Suspense>
 	);
@@ -76,54 +77,53 @@ async function Home({
 	}
 
 	return (
-		<div className="mx-auto w-full px-4 py-7 pb-[60px] sm:px-8">
-			<div className="mb-[22px] flex flex-wrap items-start justify-between gap-5 rounded-2xl border border-border/70 bg-card px-5 py-4 shadow-xs">
-				<div>
-					<h1 className="m-0 text-[30px] font-bold tracking-[-0.01em]">Processos</h1>
-					<p className="mt-1.5 text-sm text-muted-foreground">
-						Consulte, acompanhe e edite os processos de outorga onerosa.
-					</p>
-				</div>
-				{podeCriar && (
-					<Link
-						href="/processos/novo"
-						className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white no-underline hover:bg-primary/90">
-						<Plus className="h-4 w-4" />
-						Novo processo
-					</Link>
-				)}
-			</div>
+		<PageShell>
+			<PageHeader
+				title="Processos"
+				actions={
+					podeCriar && (
+						<Link
+							href="/processos/novo"
+							className="inline-flex items-center gap-2 rounded-lg border border-primary bg-primary px-4 py-2.5 text-sm font-semibold text-white no-underline hover:bg-primary/90">
+							<Plus className="h-4 w-4" />
+							Novo processo
+						</Link>
+					)
+				}
+			/>
 
-			<div className="mb-[22px] grid grid-cols-2 gap-3.5 lg:grid-cols-4">
-				<StatCard
-					icon="layers"
-					color="blue"
-					label="Total"
-					value={stats.total}
-					sub="processos cadastrados"
-				/>
-				<StatCard
-					icon="clock"
-					color="amber"
-					label="Em pagamento"
-					value={stats.em_pagamento}
-					sub="parcelas em curso"
-				/>
-				<StatCard
-					icon="check"
-					color="green"
-					label="Quitados"
-					value={stats.quitados}
-					sub="contrapartida concluída"
-				/>
-				<StatCard
-					icon="trendingDown"
-					color="red"
-					label="Em quebra"
-					value={stats.quebras}
-					sub={`${fmtBRL(stats.valor_quebra)} não recebido`}
-				/>
-			</div>
+			<StatGroup className="mb-[22px]">
+				<div className="grid grid-cols-2 gap-px bg-border lg:grid-cols-4">
+					<StatCard
+						icon="layers"
+						color="blue"
+						label="Total"
+						value={stats.total}
+						sub="processos cadastrados"
+					/>
+					<StatCard
+						icon="clock"
+						color="amber"
+						label="Em pagamento"
+						value={stats.em_pagamento}
+						sub="parcelas em curso"
+					/>
+					<StatCard
+						icon="check"
+						color="green"
+						label="Quitados"
+						value={stats.quitados}
+						sub="contrapartida concluída"
+					/>
+					<StatCard
+						icon="trendingDown"
+						color="red"
+						label="Em quebra"
+						value={stats.quebras}
+						sub={`${fmtBRL(stats.valor_quebra)} não recebido`}
+					/>
+				</div>
+			</StatGroup>
 
 			<Suspense>
 				<ToolbarLista
@@ -140,6 +140,6 @@ async function Home({
 			<TabelaLista processos={dataProcessos} />
 
 			<PaginacaoLista total={total} pagina={pagina} limite={limite} />
-		</div>
+		</PageShell>
 	);
 }

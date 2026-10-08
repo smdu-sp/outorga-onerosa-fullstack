@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { TableSkeleton } from '@/components/data-table';
+import { RelatorioSubpaginaSkeleton } from '@/components/skeleton-blocks';
 import {
 	anosArrecadacaoDistritos,
 	relatorioDistritos,
@@ -25,7 +25,7 @@ export default async function MapaDistritosPage({ searchParams }: { searchParams
 	const periodoLabel = descreverPeriodoDistrito(filtro);
 
 	return (
-		<Suspense fallback={<TableSkeleton />}>
+		<Suspense fallback={<RelatorioSubpaginaSkeleton />}>
 			<MapaDistritosConteudo filtro={filtro} periodoLabel={periodoLabel} />
 		</Suspense>
 	);

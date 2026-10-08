@@ -61,9 +61,9 @@ export function KpiMes({ d }: { d: IRelatorioMesDetalhe }) {
 	];
 
 	return (
-		<div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
+		<div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-3 xl:grid-cols-5">
 			{cards.map((c) => (
-				<div key={c.label} className="rounded-xl border border-border bg-card p-4 shadow-xs">
+				<div key={c.label} className="bg-card p-4">
 					<div className="mb-2 flex items-center gap-2">
 						{c.icon}
 						<span className="text-xs text-muted-foreground">{c.label}</span>

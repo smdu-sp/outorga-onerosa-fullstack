@@ -38,49 +38,51 @@ export default function DataTable<TData, TValue>({
 
 	return (
 		<div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
-			<Table>
-				<TableHeader>
-					{table.getHeaderGroups().map((headerGroup) => (
-						<TableRow key={headerGroup.id} className="bg-muted hover:bg-muted">
-							{headerGroup.headers.map((header) => (
-								<TableHead
-									key={header.id}
-									className="text-muted-foreground font-semibold text-xs uppercase tracking-wider h-10">
-									{header.isPlaceholder
-										? null
-										: flexRender(header.column.columnDef.header, header.getContext())}
-								</TableHead>
-							))}
-						</TableRow>
-					))}
-				</TableHeader>
-				<TableBody>
-					{table.getRowModel().rows?.length ? (
-						table.getRowModel().rows.map((row, i) => (
-							<TableRow
-								key={row.id}
-								data-state={row.getIsSelected() && 'selected'}
-								onClick={() => onRowClick?.(row.original)}
-								className={cn(
-									i % 2 === 1 && 'bg-muted/30',
-									onRowClick && 'cursor-pointer',
-								)}>
-								{row.getVisibleCells().map((cell) => (
-									<TableCell key={cell.id} className="text-sm py-3">
-										{flexRender(cell.column.columnDef.cell, cell.getContext())}
-									</TableCell>
+			<div className="overflow-x-auto">
+				<Table>
+					<TableHeader>
+						{table.getHeaderGroups().map((headerGroup) => (
+							<TableRow key={headerGroup.id} className="border-none bg-primary hover:bg-primary">
+								{headerGroup.headers.map((header) => (
+									<TableHead
+										key={header.id}
+										className="h-10 whitespace-nowrap px-3.5 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">
+										{header.isPlaceholder
+											? null
+											: flexRender(header.column.columnDef.header, header.getContext())}
+									</TableHead>
 								))}
 							</TableRow>
-						))
-					) : (
-						<TableRow>
-							<TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
-								Nenhum resultado encontrado.
-							</TableCell>
-						</TableRow>
-					)}
-				</TableBody>
-			</Table>
+						))}
+					</TableHeader>
+					<TableBody>
+						{table.getRowModel().rows?.length ? (
+							table.getRowModel().rows.map((row) => (
+								<TableRow
+									key={row.id}
+									data-state={row.getIsSelected() && 'selected'}
+									onClick={() => onRowClick?.(row.original)}
+									className={cn(
+										'transition-colors hover:bg-primary-soft',
+										onRowClick && 'cursor-pointer',
+									)}>
+									{row.getVisibleCells().map((cell) => (
+										<TableCell key={cell.id} className="px-3.5 py-3 text-sm">
+											{flexRender(cell.column.columnDef.cell, cell.getContext())}
+										</TableCell>
+									))}
+								</TableRow>
+							))
+						) : (
+							<TableRow>
+								<TableCell colSpan={columns.length} className="h-32 text-center text-muted-foreground">
+									Nenhum resultado encontrado.
+								</TableCell>
+							</TableRow>
+						)}
+					</TableBody>
+				</Table>
+			</div>
 		</div>
 	);
 }

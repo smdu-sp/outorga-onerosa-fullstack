@@ -59,7 +59,7 @@ export function PainelSeiVsBi({ inicial }: Props) {
 		if (filtroStatus === 'todos') return lista;
 		return lista.filter((p) => {
 			const r = resultados.get(p.id);
-			if (!r) return filtroStatus === 'todos';
+			if (!r) return false;
 			return r.status === filtroStatus;
 		});
 	}, [lista, resultados, filtroStatus]);
@@ -287,11 +287,12 @@ export function PainelSeiVsBi({ inicial }: Props) {
 				<code className="rounded bg-muted px-1">AD: …</code>) pelo núcleo número-ano. Máx. 100 por vez.
 			</p>
 
-			<div className="overflow-x-auto rounded-xl border border-border bg-card shadow-xs">
+			<div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
+			<div className="overflow-x-auto">
 				<table className="w-full text-sm">
 					<thead>
-						<tr className="border-b border-border bg-muted/40 text-left text-xs text-muted-foreground">
-							<th className="w-10 px-3 py-2.5">
+						<tr className="bg-primary text-left">
+							<th className="w-10 whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">
 								<input
 									type="checkbox"
 									checked={todosSelecionados}
@@ -299,12 +300,12 @@ export function PainelSeiVsBi({ inicial }: Props) {
 									aria-label="Selecionar todos"
 								/>
 							</th>
-							<th className="px-3 py-2.5 font-semibold">SEI</th>
-							<th className="px-3 py-2.5 font-semibold">Protocolo AD</th>
-							<th className="px-3 py-2.5 font-semibold">Local</th>
-							<th className="px-3 py-2.5 font-semibold">BI</th>
-							<th className="px-3 py-2.5 font-semibold">Status</th>
-							<th className="px-3 py-2.5 font-semibold" />
+							<th className="whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">SEI</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Protocolo AD</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Local</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">BI</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Status</th>
+							<th className="whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground" />
 						</tr>
 					</thead>
 					<tbody>
@@ -320,7 +321,7 @@ export function PainelSeiVsBi({ inicial }: Props) {
 							visiveis.map((p) => {
 								const r = resultados.get(p.id);
 								return (
-									<tr key={p.id} className="border-b border-border/60 align-top">
+									<tr key={p.id} className="border-t border-border align-top transition-colors hover:bg-primary-soft">
 										<td className="px-3 py-2">
 											<input
 												type="checkbox"
@@ -417,6 +418,7 @@ export function PainelSeiVsBi({ inicial }: Props) {
 						)}
 					</tbody>
 				</table>
+			</div>
 			</div>
 		</div>
 	);

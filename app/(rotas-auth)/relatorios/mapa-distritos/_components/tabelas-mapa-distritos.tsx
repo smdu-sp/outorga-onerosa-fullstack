@@ -81,7 +81,7 @@ export function TabelasMapaDistritos({
 	const filtroLabel = distritoAtivo ? ` em ${distritoAtivo.nome}` : '';
 
 	return (
-		<div className="rounded-xl border border-border bg-card shadow-xs">
+		<div className="overflow-hidden rounded-xl border border-border/70 bg-card shadow-xs">
 			<div className="border-b border-border px-5 py-4">
 				<h2 className="text-sm font-semibold">Detalhamento · {periodoLabel}</h2>
 				<p className="mt-0.5 text-xs text-muted-foreground">
@@ -109,13 +109,13 @@ export function TabelasMapaDistritos({
 
 				<TabsContent value="distritos" className="mt-0">
 					<div className="overflow-x-auto">
-						<table className="w-full min-w-[480px] text-left text-sm">
+						<table className="w-full min-w-[480px] border-separate border-spacing-0 text-left text-sm">
 							<thead>
-								<tr className="border-b border-border bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-									<th className="w-10 px-5 py-3 font-semibold">#</th>
-									<th className="px-5 py-3 font-semibold">Distrito</th>
-									<th className="px-5 py-3 text-right font-semibold">Processos</th>
-									<th className="px-5 py-3 text-right font-semibold">Arrecadado</th>
+								<tr className="bg-primary">
+									<th className="w-10 whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">#</th>
+									<th className="whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Distrito</th>
+									<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Processos</th>
+									<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Arrecadado</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -131,7 +131,7 @@ export function TabelasMapaDistritos({
 										return (
 											<tr
 												key={d.chave}
-												className={`cursor-pointer border-b border-border/60 transition-colors hover:bg-muted/30 ${
+												className={`cursor-pointer border-t border-border transition-colors hover:bg-primary-soft ${
 													ativo ? 'bg-primary/5' : ''
 												}`}
 												onClick={() => onSelecionarDistrito(ativo ? null : d.chave)}>
@@ -161,15 +161,15 @@ export function TabelasMapaDistritos({
 
 				<TabsContent value="processos" className="mt-0">
 					<div className="overflow-x-auto">
-						<table className="w-full min-w-[560px] text-left text-sm">
+						<table className="w-full min-w-[560px] border-separate border-spacing-0 text-left text-sm">
 							<thead>
-								<tr className="border-b border-border bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
-									<th className="px-5 py-3 font-semibold">Processo</th>
-									<th className="px-5 py-3 font-semibold">Interessado</th>
+								<tr className="bg-primary">
+									<th className="whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Processo</th>
+									<th className="whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Interessado</th>
 									{!distritoAtivo && (
-										<th className="px-5 py-3 font-semibold">Distrito</th>
+										<th className="whitespace-nowrap px-3.5 py-3 text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Distrito</th>
 									)}
-									<th className="px-5 py-3 text-right font-semibold">Arrecadado</th>
+									<th className="whitespace-nowrap px-3.5 py-3 text-right text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground">Arrecadado</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -183,7 +183,7 @@ export function TabelasMapaDistritos({
 									</tr>
 								) : (
 									processosPagina.map((p) => (
-										<tr key={p.id} className="border-b border-border/60 hover:bg-muted/30">
+										<tr key={p.id} className="border-t border-border transition-colors hover:bg-primary-soft">
 											<td className="px-5 py-3 font-mono text-xs">
 												<Link
 													href={`/processos/${p.id}`}

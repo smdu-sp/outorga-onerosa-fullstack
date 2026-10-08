@@ -22,7 +22,7 @@ function TableHeader({ className, ...props }: React.ComponentProps<'thead'>) {
 	return (
 		<thead
 			data-slot='table-header'
-			className={cn('[&_tr]:border-b ', className)}
+			className={cn('bg-primary [&_tr]:border-none [&_tr]:hover:bg-primary', className)}
 			{...props}
 		/>
 	);
@@ -69,7 +69,7 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
 		<th
 			data-slot='table-head'
 			className={cn(
-				'text-muted-foreground  h-10 px-2 text-left align-middle font-medium [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
+				'h-10 whitespace-nowrap px-3.5 text-left align-middle text-[11.5px] font-semibold uppercase tracking-[0.03em] text-primary-foreground [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
 				className,
 			)}
 			{...props}
