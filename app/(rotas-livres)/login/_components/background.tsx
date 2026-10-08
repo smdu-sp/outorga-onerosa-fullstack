@@ -20,6 +20,7 @@ export default function Background() {
     }
 
     return <Image
+            loading="eager"
             width={1200}
             height={1200}
             src={tema === "dark" ? escuro.src : claro.src}

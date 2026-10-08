@@ -22,6 +22,7 @@ export default function Imagem() {
 
     return <div className="relative hidden bg-muted md:block">
         <Image
+            loading="eager"
             width={1200}
             height={1200}
             src={tema === "dark" ? escuro.src : claro.src}

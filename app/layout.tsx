@@ -15,7 +15,7 @@ const myFont = localFont({
 export const metadata: Metadata = {
 	title: 'Outorga Onerosa - Relatórios',
 	description: 'Relatórios de Outorga Onerosa.',
-	icons: ['/public/favicon.ico'],
+	icons: ['/favicon.ico'],
 };
 
 export default function RootLayout({

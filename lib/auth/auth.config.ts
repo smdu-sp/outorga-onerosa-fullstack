@@ -7,6 +7,12 @@ import { autenticarLDAP } from '@/lib/auth/ldap';
 
 export default {
 	secret: process.env.AUTH_SECRET,
+	// Cookies não são isolados por porta; evite compartilhar sessões com outros portais.
+	cookies: {
+		sessionToken: { name: 'outorga.session-token', options: {} },
+		callbackUrl: { name: 'outorga.callback-url', options: {} },
+		csrfToken: { name: 'outorga.csrf-token', options: {} },
+	},
 	providers: [
 		Credentials({
 			name: 'credentials',
