@@ -88,9 +88,8 @@ export function vencimentoEfetivo(
 /**
  * Data em que o valor entrou (pagamento efetivo).
  *
- * Regra: parcela quitada sem `data_quitacao` → considera a data de vencimento
- * como data de pagamento, **exceto se o vencimento estiver no futuro** (não
- * inventar pagamento futuro). Sem vencimento utilizável → hoje − 30 dias.
+ * Sem data exata, não presumir pagamento no vencimento ou em uma data relativa
+ * ao dia atual. O ano informado pode ser usado apenas no filtro anual.
  */
 export function dataPagamentoParcela(p: ParcelaArrecadacao): Date | null {
 	if (!p.status_quitacao) return null;
@@ -98,13 +97,12 @@ export function dataPagamentoParcela(p: ParcelaArrecadacao): Date | null {
 	if (p.data_quitacao && p.data_quitacao.getTime() <= hoje.getTime()) {
 		return p.data_quitacao;
 	}
-	const venc = vencimentoEfetivo(p.vencimento);
-	if (venc.getTime() <= hoje.getTime()) return venc;
 	return null;
 }
 
 /** Ano de arrecadação a partir da data de pagamento efetiva (ou proxy no vencimento). */
 export function anoArrecadacaoParcela(p: ParcelaArrecadacao): number | null {
+	if (!p.status_quitacao) return null;
 	const pagamento = dataPagamentoParcela(p);
 	if (pagamento) return pagamento.getFullYear();
 	if (p.ano_pagamento != null) return p.ano_pagamento;
@@ -118,9 +116,8 @@ export function mesArrecadacaoParcela(p: ParcelaArrecadacao): number | null {
 }
 
 /**
- * Parcela quitada entra no período pela data de pagamento, não pelo vencimento
- * contratual — salvo quando a data de quitação falta, caso em que o vencimento
- * (ou hoje − 30 dias, se também faltar) é o proxy.
+ * Parcela quitada entra no período pela data de pagamento. Sem data exata,
+ * pode entrar apenas no filtro anual pelo ano informado.
  *
  * Intervalo `dataInicio`/`dataFim` tem prioridade sobre ano/mês.
  */

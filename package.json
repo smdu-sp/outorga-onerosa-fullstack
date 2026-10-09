@@ -14,6 +14,8 @@
     "db:seed": "prisma db seed",
     "db:export-seed": "tsx prisma/export-seed.ts",
     "db:import-planilhas": "tsx prisma/import-planilhas.ts",
+    "db:import-universal": "tsx scripts/importar-universal.ts",
+    "test:importador": "tsx scripts/test-importador-universal.ts",
     "db:import-outorga": "tsx prisma/import-outorga.ts",
     "db:import-oodc-valores": "tsx prisma/import-oodc-valor-referencia.ts",
     "db:import-cota-valores": "tsx prisma/import-cota-valor-referencia.ts",
