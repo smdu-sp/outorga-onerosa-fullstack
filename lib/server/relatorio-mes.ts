@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma';
+import { dataPagamentoParcela, parcelaArrecadadaNoPeriodo } from '@/lib/parcelas-utils';
 import { resolverNomeInteressado } from '@/lib/interessado';
 import {
 	resolverOrigemOutorga,
@@ -39,7 +40,7 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 	const inicioMesAnt = new Date(ano - 1, mesIdx, 1);
 	const fimMesAnt = new Date(ano - 1, mesIdx + 1, 1);
 
-	const [parcelasVenc, parcelasArrec, prevAnt, realAnt] = await Promise.all([
+	const [parcelasVenc, parcelasPagas, prevAnt] = await Promise.all([
 		// Parcelas com vencimento no mês (universo previsto)
 		prisma.parcela.findMany({
 			where: { vencimento: { gte: inicioMes, lt: fimMes } },
@@ -73,7 +74,7 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 		prisma.parcela.findMany({
 			where: {
 				status_quitacao: true,
-				data_quitacao: { gte: inicioMes, lt: fimMes },
+				quebra: false,
 			},
 			select: {
 				id: true,
@@ -81,6 +82,9 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 				vencimento: true,
 				data_quitacao: true,
 				antecipada: true,
+				ano_pagamento: true,
+				status_quitacao: true,
+				quebra: true,
 			},
 		}),
 		// Previsto mesmo mês ano anterior
@@ -88,15 +92,12 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 			where: { vencimento: { gte: inicioMesAnt, lt: fimMesAnt } },
 			_sum: { valor: true },
 		}),
-		// Realizado mesmo mês ano anterior
-		prisma.parcela.aggregate({
-			where: {
-				status_quitacao: true,
-				data_quitacao: { gte: inicioMesAnt, lt: fimMesAnt },
-			},
-			_sum: { valor: true },
-		}),
+
 	]);
+
+	const parcelasArrec = parcelasPagas.filter(p => parcelaArrecadadaNoPeriodo(p, {ano, mes:mesIdx}));
+	const realAnt = parcelasPagas.filter(p => parcelaArrecadadaNoPeriodo(p, {ano:ano-1, mes:mesIdx})).reduce((s,p) => s + p.valor,0);
+	const totalEstimado = parcelasArrec.filter(p => !p.data_quitacao).reduce((s,p) => s + p.valor,0);
 
 	// Totais
 	const totalPrevisto = parcelasVenc.reduce((s, p) => s + p.valor, 0);
@@ -159,7 +160,9 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 	const semanasPrev = [0, 0, 0, 0, 0];
 
 	for (const p of parcelasArrec) {
-		const dia = p.data_quitacao!.getDate();
+		const pagamento = dataPagamentoParcela(p);
+		if (!pagamento) continue;
+		const dia = pagamento.getUTCDate();
 		const idx = Math.min(Math.floor((dia - 1) / 7), 4);
 		semanasReal[idx] += p.valor;
 	}
@@ -195,6 +198,7 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 		nomeMes: MESES_NOME[mesIdx],
 		previsto: totalPrevisto,
 		realizado: totalRealizado,
+		estimado: totalEstimado,
 		quebras: totalQuebras,
 		antecipacoes: totalAntec,
 		semanas,
@@ -203,7 +207,7 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 		distritos,
 		anoAnterior: {
 			previsto: prevAnt._sum.valor ?? 0,
-			realizado: realAnt._sum.valor ?? 0,
+			realizado: realAnt,
 		},
 		countStatus: { pagoPrazo, pagoAtraso, aberto, quebra: quebraCount },
 	};

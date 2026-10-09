@@ -88,6 +88,7 @@ async function RelatorioMesHome({ anoStr, mesStr }: { anoStr: string; mesStr: st
 			/>
 
 			<div className="flex flex-col gap-6">
+				{(d.estimado ?? 0) > 0 && <p className="text-sm text-muted-foreground">O total inclui {(d.estimado ?? 0).toLocaleString('pt-BR', {style:'currency',currency:'BRL'})} com mês estimado pelo vencimento, sem data exata de pagamento. O gráfico semanal utiliza a mesma regra.</p>}
 				<StatGroup>
 					<KpiMes d={d} />
 				</StatGroup>

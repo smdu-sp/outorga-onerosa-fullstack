@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import {
 	dataNoPeriodoFiltro,
-	dataPagamentoParcela,
+	dataReferenciaArrecadacao,
 	parcelaArrecadadaNoPeriodo,
 	temIntervaloDatas,
 	type FiltroArrecadacao,
@@ -239,7 +239,7 @@ export async function buscarRelatorio(
 		? parcelasPagasAno.filter((p) => parcelaArrecadadaNoPeriodo(p, { ano: anoAtual }))
 		: temRange
 			? parcelasArrecadadasAno.filter((p) => {
-					const pag = dataPagamentoParcela(p);
+					const pag = dataReferenciaArrecadacao(p);
 					return pag != null && pag.getFullYear() === anoAtual;
 				})
 			: parcelasArrecadadasAno;
@@ -258,6 +258,7 @@ export async function buscarRelatorio(
 
 	const prev: (number | null)[] = Array(12).fill(null);
 	const real: (number | null)[] = Array(12).fill(null);
+	const estimado: (number | null)[] = Array(12).fill(null);
 	const quebras: (number | null)[] = Array(12).fill(null);
 	const antec: (number | null)[] = Array(12).fill(null);
 
@@ -273,7 +274,7 @@ export async function buscarRelatorio(
 	for (let m = 0; m < 12; m++) {
 		const vencNoMes = parcelasVencimentoD26.filter((p) => p.vencimento.getMonth() === m);
 		const pagoNoMes = parcelasArrecadadasD26.filter((p) => {
-			const pagamento = dataPagamentoParcela(p);
+			const pagamento = dataReferenciaArrecadacao(p);
 			return pagamento != null && pagamento.getMonth() === m;
 		});
 		const temMultaNoMes = multasPagasD26.some(
@@ -306,6 +307,7 @@ export async function buscarRelatorio(
 		if (totalPrev > 0) prev[m] = +(totalPrev / BRL_TO_M).toFixed(1);
 		if (m <= mesAtual) {
 			if (totalReal > 0) real[m] = +(totalReal / BRL_TO_M).toFixed(1);
+			estimado[m] = +(pagoNoMes.filter(p => !p.data_quitacao).reduce((s,p) => s + p.valor, 0) / BRL_TO_M).toFixed(1);
 			if (totalQuebra > 0) quebras[m] = +(totalQuebra / BRL_TO_M).toFixed(1);
 			if (totalAntec > 0) antec[m] = +(totalAntec / BRL_TO_M).toFixed(1);
 			for (const p of pagoNoMes) {
@@ -367,6 +369,8 @@ export async function buscarRelatorio(
 						vencimento: true,
 						data_quitacao: true,
 						ano_pagamento: true,
+						antecipada: true,
+						quebra: true,
 						status_quitacao: true,
 					},
 				}),
@@ -382,7 +386,7 @@ export async function buscarRelatorio(
 			const mensal = Array(12).fill(0) as number[];
 			for (const p of parcelas) {
 				if (!parcelaArrecadadaNoPeriodo(p, { ano })) continue;
-				const pagamento = dataPagamentoParcela(p);
+				const pagamento = dataReferenciaArrecadacao(p);
 				if (!pagamento) continue;
 				mensal[pagamento.getMonth()] += p.valor;
 			}
@@ -510,7 +514,7 @@ export async function buscarRelatorio(
 		mesAtual,
 		metaAnual: +metaAnual.toFixed(0) || 1,
 		meses: MESES,
-		d26: { prev, real, quebras, antec },
+		d26: { prev, real, estimado, quebras, antec },
 		hist,
 		top: { ano: topAno, mes: topMes, todo: topTodo },
 		subs,

@@ -1,9 +1,14 @@
 import assert from 'node:assert/strict';
 import * as XLSX from 'xlsx';
+import { corrigirVencimentoConfirmado } from '../lib/correcoes-planilhas';
 import { dataPlanilha, valorPlanilha, lerPlanilhaUniversal } from '../lib/importador-universal';
-import { dataPagamentoParcela, parcelaArrecadadaNoPeriodo } from '../lib/parcelas-utils';
+import { dataPagamentoParcela, dataReferenciaArrecadacao, parcelaArrecadadaNoPeriodo } from '../lib/parcelas-utils';
 
 assert.equal(dataPlanilha('31/02/2026'), null);
+assert.equal(corrigirVencimentoConfirmado('1020.2026/0037109-4','PDE',1,new Date('2026-02-10T00:00:00Z'))?.toISOString(),'2026-10-02T00:00:00.000Z');
+assert.equal(corrigirVencimentoConfirmado('1020.2026/0037109-4','COTA',1,new Date('2026-02-10T00:00:00Z'))?.toISOString(),'2026-10-02T00:00:00.000Z');
+assert.equal(corrigirVencimentoConfirmado('1020.2026/0012385-6','PDE',1,new Date('2026-02-10T00:00:00Z'))?.toISOString(),'2026-10-02T00:00:00.000Z');
+assert.equal(corrigirVencimentoConfirmado('outro-processo','PDE',1,new Date('2026-02-10T00:00:00Z'))?.toISOString(),'2026-02-10T00:00:00.000Z');
 assert.equal(dataPlanilha('2026'), null);
 assert.equal(dataPlanilha('03/04/2026')?.toISOString(),'2026-04-03T00:00:00.000Z');
 assert.equal(dataPlanilha(46000)?.toISOString(),'2025-12-09T00:00:00.000Z');
@@ -11,10 +16,18 @@ assert.equal(valorPlanilha('R$ 1.234.567,89'),1234567.89);
 assert.equal(valorPlanilha('não informado'),null);
 assert.equal(valorPlanilha('1234.56'),1234.56);
 const semData = {status_quitacao:true,vencimento:new Date('2025-01-15T00:00:00Z'),ano_pagamento:2026};
-assert.equal(dataPagamentoParcela(semData),null);
-assert.equal(parcelaArrecadadaNoPeriodo(semData,{ano:2026}),true);
-assert.equal(parcelaArrecadadaNoPeriodo(semData,{ano:2025}),false);
+assert.equal(dataPagamentoParcela(semData)?.toISOString(),'2025-01-15T00:00:00.000Z');
+assert.equal(parcelaArrecadadaNoPeriodo(semData,{ano:2026}),false);
+assert.equal(parcelaArrecadadaNoPeriodo(semData,{ano:2025}),true);
 assert.equal(parcelaArrecadadaNoPeriodo(semData,{ano:2026,mes:0}),false);
+const estimada = {status_quitacao:true,vencimento:new Date('2026-01-15T00:00:00Z'),ano_pagamento:2026};
+assert.equal(dataPagamentoParcela(estimada)?.toISOString(),'2026-01-15T00:00:00.000Z');
+assert.equal(dataReferenciaArrecadacao(estimada)?.toISOString(),'2026-01-15T00:00:00.000Z');
+assert.equal(parcelaArrecadadaNoPeriodo(estimada,{ano:2026,mes:0}),true);
+assert.equal(dataReferenciaArrecadacao({...estimada,antecipada:true})?.toISOString(),'2026-01-15T00:00:00.000Z');
+assert.equal(dataReferenciaArrecadacao({...estimada,quebra:true}),null);
+assert.equal(dataReferenciaArrecadacao({...estimada,data_quitacao:new Date('2099-01-01T00:00:00Z')}),null);
+assert.equal(dataReferenciaArrecadacao({...estimada,data_quitacao:new Date('2026-02-10T00:00:00Z')})?.getUTCMonth(),1);
 const wb = XLSX.utils.book_new();
 XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
   ['VALOR','SEI','ANO DE PAGAMENTO','VENCIMENTO','CODIGO DA GUIA'],
@@ -38,3 +51,7 @@ assert.equal(resultado.linhas[3].data_quitacao,null);
 assert.equal(resultado.linhas[3].pagamentoConfiavel,false);
 assert.equal(resultado.linhas[3].obrigacao,'COTA');
 console.log('Testes do importador universal passaram.');
+
+assert.equal(parcelaArrecadadaNoPeriodo(estimada,{dataInicio:new Date('2026-01-01T00:00:00Z'),dataFim:new Date('2026-01-31T00:00:00Z')}),true);
+assert.equal(dataPagamentoParcela({...estimada,status_quitacao:false}),null);
+assert.equal(dataPagamentoParcela({...estimada,vencimento:new Date('2099-01-01T00:00:00Z')}),null);

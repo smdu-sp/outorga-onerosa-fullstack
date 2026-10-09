@@ -15,6 +15,7 @@ export type ParcelaArrecadacao = {
 	data_quitacao?: Date | null;
 	ano_pagamento?: number | null;
 	antecipada?: boolean;
+	quebra?: boolean;
 };
 
 export type FiltroArrecadacao = {
@@ -85,39 +86,38 @@ export function vencimentoEfetivo(
 	return vencimento ?? referencia;
 }
 
-/**
- * Data em que o valor entrou (pagamento efetivo).
- *
- * Sem data exata, não presumir pagamento no vencimento ou em uma data relativa
- * ao dia atual. O ano informado pode ser usado apenas no filtro anual.
- */
+/** Quitada sem data informada: considerar pagamento no vencimento passado. */
 export function dataPagamentoParcela(p: ParcelaArrecadacao): Date | null {
-	if (!p.status_quitacao) return null;
-	const hoje = dataCivilHoje();
-	if (p.data_quitacao && p.data_quitacao.getTime() <= hoje.getTime()) {
-		return p.data_quitacao;
-	}
-	return null;
+ if (!p.status_quitacao || p.quebra) return null;
+ const hoje = dataCivilHoje();
+ if (p.data_quitacao) return p.data_quitacao <= hoje ? p.data_quitacao : null;
+ if (p.vencimento && p.vencimento <= hoje) return p.vencimento;
+ return null;
+}
+
+/** Referencia unica para arrecadacao em todos os relatorios. */
+export function dataReferenciaArrecadacao(p: ParcelaArrecadacao): Date | null {
+ return dataPagamentoParcela(p);
 }
 
 /** Ano de arrecadação a partir da data de pagamento efetiva (ou proxy no vencimento). */
 export function anoArrecadacaoParcela(p: ParcelaArrecadacao): number | null {
-	if (!p.status_quitacao) return null;
+	if (!p.status_quitacao || p.quebra) return null;
 	const pagamento = dataPagamentoParcela(p);
 	if (pagamento) return pagamento.getFullYear();
 	if (p.ano_pagamento != null) return p.ano_pagamento;
-	return null;
+	return dataReferenciaArrecadacao(p)?.getUTCFullYear() ?? null;
 }
 
 /** Mês de arrecadação (0–11) a partir da data de pagamento efetiva (ou proxy no vencimento). */
 export function mesArrecadacaoParcela(p: ParcelaArrecadacao): number | null {
-	const pagamento = dataPagamentoParcela(p);
+	const pagamento = dataReferenciaArrecadacao(p);
 	return pagamento ? pagamento.getMonth() : null;
 }
 
 /**
  * Parcela quitada entra no período pela data de pagamento. Sem data exata,
- * pode entrar apenas no filtro anual pelo ano informado.
+ * considera o vencimento passado, inclusive nos intervalos livres.
  *
  * Intervalo `dataInicio`/`dataFim` tem prioridade sobre ano/mês.
  */
@@ -125,7 +125,7 @@ export function parcelaArrecadadaNoPeriodo(
 	p: ParcelaArrecadacao,
 	filtro: FiltroArrecadacao = {},
 ): boolean {
-	if (!p.status_quitacao) return false;
+	if (!p.status_quitacao || p.quebra) return false;
 
 	if (temIntervaloDatas(filtro)) {
 		const pagamento = dataPagamentoParcela(p);
@@ -136,7 +136,7 @@ export function parcelaArrecadadaNoPeriodo(
 	if (filtro.ano == null && filtro.mes == null) return true;
 
 	if (filtro.mes != null) {
-		const pagamento = dataPagamentoParcela(p);
+		const pagamento = dataReferenciaArrecadacao(p);
 		if (!pagamento) return false;
 		if (filtro.ano != null && pagamento.getFullYear() !== filtro.ano) return false;
 		return pagamento.getMonth() === filtro.mes;

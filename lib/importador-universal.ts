@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { corrigirNumProcesso } from './corrigir-num-processo';
 import { normalizarSituacaoParcela } from './normalizar-status';
+import { corrigirVencimentoConfirmado } from './correcoes-planilhas';
 
 export type Obrigacao = 'PDE' | 'COTA' | 'AIU';
 export type LinhaImportacao = {
@@ -88,7 +89,7 @@ export function lerPlanilhaUniversal(wb: XLSX.WorkBook, arquivo: string, hoje: D
       obrigacao = tipos[String(get(cod) ?? '')] ?? tipos[String(get(codAlternativo) ?? '')] ?? obrigacao;
       if (get(val) == null && get(parc) == null) continue;
       const n = parc == null ? 1 : Number(get(parc));
-      const valor = valorPlanilha(get(val)), vencimento = dataPlanilha(get(venc), !!wb.Workbook?.WBProps?.date1904);
+      const valor = valorPlanilha(get(val)), vencimento = corrigirVencimentoConfirmado(processo, obrigacao, n, dataPlanilha(get(venc), !!wb.Workbook?.WBProps?.date1904));
       const alertar = (motivo: string) => pendencias.push({ fonte, motivo, processo, parcela: n });
       if (!/^(?:\d{4}\.\d{4}\/\d+-\d+|\d{4}[.-]\d[.-]\d[\d.]*-\d)$/.test(processo) || !obrigacao || !Number.isInteger(n) || n < 1 || valor == null || !vencimento) {
         alertar('Identificação, obrigação, parcela, valor ou vencimento inválido'); continue;
@@ -105,7 +106,7 @@ export function lerPlanilhaUniversal(wb: XLSX.WorkBook, arquivo: string, hoje: D
       if (quitada && situacao === 'INDEFINIDO' && !data && vencimento > hoje) { alertar('Quitação inferida da aba com vencimento futuro; revisar'); confiavel = false; }
       const quebra = situacao === 'QUEBRA' || situacao === 'INDEFINIDO' && !quitada && normalizar(nome).includes('QUEBRA');
       if (!quitada && data) { alertar('Data de pagamento contradiz situação da parcela'); confiavel = false; data = null; }
-      if (quitada && !data) alertar('Parcela quitada sem data exata; não usar vencimento como pagamento');
+      if (quitada && !data) alertar('Sem data exata; pagamento considerado no vencimento quando passado');
       if (!quitada) { data = null; anoPagamento = null; }
       if (data) anoPagamento = data.getUTCFullYear();
       linhas.push({num_processo:processo, obrigacao, num_parcela:n, valor, vencimento, data_quitacao:data, ano_pagamento:anoPagamento, status_quitacao:quitada, quebra, fonte, pagamentoConfiavel:confiavel, data_entrada:dataEntrada, cpf_cnpj:cpfCnpj});

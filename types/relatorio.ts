@@ -3,6 +3,7 @@
 export interface IRelatorioMensal {
 	prev: (number | null)[];
 	real: (number | null)[];
+	estimado?: (number | null)[];
 	quebras: (number | null)[];
 	antec: (number | null)[];
 }
@@ -128,6 +129,7 @@ export interface IRelatorioMesDetalhe {
 	nomeMes: string;
 	previsto: number;
 	realizado: number;
+	estimado?: number;
 	quebras: number;
 	antecipacoes: number;
 	semanas: IRelatorioMesSemana[];

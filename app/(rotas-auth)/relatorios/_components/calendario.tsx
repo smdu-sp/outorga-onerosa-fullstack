@@ -9,12 +9,17 @@ const fmtM = (v: number | null, d = 1) =>
 	v == null ? '—' : `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d })}M`;
 const fmtPct = (v: number, d = 0) => v.toFixed(d) + '%';
 
+function MonthWrapper({href, className, children}: {href?:string; className:string; children:ReactNode}) {
+ return href ? <Link href={href} className={`${className} cursor-pointer transition-opacity hover:opacity-80`}>{children}</Link> : <div className={className}>{children}</div>;
+}
+
 function MonthCard({
 	mes,
 	idx,
 	mesAtual,
 	prev,
 	real,
+	estimado,
 	quebra,
 	antec,
 	ano,
@@ -24,6 +29,7 @@ function MonthCard({
 	mesAtual: number;
 	prev: number | null;
 	real: number | null;
+	estimado: number | null;
 	quebra: number | null;
 	antec: number | null;
 	ano: number;
@@ -67,16 +73,10 @@ function MonthCard({
 
 	const isPast = idx <= mesAtual;
 	const href = isPast ? `/relatorios/mes/${ano}/${idx + 1}` : undefined;
-	const Wrapper = href
-		? ({ children }: { children: ReactNode }) => (
-				<Link href={href} className={`${cardCls} cursor-pointer transition-opacity hover:opacity-80`}>
-					{children}
-				</Link>
-			)
-		: ({ children }: { children: ReactNode }) => <div className={cardCls}>{children}</div>;
+
 
 	return (
-		<Wrapper>
+		<MonthWrapper href={href} className={cardCls}>
 			<div className="flex items-center justify-between">
 				<span className="text-xs font-semibold text-foreground">{mes}</span>
 				<span
@@ -92,6 +92,7 @@ function MonthCard({
 				style={{ color: isFuturo ? 'var(--muted-foreground)' : undefined }}>
 				{real != null ? fmtM(real) : <span className="text-[13px]">—</span>}
 			</div>
+			{(estimado ?? 0) > 0 && <div className="text-[10px] text-muted-foreground">Inclui {fmtM(estimado)} com mês estimado pelo vencimento</div>}
 			<div className="text-[10px] text-muted-foreground">prev. {fmtM(prev)}</div>
 			<div className="h-1 w-full overflow-hidden rounded-full bg-muted">
 				{real != null && pct != null && (
@@ -122,7 +123,7 @@ function MonthCard({
 					)}
 				</div>
 			)}
-		</Wrapper>
+		</MonthWrapper>
 	);
 }
 
@@ -149,6 +150,7 @@ export function CalendarioArrecadacao({ d }: { d: IRelatorio | null }) {
 						mesAtual={mesAtual}
 						prev={d?.d26.prev[i] ?? null}
 						real={d?.d26.real[i] ?? null}
+						estimado={d?.d26.estimado?.[i] ?? null}
 						quebra={d?.d26.quebras[i] ?? null}
 						antec={d?.d26.antec[i] ?? null}
 						ano={anoAtual}

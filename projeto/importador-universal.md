@@ -24,6 +24,6 @@ Cada processo é atualizado em uma transação. IDs de parcelas e campos fora da
 
 Datas textuais aceitam dia/mês/ano ou ISO, com validação do calendário. Um ano isolado nunca vira uma data. Pagamento futuro, ilegível ou incompatível com a situação não substitui o pagamento registrado no banco. Uma data exata confiável corrige a anterior; se somente o ano conhecido contradiz uma data anterior, mantém-se o ano e remove-se a precisão falsa. Fontes conflitantes e múltiplas correspondências no banco ficam pendentes. Valores sem número, datas de vencimento ausentes e identificação inválida não são completados por suposição.
 
-Quitação sem data exata permanece identificada no relatório. Os filtros financeiros mensais e por intervalo exigem data efetiva; os anuais podem utilizar o ano de pagamento informado. Vencimento não é substituto de pagamento.
+Regra de arrecadacao confirmada: parcela quitada sem data de quitacao informada e considerada paga no vencimento passado em filtros anuais, mensais, semanais e por intervalo. Datas explicitas prevalecem. O campo original continua vazio no banco para distinguir a data assumida da informada.
 
 Os scripts legados `db:import-planilhas` e `db:import-outorga` têm regras diferentes; utilize `db:import-universal` para esta reconciliação financeira.

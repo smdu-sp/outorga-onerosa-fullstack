@@ -57,6 +57,8 @@ export async function arrecadacaoAnualPorMes(
 				data_quitacao: true,
 				ano_pagamento: true,
 				status_quitacao: true,
+				antecipada: true,
+				quebra: true,
 			},
 		}),
 		prisma.multa.findMany({
