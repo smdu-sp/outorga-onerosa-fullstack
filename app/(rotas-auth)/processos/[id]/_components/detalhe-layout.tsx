@@ -44,7 +44,7 @@ export default function DetalheLayout({
 	}, [busca, activeId]);
 
 	return (
-		<PageShell max="wide" className="pb-10">
+		<PageShell className="pb-10">
 			<DetalheHeader
 				processo={detalhe}
 				busca={busca}
