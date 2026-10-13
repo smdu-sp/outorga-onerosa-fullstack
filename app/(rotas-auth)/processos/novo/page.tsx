@@ -2,7 +2,7 @@
 
 import { requireAuth, usuarioPermitido } from '@/lib/auth/session';
 import { PageHeader, PageShell } from '@/components/page-shell';
-import { ChevronLeft } from 'lucide-react';
+import { Calculator, ChevronLeft, FileDown, FileText, Send, type LucideIcon } from 'lucide-react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
@@ -11,6 +11,29 @@ import FormNovoProcessoTecnico from './_components/form-novo-processo-tecnico';
 export const metadata = {
 	title: 'Novo Processo — Outorga Onerosa',
 };
+
+const PASSOS: { icon: LucideIcon; titulo: string; descricao: string }[] = [
+	{
+		icon: FileText,
+		titulo: 'Informe o processo',
+		descricao: 'Digite o número do processo SEI.',
+	},
+	{
+		icon: Calculator,
+		titulo: 'Preencha o memorial',
+		descricao: 'Mesmo motor de cálculo da planilha oficial.',
+	},
+	{
+		icon: FileDown,
+		titulo: 'Confira e baixe o PDF',
+		descricao: 'Verifique o resultado e anexe o memorial ao processo SEI.',
+	},
+	{
+		icon: Send,
+		titulo: 'Envie à CAP',
+		descricao: 'Somente após anexar o memorial ao SEI.',
+	},
+];
 
 export default async function NovoProcessoPage() {
 	const session = await requireAuth();
@@ -37,11 +60,35 @@ export default async function NovoProcessoPage() {
 					</Link>
 				}
 			/>
-				<p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
-					Informe o número do processo e preencha o memorial de cálculo (mesmo motor da
-					planilha oficial) — você confere o resultado, baixa o memorial em PDF para o
-					processo SEI e só então envia à CAP.
-				</p>
+
+			<section className="mb-6 rounded-2xl border border-border/70 bg-card px-5 py-5 shadow-xs">
+				<ol className="m-0 grid list-none grid-cols-1 p-0 lg:grid-cols-4">
+					{PASSOS.map(({ icon: Icon, titulo, descricao }, i) => (
+						<li
+							key={titulo}
+							className="relative flex gap-3 pb-5 last:pb-0 lg:flex-col lg:items-center lg:gap-3 lg:pb-0 lg:text-center">
+							{i < PASSOS.length - 1 && (
+								<span
+									aria-hidden
+									className="absolute left-[17px] top-10 h-[calc(100%-2.5rem)] w-px bg-border lg:left-[calc(50%+1.375rem)] lg:top-[17px] lg:h-px lg:w-[calc(100%-2.75rem)]"
+								/>
+							)}
+							<div className="relative grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-primary ring-4 ring-card">
+								<Icon className="size-[18px]" />
+								<span className="absolute -right-1.5 -top-1.5 grid size-4 place-items-center rounded-full bg-primary text-[10px] font-semibold text-primary-foreground">
+									{i + 1}
+								</span>
+							</div>
+							<div className="min-w-0">
+								<p className="m-0 text-sm font-semibold text-foreground">{titulo}</p>
+								<p className="m-0 mt-0.5 text-xs leading-relaxed text-muted-foreground">
+									{descricao}
+								</p>
+							</div>
+						</li>
+					))}
+				</ol>
+			</section>
 
 			<Suspense>
 				<FormNovoProcessoTecnico />
