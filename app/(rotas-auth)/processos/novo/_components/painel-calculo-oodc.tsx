@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { calcularMemorial } from '@/lib/oodc/calculo';
+import { pendenciasCalculoOodc } from '@/lib/oodc/pendencias';
 import { sugerirCaPorZona } from '@/lib/oodc/sugestao';
 import { parseNumeroBr } from '@/lib/parse-numero-br';
 import { cn } from '@/lib/utils';
@@ -251,6 +252,7 @@ export function PainelCalculoOodc({
 		() => calcularMemorial(entrada, vMax, valoresEncontrados),
 		[entrada, vMax, valoresEncontrados],
 	);
+	const pendencias = pendenciasCalculoOodc(entrada, resultado);
 
 	useEffect(() => {
 		onChange(entrada, resultado);
@@ -642,6 +644,12 @@ export function PainelCalculoOodc({
 			<Card>
 				<CardHeader>
 					<CardTitle className="text-sm uppercase tracking-wide text-muted-foreground">Resultado</CardTitle>
+					{pendencias.length > 0 && (
+						<div role="status" className="text-sm text-destructive">
+							<p className="font-semibold">Cálculo incompleto</p>
+							<ul className="list-disc pl-5">{pendencias.map((p) => <li key={p}>{p}</li>)}</ul>
+							</div>
+					)}
 					{!resultado.dentroDaVigencia && (
 						<p className="text-xs font-medium text-destructive">
 							Data de referência além do limite de vigência desta versão da planilha — valores abaixo
@@ -702,7 +710,7 @@ export function PainelCalculoOodc({
 						</div>
 						<div className="flex justify-between py-1 text-base font-bold sm:col-span-2">
 							<span>Valor líquido da OODC</span>
-							<span>{fmtBRL(resultado.valorTotalLiquidoRs)}</span>
+							<span>{pendencias.length ? 'Pendente' : fmtBRL(resultado.valorTotalLiquidoRs)}</span>
 						</div>
 					</div>
 				</CardContent>

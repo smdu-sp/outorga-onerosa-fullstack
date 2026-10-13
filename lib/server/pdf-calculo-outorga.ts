@@ -223,13 +223,6 @@ export async function montarPdfCalculoOutorga(dados: DadosPdfCalculo): Promise<U
 		font: bold,
 		color: rgb(1, 1, 1),
 	});
-	ctx.page.drawText(textoPdf('Departamento de Uso do Solo - DEUSO'), {
-		x: MARGEM,
-		y: A4_H - 60,
-		size: 8.5,
-		font: regular,
-		color: rgb(0.85, 0.9, 0.97),
-	});
 	ctx.page.drawText(textoPdf('MEMORIAL DE CÁLCULO'), {
 		x: MARGEM,
 		y: A4_H - 80,
@@ -304,7 +297,7 @@ export async function montarPdfCalculoOutorga(dados: DadosPdfCalculo): Promise<U
 		await secao(ctx, 'Demonstrativo da fórmula');
 		await paragrafo(
 			ctx,
-			'Fórmula de referência da planilha oficial de OODC (C = (At / Ac) x V x Fp x Fs; objeto = Ac - At, sem benefícios ou TDC). O valor oficial é o retornado pela API de cálculo.',
+			'Fórmula de referência da planilha oficial de OODC (C = (At / Ac) x V x Fp x Fs; objeto = Ac - At, sem benefícios ou TDC).',
 			{ size: 8, color: CINZA },
 		);
 		ctx.y -= 4;
@@ -402,7 +395,7 @@ export async function montarPdfCalculoOutorga(dados: DadosPdfCalculo): Promise<U
 		font: bold,
 		color: PRETO,
 	});
-	ctx.page.drawText(textoPdf('DEUSO / SMUL'), {
+	ctx.page.drawText(textoPdf(dados.unidadeTecnico ? `${dados.unidadeTecnico} / SMUL` : 'SMUL'), {
 		x: MARGEM,
 		y: ctx.y - 26,
 		size: 8,

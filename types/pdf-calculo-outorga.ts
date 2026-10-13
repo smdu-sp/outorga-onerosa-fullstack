@@ -6,6 +6,7 @@ export type DadosPdfCalculo = {
 	numProcesso: string;
 	tipo: TipoPdfCalculo;
 	geradoPor?: string;
+	unidadeTecnico?: string;
 	proprietario?: string;
 	endereco?: string;
 	sql?: string;

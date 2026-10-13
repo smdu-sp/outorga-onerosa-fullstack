@@ -1,6 +1,7 @@
 'use server';
 
 import { requirePermissao } from '@/lib/auth/session';
+import { pendenciasCalculoOodc } from '@/lib/oodc/pendencias';
 import type { EnderecoValorUnitario, EntradaCalculoOodc, ResultadoCalculoOodc, ValorUnitarioEncontrado } from '@/lib/oodc/tipos';
 import type {
 	EnderecoValorUnitarioCota,
@@ -13,6 +14,7 @@ import { buscarValorReferenciaCota } from '@/lib/server/cota-valor-referencia';
 import { salvarMemorialCalculo, montarRascunhoPorNumeroProcesso, OodcMemorialError, type RascunhoCalculoOodc } from '@/lib/server/oodc-memorial';
 import { salvarMemorialCalculoCota } from '@/lib/server/cota-memorial';
 import { montarPdfCalculoOutorga, nomeArquivoPdfCalculo } from '@/lib/server/pdf-calculo-outorga';
+import { buscarUnidadeTecnico } from '@/lib/server/sgu-unidade';
 import type { DadosPdfCalculo } from '@/types/pdf-calculo-outorga';
 import { salvarCotaSolidariedade, salvarResumoCalculoOodcNoProcesso } from '@/lib/server/monitoramento';
 import { salvarMultaProcesso } from '@/lib/server/multas';
@@ -132,6 +134,10 @@ export async function confirmarProcessoTecnico(
 		if (precisaCota && !(entradaCota && resultadoCota)) {
 			return { ok: false, error: 'Cálculo da Cota de Solidariedade ausente.' };
 		}
+		if (precisaCalculo && entradaOodc && resultadoOodc) {
+			const pendencias = pendenciasCalculoOodc(entradaOodc, resultadoOodc);
+			if (pendencias.length) return { ok: false, error: pendencias.join(' ') };
+		}
 		if (valorMulta != null && !(valorMulta > 0)) {
 			return { ok: false, error: 'Informe um valor de multa válido.' };
 		}
@@ -200,7 +206,8 @@ export async function gerarPdfMemorialCalculo(
 
 		const pdf = await montarPdfCalculoOutorga({
 			...dados,
-			geradoPor: dados.geradoPor || session.usuario.nome,
+			geradoPor: session.usuario.nome,
+			unidadeTecnico: await buscarUnidadeTecnico(session.usuario.login, session.usuario.nome),
 		});
 
 		return {

@@ -27,6 +27,7 @@ import {
 import type { DadosPdfCalculo } from '@/types/pdf-calculo-outorga';
 import { parseNumeroBr } from '@/lib/parse-numero-br';
 import { calcularMemorial } from '@/lib/oodc/calculo';
+import { pendenciasCalculoOodc } from '@/lib/oodc/pendencias';
 import type { EntradaCalculoOodc, ResultadoCalculoOodc } from '@/lib/oodc/tipos';
 import { calcularCota } from '@/lib/cota/calculo';
 import type { EntradaCalculoCota, ResultadoCalculoCota } from '@/lib/cota/tipos';
@@ -183,6 +184,13 @@ export default function FormNovoProcessoTecnico() {
 		if (precisaCota && !(resultadoCota && resultadoCota.terrenoUsadoM2 > 0)) {
 			setErro('Informe a área de terreno da Cota de Solidariedade antes de continuar.');
 			return;
+		}
+		if (precisaCalculo && entradaOodc && resultadoOodc) {
+			const pendencias = pendenciasCalculoOodc(entradaOodc, resultadoOodc);
+			if (pendencias.length) {
+				setErro(pendencias.join(' '));
+				return;
+			}
 		}
 		if (incluirMulta && !multaValida) {
 			setErro('Informe o valor da multa.');
