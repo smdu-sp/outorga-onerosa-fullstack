@@ -1,9 +1,16 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { PrismaClient } from '@prisma/client';
 import { lerPlanilhaUniversal } from '../lib/importador-universal';
 import { reconciliarParcelas } from '../lib/server/importador-universal';
+
+function sheetDeObjetos(wb: ExcelJS.Workbook, nome: string, linhas: Record<string, unknown>[]) {
+  const ws = wb.addWorksheet(nome);
+  if (!linhas.length) return;
+  ws.columns = Object.keys(linhas[0]).map(key => ({ header: key, key }));
+  ws.addRows(linhas);
+}
 
 async function main() {
   const args = process.argv.slice(2);
@@ -11,7 +18,12 @@ async function main() {
   const arquivos = args.filter(a => !a.startsWith('--'));
   if (!arquivos.length) throw new Error('Informe caminhos de arquivos .xlsx ou .xlsm. Use --aplicar para reconciliar o banco.');
   const hoje = new Date(`${new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date())}T00:00:00Z`);
-  const leituras = arquivos.map(f => lerPlanilhaUniversal(XLSX.readFile(f),path.basename(f),hoje));
+  const leituras = [];
+  for (const f of arquivos) {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.readFile(f);
+    leituras.push(lerPlanilhaUniversal(wb,path.basename(f),hoje));
+  }
   const output = path.resolve('scripts/output', `importacao-universal-${Date.now()}`);
   fs.mkdirSync(output,{recursive:true});
   const salvar = (nome: string, valor: unknown) => fs.writeFileSync(path.join(output,nome),JSON.stringify(valor,null,2));
@@ -21,15 +33,15 @@ async function main() {
     const linhas = leituras.flatMap(l => l.linhas);
     const previa = await reconciliarParcelas(db,linhas);
     salvar('auditoria.json',previa);
-    const auditoria = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(auditoria,XLSX.utils.json_to_sheet(linhas.map(l => ({
+    const auditoria = new ExcelJS.Workbook();
+    sheetDeObjetos(auditoria,'Parcelas',linhas.map(l => ({
       processo:l.num_processo, obrigacao:l.obrigacao, parcela:l.num_parcela, valor:l.valor,
       vencimento:l.vencimento.toISOString().slice(0,10), pagamento:l.data_quitacao?.toISOString().slice(0,10) ?? '',
       ano_pagamento:l.ano_pagamento, quitada:l.status_quitacao, quebra:l.quebra, pagamento_confiavel:l.pagamentoConfiavel,fonte:l.fonte,
-    }))), 'Parcelas');
-    XLSX.utils.book_append_sheet(auditoria,XLSX.utils.json_to_sheet([...leituras.flatMap(l => l.pendencias),...previa.pendencias]),'Pendencias');
-    XLSX.utils.book_append_sheet(auditoria,XLSX.utils.json_to_sheet(previa.processosAusentes.map(processo => ({processo}))),'Processos ausentes');
-    XLSX.writeFile(auditoria,path.join(output,'auditoria-parcelas.xlsx'));
+    })));
+    sheetDeObjetos(auditoria,'Pendencias',[...leituras.flatMap(l => l.pendencias),...previa.pendencias]);
+    sheetDeObjetos(auditoria,'Processos ausentes',previa.processosAusentes.map(processo => ({processo})));
+    await auditoria.xlsx.writeFile(path.join(output,'auditoria-parcelas.xlsx'));
     if (aplicar) {
       // Snapshot completo dos processos afetados antes da primeira alteração.
       const numeros = [...new Set(linhas.map(l => l.num_processo))];

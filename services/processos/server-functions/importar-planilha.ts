@@ -1,5 +1,5 @@
 'use server';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { requirePermissao } from '@/lib/auth/session';
 import { prisma } from '@/lib/prisma';
 import { lerPlanilhaUniversal } from '@/lib/importador-universal';
@@ -14,7 +14,10 @@ export async function importarPlanilha(form: FormData) {
   const leituras = [];
   for (const arquivo of arquivos) {
     if (!(arquivo instanceof File) || !/\.(xlsx|xlsm)$/i.test(arquivo.name)) throw new Error('Arquivo inválido.');
-    leituras.push(lerPlanilhaUniversal(XLSX.read(await arquivo.arrayBuffer(),{type:'array'}),arquivo.name,hoje));
+    const wb = new ExcelJS.Workbook();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- @types/node duplicado (mssql/tedious vs. raiz) colide no tipo Buffer.
+    await wb.xlsx.load(Buffer.from(await arquivo.arrayBuffer()) as any);
+    leituras.push(lerPlanilhaUniversal(wb,arquivo.name,hoje));
   }
   const aplicar = form.get('aplicar') === 'true';
   const resultado = await reconciliarParcelas(prisma,leituras.flatMap(l => l.linhas),aplicar,session.usuario.sub);

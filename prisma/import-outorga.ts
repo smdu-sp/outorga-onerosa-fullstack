@@ -6,10 +6,11 @@ import {
 } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { corrigirNumProcesso } from '../lib/corrigir-num-processo';
 import { dataCivilDiasAtras } from '../lib/datas';
 import { VENCIMENTO_FALLBACK_DIAS } from '../lib/parcelas-utils';
+import { desembrulharCelula, serialExcelParaData } from '../lib/excel-cell';
 
 const prisma = new PrismaClient();
 
@@ -98,6 +99,7 @@ function isValidDbDate(date?: Date): date is Date {
 }
 
 function parseExcelDate(value: unknown): Date | undefined {
+  value = desembrulharCelula(value);
   if (value === null || value === undefined || value === '') return undefined;
   if (value instanceof Date && !isNaN(value.getTime())) {
     const date = new Date(value.getFullYear(), value.getMonth(), value.getDate());
@@ -105,9 +107,9 @@ function parseExcelDate(value: unknown): Date | undefined {
   }
   if (typeof value === 'number') {
     if (value > 20000 && value < 80000) {
-      const parsed = XLSX.SSF.parse_date_code(value);
-      if (!parsed) return undefined;
-      const date = new Date(parsed.y, parsed.m - 1, parsed.d);
+      const serial = serialExcelParaData(value);
+      if (!serial) return undefined;
+      const date = new Date(serial.getUTCFullYear(), serial.getUTCMonth(), serial.getUTCDate());
       return isValidDbDate(date) ? date : undefined;
     }
     return undefined;
@@ -178,18 +180,39 @@ function chaveParcela(numProcesso: string, numParcela: number) {
   return `${numProcesso}::${numParcela}`;
 }
 
-function lerPlanilha(filePath: string) {
+async function lerPlanilha(filePath: string) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`Arquivo não encontrado: ${filePath}`);
   }
-  const wb = XLSX.readFile(filePath, { cellDates: true });
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.readFile(filePath);
   const obrigatorias = ['processos', 'parcelas', 'antecipadas'];
   for (const aba of obrigatorias) {
-    if (!wb.Sheets[aba]) {
+    if (!wb.getWorksheet(aba)) {
       throw new Error(`Aba obrigatória não encontrada: ${aba}`);
     }
   }
   return wb;
+}
+
+/** Equivalente a `XLSX.utils.sheet_to_json(ws, { defval: null })`: 1ª linha é o cabeçalho. */
+function sheetToJson<T>(ws: ExcelJS.Worksheet): T[] {
+  const headers = new Map<number, string>();
+  ws.getRow(1).eachCell({ includeEmpty: false }, (cell, colNumber) => {
+    const valor = desembrulharCelula(cell.value);
+    if (valor != null && String(valor).trim()) headers.set(colNumber, String(valor).trim());
+  });
+  const rows: T[] = [];
+  ws.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const obj = {} as Record<string, unknown>;
+    for (const [colNumber, key] of headers) {
+      const valor = desembrulharCelula(row.getCell(colNumber).value);
+      obj[key] = valor === undefined ? null : valor;
+    }
+    rows.push(obj as T);
+  });
+  return rows;
 }
 
 function agruparParcelas(
@@ -255,18 +278,11 @@ function agruparParcelas(
 
 export async function importarOutorga() {
   console.log('Importando:', ARQUIVO_IMPORT);
-  const wb = lerPlanilha(ARQUIVO_IMPORT);
+  const wb = await lerPlanilha(ARQUIVO_IMPORT);
 
-  const processosRows = XLSX.utils.sheet_to_json<ProcessoRow>(wb.Sheets['processos'], {
-    defval: null,
-  });
-  const parcelasRows = XLSX.utils.sheet_to_json<ParcelaRow>(wb.Sheets['parcelas'], {
-    defval: null,
-  });
-  const antecipadasRows = XLSX.utils.sheet_to_json<AntecipadaRow>(
-    wb.Sheets['antecipadas'],
-    { defval: null },
-  );
+  const processosRows = sheetToJson<ProcessoRow>(wb.getWorksheet('processos')!);
+  const parcelasRows = sheetToJson<ParcelaRow>(wb.getWorksheet('parcelas')!);
+  const antecipadasRows = sheetToJson<AntecipadaRow>(wb.getWorksheet('antecipadas')!);
 
   const parcelasPorProcesso = agruparParcelas(parcelasRows, antecipadasRows);
 
