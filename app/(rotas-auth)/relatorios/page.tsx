@@ -8,6 +8,7 @@ import { PageHeader, PageShell, StatGroup } from "@/components/page-shell";
 import { relatorio } from "@/services/relatorios";
 import { IRelatorio } from "@/types/relatorio";
 import { parseFiltroPeriodo } from "@/lib/server/periodo-relatorio";
+import { listarAnosComPlanejamento } from "@/lib/server/planejamento-orcamentario";
 import { temIntervaloDatas } from "@/lib/parcelas-utils";
 import { KpiCards } from "./_components/kpi-cards";
 import { CalendarioArrecadacao } from "./_components/calendario";
@@ -67,7 +68,11 @@ async function RelatoriosHome({
   const status = get("status") ?? "todos";
   const sub = get("sub") ?? "todas";
 
-  const resp = await relatorio(filtroHome);
+  const [resp, anosComPlanejamento] = await Promise.all([
+    relatorio(filtroHome),
+    listarAnosComPlanejamento().catch(() => [] as number[]),
+  ]);
+  const temPlanejamento = anosComPlanejamento.length > 0;
   const d: IRelatorio | null = resp.ok ? resp.data : null;
 
   const anoAtual = d?.anoAtual ?? new Date().getFullYear();
@@ -136,25 +141,44 @@ async function RelatoriosHome({
         </div>
 
         <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">
-          <Link
-            href="/relatorios/planejamento-orcamentario"
-            className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-primary/40 hover:bg-primary/5"
-          >
-            <div className="flex items-center gap-3">
-              <Target className="h-5 w-5 text-primary" />
-              <div>
-                <div className="text-sm font-semibold">
-                  Planejamento × Executado
+          {temPlanejamento ? (
+            <Link
+              href="/relatorios/planejamento-orcamentario"
+              className="group flex items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs transition-colors hover:border-primary/40 hover:bg-primary/5"
+            >
+              <div className="flex items-center gap-3">
+                <Target className="h-5 w-5 text-primary" />
+                <div>
+                  <div className="text-sm font-semibold">
+                    Planejamento × Executado
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Orçamento planejado comparado com a arrecadação real.
+                  </div>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  Orçamento planejado comparado com a arrecadação real.
+              </div>
+              <span className="shrink-0 text-xs text-muted-foreground group-hover:text-primary">
+                Ver →
+              </span>
+            </Link>
+          ) : (
+            <div
+              aria-disabled="true"
+              className="flex cursor-not-allowed items-center justify-between gap-4 rounded-xl border border-dashed border-border bg-muted/40 p-5 opacity-70"
+            >
+              <div className="flex items-center gap-3">
+                <Target className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <div className="text-sm font-semibold">
+                    Planejamento × Executado
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Indisponível: nenhum planejamento orçamentário cadastrado.
+                  </div>
                 </div>
               </div>
             </div>
-            <span className="shrink-0 text-xs text-muted-foreground group-hover:text-primary">
-              Ver →
-            </span>
-          </Link>
+          )}
 
           <Link
             href="/relatorios/saude-arrecadacao"

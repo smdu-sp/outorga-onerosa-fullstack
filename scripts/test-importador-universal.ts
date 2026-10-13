@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { corrigirVencimentoConfirmado } from '../lib/correcoes-planilhas';
 import { dataPlanilha, valorPlanilha, lerPlanilhaUniversal } from '../lib/importador-universal';
 import { dataPagamentoParcela, dataReferenciaArrecadacao, parcelaArrecadadaNoPeriodo } from '../lib/parcelas-utils';
@@ -28,17 +28,17 @@ assert.equal(dataReferenciaArrecadacao({...estimada,antecipada:true})?.toISOStri
 assert.equal(dataReferenciaArrecadacao({...estimada,quebra:true}),null);
 assert.equal(dataReferenciaArrecadacao({...estimada,data_quitacao:new Date('2099-01-01T00:00:00Z')}),null);
 assert.equal(dataReferenciaArrecadacao({...estimada,data_quitacao:new Date('2026-02-10T00:00:00Z')})?.getUTCMonth(),1);
-const wb = XLSX.utils.book_new();
-XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+const wb = new ExcelJS.Workbook();
+wb.addWorksheet('Quitado - DPCI').addRows([
   ['VALOR','SEI','ANO DE PAGAMENTO','VENCIMENTO','CODIGO DA GUIA'],
   [1234.56,'1020.2024/0023494-8','13/01/2025','14/01/2025',79],
-]), 'Quitado - DPCI');
-XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([
+]);
+wb.addWorksheet('SEI - QUITADO').addRows([
   ['PROCESSO','CÓD.','PARC.','VALOR','VENCIM.','QUITAÇÃO','Situação'],
   ['1010.2023/0000049-5',7022,1,100,'01/01/2026','2026','Pago'],
   [null,null,2,100,'01/02/2026','31/02/2026','Pago'],
   ['1010.2025/0000198-3',7137,1,200,'01/12/2026','01/12/2026','Pago'],
-]), 'SEI - QUITADO');
+]);
 const resultado = lerPlanilhaUniversal(wb,'teste.xlsx',new Date('2026-10-08T00:00:00Z'));
 assert.equal(resultado.linhas.length,4);
 assert.equal(resultado.linhas[0].valor,1234.56);
