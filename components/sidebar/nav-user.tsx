@@ -47,12 +47,9 @@ export function NavUser() {
 							<div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-xs font-semibold text-primary-foreground">
 								{abreviaNome(usuario.nome)}
 							</div>
-							<div className="flex min-w-0 flex-1 flex-col leading-[1.2]">
+							<div className="flex min-w-0 flex-1 flex-col justify-center leading-[1.2]">
 								<span className="truncate text-[13px] font-semibold">
 									{reduzNome(usuario.nome)}
-								</span>
-								<span className="truncate text-[11px] text-muted-foreground">
-									DEUSO · SMUL
 								</span>
 							</div>
 						</SidebarMenuButton>
