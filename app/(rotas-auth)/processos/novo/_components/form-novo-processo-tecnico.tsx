@@ -39,7 +39,7 @@ type Fase = 'preenchendo' | 'anexar' | 'confirmando' | 'confirmado';
 
 
 const fmtBRL = (n: number) =>
-	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
+	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 const TIPO_OPCOES: { valor: TipoNovoProcesso; label: string; hint: string }[] = [
 	{ valor: 'OUTORGA', label: 'Outorga', hint: 'Calcula pelo memorial da OODC' },

@@ -416,7 +416,7 @@ export async function salvarMemorialCalculo(
 			opcao_expressa_regime_novo: flags.opcaoExpressaRegimeNovo,
 			despacho_decisorio_emitido: flags.despachoDecisorioEmitido,
 
-			data_referencia: dataReferencia,
+			data_referencia: new Date(`${dataReferencia}T00:00:00.000Z`),
 
 			v_max: resultado.vMax,
 			soma_terreno_m2: resultado.somaTerrenoM2,
@@ -444,7 +444,9 @@ export async function salvarMemorialCalculo(
 							quadra: e.quadra,
 							codlog: e.codlog,
 							valor_encontrado: encontrado?.valor ?? null,
-							data_vigencia: encontrado?.dataVigencia ?? null,
+							data_vigencia: encontrado?.dataVigencia
+								? new Date(`${encontrado.dataVigencia}T00:00:00.000Z`)
+								: null,
 						};
 					}),
 			},
