@@ -7,4 +7,5 @@ export type IPermissoesProcesso = {
 	podeEditarMonitoramento: boolean;
 	podeRecalcular: boolean;
 	podeReverterAntecipacao: boolean;
+	podeExcluir: boolean;
 };

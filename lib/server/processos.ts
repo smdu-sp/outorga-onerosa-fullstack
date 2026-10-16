@@ -205,6 +205,15 @@ export async function recalcularContrapartidaProcesso(processoId: string) {
 	return buscarDetalheProcesso(processoId);
 }
 
+export async function excluirProcesso(id: string) {
+	const processo = await prisma.processo.findUnique({ where: { id }, select: { id: true } });
+	if (!processo) throw new Error('Processo não encontrado.');
+	// Parcela, Multa, Sql, MonitoramentoFicha e MonitoramentoCotaSolidariedade têm
+	// onDelete: Cascade no schema — apagar o processo já limpa tudo que depende dele.
+	await prisma.processo.delete({ where: { id } });
+	return { excluido: true };
+}
+
 export async function buscarDetalheProcesso(id: string) {
 	const processo = await prisma.processo.findUnique({
 		where: { id },

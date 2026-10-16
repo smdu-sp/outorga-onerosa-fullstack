@@ -51,6 +51,7 @@ export default function DetalheLayout({
 				onBusca={setBusca}
 				onDetalheAtualizado={setDetalhe}
 				podeRecalcular={permissoes.podeRecalcular}
+				podeExcluir={permissoes.podeExcluir}
 			/>
 
 			<div className="flex flex-col gap-5 lg:flex-row lg:items-start">

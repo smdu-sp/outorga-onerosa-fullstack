@@ -13,4 +13,5 @@ export {
 	atualizarParcela,
 	atualizarDadosIniciais,
 	recalcularContrapartida,
+	excluir,
 } from './server-functions';
