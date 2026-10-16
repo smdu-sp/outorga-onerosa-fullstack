@@ -1,82 +1,64 @@
-import { Client } from 'ldapts';
-
 export interface LdapUserInfo {
 	nome: string;
 	email: string;
+}
+
+type SmulAuthResponse = {
+	nome?: string;
+	email?: string;
+	login?: string;
+	telefone?: string;
+};
+
+/** Base da API "SMUL Auth" — proxy centralizado de LDAP (substitui o bind direto via ldapts). */
+function apiUrl(): string | null {
+	const url = process.env.SMUL_AUTH_API_URL;
+	if (!url) {
+		console.warn('[smul-auth] SMUL_AUTH_API_URL não configurado.');
+		return null;
+	}
+	return url.replace(/\/+$/, '');
 }
 
 export async function autenticarLDAP(
 	login: string,
 	senha: string,
 ): Promise<LdapUserInfo | null> {
-	const server = process.env.LDAP_SERVER;
-	const domain = process.env.LDAP_DOMAIN;
-	const base = process.env.LDAP_BASE;
+	const base = apiUrl();
+	if (!base) return null;
 
-	if (!server || !domain || !base) {
-		console.warn('[ldap] LDAP_SERVER, LDAP_DOMAIN ou LDAP_BASE não configurados.');
-		return null;
-	}
-
-	const client = new Client({ url: server });
 	try {
-		await client.bind(`${login}${domain}`, senha);
-
-		const { searchEntries } = await client.search(base, {
-			filter: `(&(samaccountname=${login}))`,
-			scope: 'sub',
-			attributes: ['name', 'mail'],
+		const resp = await fetch(`${base}/auth/ldap/autenticar`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ login, senha }),
 		});
+		if (!resp.ok) return null;
 
-		await client.unbind();
-		if (!searchEntries.length) return { nome: login, email: '' };
-
-		const { name, mail } = searchEntries[0];
-		return {
-			nome: (name as string) ?? login,
-			email: ((mail as string) ?? '').toLowerCase(),
-		};
+		const data = (await resp.json()) as SmulAuthResponse;
+		if (!data?.nome) return null;
+		return { nome: data.nome, email: (data.email ?? '').toLowerCase() };
 	} catch (err) {
-		try {
-			await client.unbind();
-		} catch {
-			/* silencia */
-		}
-		console.error('[ldap] Falha na autenticação:', err);
+		console.error('[smul-auth] Falha na autenticação:', err);
 		return null;
 	}
 }
 
 export async function buscarUsuarioLDAP(login: string): Promise<LdapUserInfo | null> {
-	const server = process.env.LDAP_SERVER;
-	const domain = process.env.LDAP_DOMAIN;
-	const base = process.env.LDAP_BASE;
-	const userLdap = process.env.USER_LDAP;
-	const passLdap = process.env.PASS_LDAP;
+	const base = apiUrl();
+	if (!base) return null;
 
-	if (!server || !domain || !base || !userLdap || !passLdap) return null;
-
-	const client = new Client({ url: server });
 	try {
-		await client.bind(`${userLdap}${domain}`, passLdap);
-		const { searchEntries } = await client.search(base, {
-			filter: `(&(samaccountname=${login})(company=SMUL))`,
-			scope: 'sub',
-			attributes: ['name', 'mail'],
-		});
-		await client.unbind();
-		if (!searchEntries.length) return null;
-		const { name, mail } = searchEntries[0];
-		return {
-			nome: name?.toString() ?? login,
-			email: mail?.toString().toLowerCase() ?? '',
-		};
-	} catch {
-		try {
-			await client.unbind();
-		} catch {
-			/* silencia */
-		}
+		const resp = await fetch(
+			`${base}/auth/ldap/buscar-por-login/${encodeURIComponent(login)}?secretarias=SMUL`,
+		);
+		if (!resp.ok) return null;
+
+		const data = (await resp.json()) as SmulAuthResponse;
+		if (!data?.nome) return null;
+		return { nome: data.nome, email: (data.email ?? '').toLowerCase() };
+	} catch (err) {
+		console.error('[smul-auth] Falha na busca por login:', err);
 		return null;
 	}
 }
