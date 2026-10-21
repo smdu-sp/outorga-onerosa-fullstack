@@ -1,6 +1,11 @@
 import { PrismaClient } from '@prisma/client';
 import * as fs from 'fs';
 import * as path from 'path';
+import {
+	mascararNumeroProcesso,
+	normalizarNumeroProcesso,
+	seiComDigitoInvalido,
+} from '../../lib/mascara-processo';
 import { deserializarRegistro, CAMPOS_DECIMAL, CAMPOS_DECIMAL_CALCULO } from './serializar';
 
 const ARQUIVO = path.join(__dirname, 'dados-exportados.json');
@@ -71,6 +76,9 @@ async function limparBanco(prisma: PrismaClient) {
 	console.log('Limpando banco antes da importação...');
 	await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 0');
 	const tabelas = [
+		'consultas_dados_faltantes',
+		'sql_enderecos',
+		'sqls',
 		'monitoramento_anotacoes_deuso',
 		'monitoramento_licencas',
 		'monitoramento_situacao',
@@ -121,7 +129,21 @@ export async function importarDadosExportados(prisma: PrismaClient) {
 	await inserirVinculos(prisma, '_GrupoPermissaoToUsuario', dados.vinculos.usuariosGrupos);
 	console.log('  Vínculos N:N restaurados');
 
-	await inserirLote(prisma, prisma.processo, dados.processos, 'Processos');
+	// Snapshots antigos trazem num_processo mascarado; o banco guarda só dígitos.
+	const processos = dados.processos.map((p) => ({
+		...p,
+		num_processo: normalizarNumeroProcesso(String(p.num_processo ?? '')),
+	}));
+	await inserirLote(prisma, prisma.processo, processos, 'Processos');
+	const seiInvalidos = processos
+		.map((p) => p.num_processo)
+		.filter((n) => seiComDigitoInvalido(n));
+	if (seiInvalidos.length) {
+		console.warn(
+			`  ⚠ ${seiInvalidos.length} processo(s) SEI com dígito verificador inválido (provável erro de cadastro):`,
+		);
+		for (const n of seiInvalidos) console.warn(`    - ${mascararNumeroProcesso(n)}`);
+	}
 	await inserirLote(prisma, prisma.parcela, dados.parcelas, 'Parcelas');
 
 	const m = dados.monitoramento;
