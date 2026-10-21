@@ -1,7 +1,7 @@
 'use client';
 
 import { FiltroSegmented } from '@/components/filtro-ui';
-import { formatarNumeroProcesso, numeroProcessoValido, PLACEHOLDER_NUMERO_PROCESSO, type FormatoNumeroProcesso } from '@/lib/mascara-processo';
+import { formatarNumeroProcesso, MENSAGEM_SEI_INVALIDO, numeroProcessoValido, PLACEHOLDER_NUMERO_PROCESSO, seiComDigitoInvalido, type FormatoNumeroProcesso } from '@/lib/mascara-processo';
 import { cn } from '@/lib/utils';
 import {
 	AlertTriangle,
@@ -523,6 +523,11 @@ export default function FormNovoProcessoTecnico() {
 						<div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-medium text-destructive">
 							<AlertTriangle className="h-3.5 w-3.5 shrink-0" />
 							{erro}
+						</div>
+					) : formato === 'SEI' && seiComDigitoInvalido(valor) ? (
+						<div className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-medium text-amber-600">
+							<AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+							{MENSAGEM_SEI_INVALIDO}
 						</div>
 					) : (
 						<div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">

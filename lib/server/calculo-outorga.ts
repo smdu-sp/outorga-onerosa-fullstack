@@ -6,6 +6,7 @@
 
 import { normalizarSql, parseSqlParaLocalizacao } from '@/lib/geosampa-sql.util';
 import { parseNumeroBr } from '@/lib/parse-numero-br';
+import { normalizarNumeroProcesso } from '@/lib/mascara-processo';
 import { prisma } from '@/lib/prisma';
 import { buscarSqlPorProcessoNoBi } from '@/lib/server/bi-cadastro';
 import { buscarSqlsPorProcessoNoBi } from '@/lib/server/bi-sql-incra';
@@ -258,7 +259,7 @@ export async function consultarCalculoOutorga(
 		throw new CalculoOutorgaError('Informe a área do terreno (m²).');
 	}
 
-	const existente = await prisma.processo.findUnique({ where: { num_processo: identificador } });
+	const existente = await prisma.processo.findUnique({ where: { num_processo: normalizarNumeroProcesso(identificador) } });
 	if (existente) {
 		throw new CalculoOutorgaError('Processo já cadastrado.');
 	}

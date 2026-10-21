@@ -17,6 +17,7 @@ import { buscarArrecadacaoPorOrigem } from '@/lib/server/relatorio-origem-agg';
 import { buscarRelatorioTipologiaUso } from '@/lib/server/relatorio-tipologia';
 import { normalizarTipologiaUsoOodc } from '@/lib/server/bi-categoria';
 import { IRelatorio, IRelatorioPdeCota, IRelatorioTop10 } from '@/types/relatorio';
+import { mascararNumeroProcesso } from '@/lib/mascara-processo';
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
 
@@ -96,7 +97,7 @@ function mapearRankingProcessos(
 
 			return {
 				id: p.id,
-				num: p.num_processo,
+				num: mascararNumeroProcesso(p.num_processo),
 				int: interessado,
 				tipo: p.tipo ?? 'PDE',
 				total: +(total / BRL_TO_M).toFixed(2),
@@ -490,7 +491,7 @@ export async function buscarRelatorio(
 		);
 		const interessado = resolverNomeInteressado(p.processo);
 		return {
-			num: p.processo.num_processo,
+			num: mascararNumeroProcesso(p.processo.num_processo),
 			int: interessado,
 			val: +(p.valor / BRL_TO_M).toFixed(2),
 			venc: p.vencimento.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),

@@ -3,6 +3,7 @@ import {
 	type GeoSampaMonitoramentoPayload,
 } from '@/lib/enquadramento-persistencia';
 import { parseDataCivil } from '@/lib/datas';
+import { normalizarNumeroProcesso } from '@/lib/mascara-processo';
 import { prisma } from '@/lib/prisma';
 import { GeosampaWfsClient } from '@/lib/server/geosampa-wfs.client';
 import { mapOutorgaWfsParaGeoSampa } from '@/lib/server/geosampa-wfs.mapper';
@@ -157,7 +158,7 @@ async function sincronizarRegistroOutorga(
 	}
 
 	const processoExistente = await prisma.processo.findUnique({
-		where: { num_processo: numProcesso },
+		where: { num_processo: normalizarNumeroProcesso(numProcesso) },
 		select: { id: true },
 	});
 
@@ -180,7 +181,7 @@ async function sincronizarRegistroOutorga(
 	await prisma.$transaction(async (tx) => {
 		const processo = await tx.processo.create({
 			data: {
-				num_processo: numProcesso,
+				num_processo: normalizarNumeroProcesso(numProcesso),
 				status_pagamento: mapStatusPagamento(feature.properties.tx_situacao),
 			},
 		});

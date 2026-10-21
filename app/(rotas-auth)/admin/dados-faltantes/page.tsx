@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { requireAuth, usuarioPermitido } from "@/lib/auth/session";
 import {
+  listarConsultasSalvas,
   listarProcessosSeiComProtocoloAd,
   listarProcessosSemCategoriaUso,
 } from "@/lib/server/admin-dados-faltantes";
@@ -22,9 +23,10 @@ export default async function AdminDadosFaltantesPage() {
     (await usuarioPermitido(session.usuario.sub, "processos_ver_todos"));
   if (!permitido) redirect("/");
 
-  const [inicial, seiInicial] = await Promise.all([
+  const [inicial, seiInicial, consultasSalvas] = await Promise.all([
     listarProcessosSemCategoriaUso(),
     listarProcessosSeiComProtocoloAd(),
+    listarConsultasSalvas(),
   ]);
 
   return (
@@ -42,7 +44,7 @@ export default async function AdminDadosFaltantesPage() {
         </TabsList>
 
         <TabsContent value="categoria" className="mt-0">
-          <PainelDadosFaltantes inicial={inicial} />
+          <PainelDadosFaltantes inicial={inicial} consultasIniciais={consultasSalvas} />
         </TabsContent>
 
         <TabsContent value="sei-bi" className="mt-0">

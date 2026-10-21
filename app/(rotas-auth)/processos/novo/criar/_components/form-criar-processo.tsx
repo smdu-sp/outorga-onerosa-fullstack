@@ -23,8 +23,10 @@ import { resumoEnquadramento, resumoEndereco, resumoParametros } from '@/lib/geo
 import {
 	detectarFormatoNumeroProcesso,
 	formatarNumeroProcesso,
+	MENSAGEM_SEI_INVALIDO,
 	numeroProcessoValido,
 	PLACEHOLDER_NUMERO_PROCESSO,
+	seiComDigitoInvalido,
 	type FormatoNumeroProcesso,
 } from '@/lib/mascara-processo';
 import { FiltroSegmented } from '@/components/filtro-ui';
@@ -279,6 +281,12 @@ export default function FormCriarProcesso({
 									erro && 'border-destructive',
 								)}
 							/>
+							{!erro && formato === 'SEI' && seiComDigitoInvalido(numProcesso) && (
+								<div className="flex items-center gap-1.5 text-[12.5px] font-medium text-amber-600">
+									<AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+									{MENSAGEM_SEI_INVALIDO}
+								</div>
+							)}
 						</div>
 					</CampoForm>
 

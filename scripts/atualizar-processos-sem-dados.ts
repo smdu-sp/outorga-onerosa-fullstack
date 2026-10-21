@@ -19,6 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { parseDataCivil } from '@/lib/datas';
+import { mascararNumeroProcesso, normalizarNumeroProcesso } from '@/lib/mascara-processo';
 import {
 	mapGeoSampaParaMonitoramento,
 	type GeoSampaMonitoramentoPayload,
@@ -323,7 +324,7 @@ async function processarProcesso(
 async function buscarProcessosSemDados(processoFiltro?: string) {
 	if (processoFiltro) {
 		const p = await prisma.processo.findUnique({
-			where: { num_processo: processoFiltro },
+			where: { num_processo: normalizarNumeroProcesso(processoFiltro) },
 			select: { id: true, num_processo: true },
 		});
 		if (!p) throw new Error(`Processo "${processoFiltro}" não encontrado no banco local.`);
@@ -402,7 +403,7 @@ async function main() {
 		const linha: LinhaResultado = { num_processo, status: 'erro' };
 
 		try {
-			const r = await processarProcesso(id, num_processo, opts.dryRun);
+			const r = await processarProcesso(id, mascararNumeroProcesso(num_processo), opts.dryRun);
 			linha.status = r.status;
 
 			switch (r.status) {

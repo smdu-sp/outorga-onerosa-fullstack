@@ -6,6 +6,7 @@
  */
 
 import { parseSqlParaLocalizacao } from '@/lib/geosampa-sql.util';
+import { mascararNumeroProcesso, normalizarNumeroProcesso } from '@/lib/mascara-processo';
 import { prisma } from '@/lib/prisma';
 import {
 	sugerirCaPorZona,
@@ -307,7 +308,7 @@ export async function montarRascunhoCalculo(processoId: string): Promise<Rascunh
 	const localizacao = processo.monitoramento?.localizacao_lote;
 
 	return montarRascunhoComFontes({
-		numProcesso: processo.num_processo,
+		numProcesso: mascararNumeroProcesso(processo.num_processo),
 		dataEntrada: processo.data_entrada,
 		protocoloAd: processo.protocolo_ad,
 		enquadramento,
@@ -328,7 +329,7 @@ export async function montarRascunhoPorNumeroProcesso(numProcesso: string): Prom
 
 	const [processoLocal, geo] = await Promise.all([
 		prisma.processo.findUnique({
-			where: { num_processo: identificador },
+			where: { num_processo: normalizarNumeroProcesso(identificador) },
 			include: {
 				monitoramento: {
 					include: { localizacao_lote: true, enquadramento_urbanistico: true },

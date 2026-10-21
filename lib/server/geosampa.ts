@@ -1,5 +1,6 @@
 import { montarSqlDaLocalizacao, parseSqlParaLocalizacao, RE_SQL } from '@/lib/geosampa-sql.util';
 import { prisma } from '@/lib/prisma';
+import { mascararNumeroProcesso, normalizarNumeroProcesso } from '@/lib/mascara-processo';
 import { processoDetalheInclude } from '@/lib/server/processos';
 import type { GeoSampaLogFn, IGeoSampaResult } from '@/types/geosampa';
 import { Prisma } from '@prisma/client';
@@ -188,7 +189,7 @@ export async function consultarGeoSampa(
 async function resolverSqlParaProcesso(numProcesso: string, log: GeoSampaLogFn): Promise<string | null> {
 	log('info', 'Verificando banco local (localizacao_lote do monitoramento)...');
 	const proc = await prisma.processo.findUnique({
-		where: { num_processo: numProcesso },
+		where: { num_processo: normalizarNumeroProcesso(numProcesso) },
 		select: {
 			protocolo_ad: true,
 			monitoramento: { include: { localizacao_lote: true } },
@@ -326,7 +327,7 @@ export async function consultarProcessoNoWfs(processo: string): Promise<IGeoSamp
 		}
 
 		const proc = await prisma.processo.findUnique({
-			where: { num_processo: processo },
+			where: { num_processo: normalizarNumeroProcesso(processo) },
 			include: processoDetalheInclude,
 		});
 		const loteDto = proc?.monitoramento
@@ -457,7 +458,7 @@ async function buscarCamadasNoPonto(x: number, y: number) {
 
 async function buscarPorProcesso(numProcesso: string): Promise<IGeoSampaResult | null> {
 	const proc = await prisma.processo.findUnique({
-		where: { num_processo: numProcesso },
+		where: { num_processo: normalizarNumeroProcesso(numProcesso) },
 		include: processoDetalheInclude,
 	});
 	if (!proc?.monitoramento) return null;
@@ -501,7 +502,7 @@ function mapFichaParaGeoSampa(ficha: FichaCompleta, numProcesso?: string): IGeoS
 		d ? d.toISOString().slice(0, 10) : undefined;
 
 	return {
-		num_processo: numProcesso,
+		num_processo: numProcesso ? mascararNumeroProcesso(numProcesso) : undefined,
 		responsavel_preenchimento: ficha.responsavel_preenchimento ?? undefined,
 		proposta_oodc_id: ficha.proposta_oodc_id ?? undefined,
 		numero_proposta: ficha.numero_proposta ?? undefined,

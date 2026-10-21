@@ -2,6 +2,7 @@ import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { garantirAcessoProcesso, requireAuth } from '@/lib/auth/session';
+import { mascararNumeroProcesso } from '@/lib/mascara-processo';
 import { prisma } from '@/lib/prisma';
 import { listarMemoriaisCotaDoProcesso, serializarMemorialCotaResumo } from '@/lib/server/cota-memorial';
 import { FormCalculoCota } from './_components/form-calculo-cota';
@@ -26,7 +27,7 @@ export default async function CalculoCotaPage({ params }: { params: Promise<{ id
 				href={`/processos/${processo.id}`}
 				className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground no-underline hover:text-foreground">
 				<ChevronLeft className="h-4 w-4" />
-				{processo.num_processo}
+				{mascararNumeroProcesso(processo.num_processo)}
 			</Link>
 			<h1 className="mb-1 text-xl font-bold">Cálculo da Cota de Solidariedade</h1>
 			<p className="mb-5 text-sm text-muted-foreground">

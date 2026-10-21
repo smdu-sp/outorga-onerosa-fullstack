@@ -9,6 +9,7 @@ import {
 } from '@/lib/parcelas-utils';
 import { descreverPeriodo } from '@/lib/server/periodo-relatorio';
 import type { IRelatorioDistrito, IRelatorioDistritoProcesso } from '@/types/relatorio';
+import { mascararNumeroProcesso } from '@/lib/mascara-processo';
 
 const BRL_TO_M = 1_000_000;
 
@@ -60,7 +61,7 @@ function mapearProcessosPorDistrito(
 
 			return {
 				id: p.id,
-				num_processo: p.num_processo,
+				num_processo: mascararNumeroProcesso(p.num_processo),
 				interessado,
 				pago,
 				distritoNorm: normalizarDistrito(distritoRaw),
@@ -113,7 +114,7 @@ function montarDistritos(processos: ProcessoDistrito[]): IRelatorioDistrito[] {
 		entry.valBrl += p.pago;
 		entry.processos.push({
 			id: p.id,
-			num: p.num_processo,
+			num: mascararNumeroProcesso(p.num_processo),
 			interessado: p.interessado,
 			val: +(p.pago / BRL_TO_M).toFixed(2),
 			valBrl: p.pago,

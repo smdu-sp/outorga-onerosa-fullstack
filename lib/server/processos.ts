@@ -5,6 +5,7 @@ import { ICreateProcesso, IPainelOperacional } from '@/types/processo';
 import { Prisma, StatusPagamento } from '@prisma/client';
 import { recalcularStatusPagamento } from '@/lib/parcelas-utils';
 import { parseDataCivil } from '@/lib/datas';
+import { mascararNumeroProcesso, normalizarNumeroProcesso } from '@/lib/mascara-processo';
 import { resolverNomeInteressado } from '@/lib/interessado';
 import {
 	calcularPendencias,
@@ -73,7 +74,7 @@ export async function importarProcessos(createProcessoDto: ICreateProcesso[], us
 				await prisma.processo.create({
 					data: {
 						tipo: processo.tipo as 'PDE' | 'COTA' | 'AIU' | undefined,
-						num_processo: processo.num_processo,
+						num_processo: normalizarNumeroProcesso(processo.num_processo),
 						protocolo_ad: processo.protocolo_ad,
 						data_entrada: processo.data_entrada,
 						criado_por: usuarioId,
@@ -93,7 +94,8 @@ export async function importarProcessos(createProcessoDto: ICreateProcesso[], us
 }
 
 export async function criarProcesso(createProcessoDto: ICreateProcesso, usuarioId?: string) {
-	const { num_processo, parcelas, ...processo } = createProcessoDto;
+	const { num_processo: numBruto, parcelas, ...processo } = createProcessoDto;
+	const num_processo = normalizarNumeroProcesso(numBruto);
 	const processoExiste = await prisma.processo.findUnique({
 		where: { num_processo },
 	});
@@ -140,7 +142,7 @@ export async function atualizarProcesso(processoId: string, dados: IAtualizarDad
 	const data: Prisma.ProcessoUpdateInput = {
 		...(dados.tipo !== undefined && { tipo: dados.tipo as 'PDE' | 'COTA' | 'AIU' }),
 		...(dados.codigo !== undefined && { codigo: dados.codigo }),
-		...(dados.num_processo !== undefined && { num_processo: dados.num_processo }),
+		...(dados.num_processo !== undefined && { num_processo: normalizarNumeroProcesso(dados.num_processo) }),
 		...(dados.protocolo_ad !== undefined && { protocolo_ad: dados.protocolo_ad }),
 		...(dados.data_entrada !== undefined && { data_entrada: parseDataCivil(dados.data_entrada) }),
 		...(dados.data_autuacao !== undefined && { data_autuacao: parseDataCivil(dados.data_autuacao) }),
@@ -211,7 +213,8 @@ export async function buscarDetalheProcesso(id: string) {
 		include: processoDetalheInclude,
 	});
 	if (!processo) throw new Error('Processo não encontrado.');
-	return serializarRegistro(processo as unknown as Record<string, unknown>);
+	const serializado = serializarRegistro(processo as unknown as Record<string, unknown>);
+	return { ...serializado, num_processo: mascararNumeroProcesso(processo.num_processo) } as typeof serializado;
 }
 
 export type FiltroAcessoProcessos = { criadoPor?: string; apenasQuitados?: boolean };
@@ -352,7 +355,7 @@ export async function painelOperacional(
 		return {
 			parcelaId: p.id,
 			processoId: p.processo.id,
-			numProcesso: p.processo.num_processo,
+			numProcesso: mascararNumeroProcesso(p.processo.num_processo),
 			interessado: resolverNomeInteressado(p.processo),
 			tipo: p.processo.tipo ?? 'PDE',
 			valor: p.valor,
@@ -373,7 +376,7 @@ export async function painelOperacional(
 		);
 		return {
 			id: proc.id,
-			numProcesso: proc.num_processo,
+			numProcesso: mascararNumeroProcesso(proc.num_processo),
 			interessado: resolverNomeInteressado(proc),
 			tipo: proc.tipo,
 			statusPagamento: proc.status_pagamento,
@@ -452,7 +455,7 @@ function mapProcessoLista(
 		id: processo.id,
 		tipo: processo.tipo ?? undefined,
 		codigo: processo.codigo ?? undefined,
-		num_processo: processo.num_processo,
+		num_processo: mascararNumeroProcesso(processo.num_processo),
 		protocolo_ad: processo.protocolo_ad ?? undefined,
 		data_entrada: processo.data_entrada ?? undefined,
 		status_pagamento: processo.status_pagamento,
@@ -479,6 +482,7 @@ function montarFiltrosProcessos(
 	novo?: string,
 ) {
 	const termo = busca?.trim();
+	const digitosBusca = normalizarNumeroProcesso(termo);
 	const filtros: Prisma.ProcessoWhereInput[] = [];
 
 	if (filtroAcesso?.criadoPor) {
@@ -495,6 +499,9 @@ function montarFiltrosProcessos(
 		filtros.push({
 			OR: [
 				{ num_processo: { contains: termo } },
+				...(digitosBusca && digitosBusca !== termo
+					? [{ num_processo: { contains: digitosBusca } }]
+					: []),
 				{ protocolo_ad: { contains: termo } },
 				{ interessado: { contains: termo } },
 				{ cnpj: { contains: termo } },

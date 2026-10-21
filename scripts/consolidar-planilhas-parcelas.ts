@@ -13,6 +13,7 @@
  *  - nunca inventar data de pagamento no futuro.
  */
 import ExcelJS from 'exceljs';
+import { mascararNumeroProcesso } from '../lib/mascara-processo';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -1178,8 +1179,8 @@ async function carregarPortal(prisma: PrismaClient): Promise<Rec[]> {
       aba: 'parcelas',
       linha: 0,
       statusSheet: quebra ? 'QUEBRA' : p.status_quitacao ? 'QUITADO' : 'EM_PAGAMENTO',
-      num_processo: p.processo.num_processo,
-      num_processo_original: p.processo.num_processo,
+      num_processo: mascararNumeroProcesso(p.processo.num_processo),
+      num_processo_original: mascararNumeroProcesso(p.processo.num_processo),
       codigo: p.processo.codigo ?? undefined,
       obrigacao: p.obrigacao ?? p.processo.tipo ?? undefined,
       protocolo: p.processo.protocolo_ad ?? undefined,

@@ -21,6 +21,7 @@ import {
 	SituacaoMonitoramento,
 	TipoLicencaMonitoramento,
 } from '@prisma/client';
+import { mascararNumeroProcesso } from '@/lib/mascara-processo';
 
 const CAMPOS_DATA = CAMPOS_DATA_CIVIL;
 const CAMPOS_NUMERICOS = new Set([
@@ -400,6 +401,7 @@ export async function salvarDadosGeoSampaNoProcesso(
 	modo: 'SQL' | 'PROCESSO',
 	identificador: string,
 	geosampa: IGeoSampaResult,
+	opts?: { apenasSqlPrincipal?: boolean },
 ) {
 	const processo = await prisma.processo.findUnique({ where: { id: processoId } });
 	if (!processo) throw new Error('Processo não encontrado.');
@@ -414,7 +416,7 @@ export async function salvarDadosGeoSampaNoProcesso(
 		montarSqlDaLocalizacao(payload.localizacao_lote ?? geosampa.localizacao_lote ?? {}) ??
 		null;
 
-	const sqlsBi = await buscarSqlsPorProcessoNoBi(processo.num_processo, () => {}, {
+	const sqlsBi = await buscarSqlsPorProcessoNoBi(mascararNumeroProcesso(processo.num_processo), () => {}, {
 		protocoloAd: processo.protocolo_ad,
 	});
 	const sqlsTodos = mesclarListasSql([sqlResolvido], sqlsBi);
@@ -433,6 +435,7 @@ export async function salvarDadosGeoSampaNoProcesso(
 					sqlPrimario,
 					geoPrimario: geosampa,
 					codlogFallback: codlog,
+					apenasPrimario: opts?.apenasSqlPrincipal,
 				})
 			: [];
 

@@ -2,6 +2,7 @@ import { Calculator, ChevronLeft, Info } from 'lucide-react';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { garantirAcessoProcesso, requireAuth } from '@/lib/auth/session';
+import { mascararNumeroProcesso } from '@/lib/mascara-processo';
 import { prisma } from '@/lib/prisma';
 import { PageHeader, PageShell } from '@/components/page-shell';
 import { montarRascunhoCalculo, listarMemoriaisDoProcesso, serializarMemorialResumo } from '@/lib/server/oodc-memorial';
@@ -34,7 +35,7 @@ export default async function CalculoOodcPage({ params }: { params: Promise<{ id
 						href={`/processos/${processo.id}`}
 						className="inline-flex items-center gap-1 text-sm text-muted-foreground no-underline hover:text-foreground">
 						<ChevronLeft className="h-4 w-4" />
-						{processo.num_processo}
+						{mascararNumeroProcesso(processo.num_processo)}
 					</Link>
 				}
 			/>

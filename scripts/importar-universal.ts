@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import ExcelJS from 'exceljs';
 import { PrismaClient } from '@prisma/client';
+import { normalizarNumeroProcesso } from '../lib/mascara-processo';
 import { lerPlanilhaUniversal } from '../lib/importador-universal';
 import { reconciliarParcelas } from '../lib/server/importador-universal';
 
@@ -44,7 +45,7 @@ async function main() {
     await auditoria.xlsx.writeFile(path.join(output,'auditoria-parcelas.xlsx'));
     if (aplicar) {
       // Snapshot completo dos processos afetados antes da primeira alteração.
-      const numeros = [...new Set(linhas.map(l => l.num_processo))];
+      const numeros = [...new Set(linhas.map(l => normalizarNumeroProcesso(l.num_processo)))];
       salvar('backup.json',await db.processo.findMany({where:{num_processo:{in:numeros}},include:{parcelas:true}}));
       salvar('aplicacao.json',await reconciliarParcelas(db,linhas,true));
       salvar('verificacao.json',await reconciliarParcelas(db,linhas));

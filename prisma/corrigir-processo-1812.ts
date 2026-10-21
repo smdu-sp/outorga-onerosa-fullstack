@@ -5,16 +5,20 @@
  * 1010.2019/0001812-5 (10 parcelas). O Excel arrastou a célula e incrementou
  * o dígito verificador linha a linha.
  *
+ * Todas as parcelas dos fantasmas são movidas para o processo correto (valores
+ * somados ao total), renumeradas em sequência; depois os fantasmas são apagados.
+ *
  * Uso:
  *   npx tsx prisma/corrigir-processo-1812.ts
  *   npx tsx prisma/corrigir-processo-1812.ts --dry-run
  */
 import { PrismaClient } from "@prisma/client";
+import { normalizarNumeroProcesso } from "../lib/mascara-processo";
 
 const prisma = new PrismaClient();
 const dryRun = process.argv.includes("--dry-run");
 
-const CORRETO = "1010.2019/0001812-5";
+const CORRETO = normalizarNumeroProcesso("1010.2019/0001812-5");
 const FANTASMAS = [
   "1010.2019/0001812-6",
   "1010.2019/0001812-7",
@@ -25,7 +29,7 @@ const FANTASMAS = [
   "1010.2019/0001812-12",
   "1010.2019/0001812-13",
   "1010.2019/0001812-14",
-];
+].map(normalizarNumeroProcesso);
 
 async function main() {
   const correto = await prisma.processo.findUnique({
@@ -41,15 +45,19 @@ async function main() {
     include: { parcelas: true },
   });
 
-  const parcelaIds = fantasmas.flatMap((p) => p.parcelas.map((x) => x.id));
-  const totalApos =
-    Number(correto.valor_total_parcelas ?? 0) +
-    fantasmas.reduce(
-      (acc, p) =>
-        acc +
-        p.parcelas.reduce((s, x) => s + Number(x.valor ?? 0), 0),
-      0,
+  // Todas as parcelas dos fantasmas são movidas para o processo correto (valores
+  // somados), renumeradas em sequência após a última parcela existente.
+  const parcelasFantasmas = fantasmas
+    .sort((x, y) => x.num_processo.localeCompare(y.num_processo, undefined, { numeric: true }))
+    .flatMap((p) =>
+      [...p.parcelas].sort((x, y) => x.num_parcela - y.num_parcela),
     );
+  const maxNum = correto.parcelas.reduce((m, x) => Math.max(m, x.num_parcela), 0);
+  const renumeracao = parcelasFantasmas.map((x, i) => ({ id: x.id, num: maxNum + 1 + i }));
+  const parcelaIds = renumeracao.map((x) => x.id);
+  const totalApos =
+    correto.parcelas.reduce((s, x) => s + Number(x.valor ?? 0), 0) +
+    parcelasFantasmas.reduce((s, x) => s + Number(x.valor ?? 0), 0);
 
   console.log(`Processo correto: ${CORRETO} (${correto.id})`);
   console.log(`  parcelas atuais: ${correto.parcelas.length}`);
@@ -73,10 +81,10 @@ async function main() {
   }
 
   await prisma.$transaction(async (tx) => {
-    if (parcelaIds.length > 0) {
-      await tx.parcela.updateMany({
-        where: { id: { in: parcelaIds } },
-        data: { processo_id: correto.id },
+    for (const r of renumeracao) {
+      await tx.parcela.update({
+        where: { id: r.id },
+        data: { processo_id: correto.id, num_parcela: r.num },
       });
     }
 

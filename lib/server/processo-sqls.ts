@@ -121,19 +121,26 @@ export async function enriquecerSqlsComLotesGeoSampa(
 		geoPrimario?: IGeoSampaResult | null;
 		codlogFallback?: string | null;
 		log?: GeoSampaLogFn;
+		/**
+		 * Só o SQL principal é consultado no GeoSampa; os demais são gravados com
+		 * setor/quadra/lote derivados do próprio número (sem coordenada/endereço).
+		 */
+		apenasPrimario?: boolean;
+		/** Consultas ao GeoSampa simultâneas (default 5). */
+		concorrencia?: number;
 	},
 ): Promise<SqlLoteDados[]> {
 	const log = opts?.log ?? (() => {});
 	const lista = mesclarListasSql(sqls).slice(0, MAX_SQLS_ENRIQUECER);
 	const sqlPrimario = opts?.sqlPrimario ? normalizarSql(opts.sqlPrimario) : null;
-	const lotes: SqlLoteDados[] = [];
 
-	for (const sqlNorm of lista) {
+	const resolver = async (sqlNorm: string): Promise<SqlLoteDados> => {
 		if (sqlPrimario && sqlNorm === sqlPrimario && opts?.geoPrimario) {
-			lotes.push(
-				geoResultadoParaSqlLote(sqlNorm, opts.geoPrimario, opts.codlogFallback),
-			);
-			continue;
+			return geoResultadoParaSqlLote(sqlNorm, opts.geoPrimario, opts.codlogFallback);
+		}
+		if (opts?.apenasPrimario) {
+			// O logradouro do SQL principal não vale para os demais lotes.
+			return geoResultadoParaSqlLote(sqlNorm, null, null);
 		}
 
 		log('info', `Consultando lote no GeoSampa para SQL ${sqlNorm}...`);
@@ -143,8 +150,22 @@ export async function enriquecerSqlsComLotesGeoSampa(
 		} else {
 			log('warn', `Sem lote no GeoSampa para ${sqlNorm} — gravando só o SQL`);
 		}
-		lotes.push(geoResultadoParaSqlLote(sqlNorm, geo, opts?.codlogFallback));
-	}
+		return geoResultadoParaSqlLote(sqlNorm, geo, opts?.codlogFallback);
+	};
+
+	// Pool com concorrência limitada, preservando a ordem dos SQLs.
+	const lotes: SqlLoteDados[] = new Array(lista.length);
+	let proximo = 0;
+	const trabalhadores = Array.from(
+		{ length: Math.min(opts?.concorrencia ?? 5, lista.length) },
+		async () => {
+			while (proximo < lista.length) {
+				const i = proximo++;
+				lotes[i] = await resolver(lista[i]);
+			}
+		},
+	);
+	await Promise.all(trabalhadores);
 
 	return lotes;
 }

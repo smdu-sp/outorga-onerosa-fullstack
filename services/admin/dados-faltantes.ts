@@ -5,9 +5,11 @@ import {
 	aplicarCategoriaUsoSugerida,
 	backfillProcessosDoBiGeosampa,
 	compararSeiComBiPorProtocoloAd,
+	listarConsultasSalvas,
 	listarProcessosSeiComProtocoloAd,
 	listarProcessosSemCategoriaUso,
 	pesquisarCategoriaUsoNasApis,
+	type ConsultaSalva,
 	type ProcessoDadoFaltante,
 	type ProcessoSeiComProtocoloAd,
 	type ResultadoBackfillBiGeosampa,
@@ -40,6 +42,24 @@ export async function listarDadosFaltantes(
 			ok: false,
 			data: null,
 			error: error instanceof Error ? error.message : 'Erro ao listar',
+		};
+	}
+}
+
+export async function listarConsultasDadosFaltantes(): Promise<{
+	ok: boolean;
+	data: ConsultaSalva[] | null;
+	error: string | null;
+}> {
+	try {
+		await requireAdminDados();
+		return { ok: true, data: await listarConsultasSalvas(), error: null };
+	} catch (error) {
+		if (error instanceof Error && error.message.includes('NEXT_REDIRECT')) throw error;
+		return {
+			ok: false,
+			data: null,
+			error: error instanceof Error ? error.message : 'Erro ao listar consultas',
 		};
 	}
 }

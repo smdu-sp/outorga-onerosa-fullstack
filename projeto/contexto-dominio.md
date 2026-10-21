@@ -193,6 +193,11 @@ Fontes canônicas de parsing já implementadas (reutilizar, não reinventar):
 4. **Tipo vem do código**, não de texto livre: `79 → PDE`, `78 → COTA`, `109 → AIU`.
 5. Ao ler qualquer célula, assumir que **pode estar na coluna errada ou com caixa/
    acento variados** — normalizar sempre.
+6. **`Processo.num_processo` é gravado só com dígitos** (sem máscara). Toda escrita e todo
+   `where` passam por `normalizarNumeroProcesso`; a máscara é só de exibição
+   (`mascararNumeroProcesso` em `lib/mascara-processo.ts`): SEI/digital 16 dígitos →
+   `1010.2019/0001812-5`; físico 12 dígitos → `2018-0.125.548-9`. BI/GeoSampa recebem o
+   número mascarado.
 
 ---
 

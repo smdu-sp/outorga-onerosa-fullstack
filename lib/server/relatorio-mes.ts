@@ -9,6 +9,7 @@ import {
 import { buscarArrecadacaoPorDistrito } from '@/lib/server/relatorios-distritos';
 import { buscarArrecadacaoPorSubprefeitura } from '@/lib/server/relatorios-subprefeituras';
 import { IRelatorioMesDetalhe, IRelatorioMesProcesso } from '@/types/relatorio';
+import { mascararNumeroProcesso } from '@/lib/mascara-processo';
 
 const MESES_NOME = [
 	'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -135,7 +136,7 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 			const origem = resolverOrigemOutorga(proc.monitoramento, proc.monitoramento_cota);
 			procMap.set(proc.id, {
 				id: proc.id,
-				num: proc.num_processo,
+				num: mascararNumeroProcesso(proc.num_processo),
 				interessado,
 				tipo: proc.tipo ?? 'PDE',
 				valor: p.valor,

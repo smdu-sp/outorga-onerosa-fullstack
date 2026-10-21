@@ -10,6 +10,7 @@ import {
 	buscarCategoriasPorProtocoloAdNoBi,
 	classificarTipologiaUsoDeCategorias,
 	descricaoCategoriaBi,
+	processoExisteNoBi,
 	ehTipologiaUsoCanonica,
 	normalizarTipologiaUsoOodc,
 } from '@/lib/server/bi-categoria';
@@ -21,6 +22,7 @@ import {
 	limparProtocoloAd,
 	normalizarProtocoloAd,
 } from '@/lib/server/protocolo-ad';
+import { mascararNumeroProcesso, seiComDigitoInvalido } from '@/lib/mascara-processo';
 
 export type CampoFaltante = 'categoria_uso';
 
@@ -36,6 +38,8 @@ export type ProcessoDadoFaltante = {
 	temEnquadramento: boolean;
 	tipologiaAtual: string | null;
 	motivo: 'sem_ficha' | 'sem_enquadramento' | 'sem_categoria';
+	/** Número SEI de 16 dígitos com dígito verificador que não confere (cadastrado errado). */
+	seiInvalido: boolean;
 };
 
 export type ResultadoPesquisaApi = {
@@ -43,6 +47,8 @@ export type ResultadoPesquisaApi = {
 	num_processo: string;
 	tipologiaSugerida: 'R' | 'nR' | 'R/nR' | null;
 	fonte: 'bi' | 'geosampa' | 'bi+geosampa' | null;
+	/** Processo/protocolo localizado no BI (null = consulta ao BI falhou). */
+	encontradoBi: boolean | null;
 	detalheBi: string | null;
 	detalheGeosampa: string | null;
 	erro: string | null;
@@ -87,7 +93,7 @@ export async function listarProcessosSemCategoriaUso(): Promise<ProcessoDadoFalt
 
 		faltantes.push({
 			id: p.id,
-			num_processo: p.num_processo,
+			num_processo: mascararNumeroProcesso(p.num_processo),
 			tipo: p.tipo,
 			interessado: p.interessado,
 			status_pagamento: p.status_pagamento,
@@ -99,6 +105,7 @@ export async function listarProcessosSemCategoriaUso(): Promise<ProcessoDadoFalt
 			temEnquadramento,
 			tipologiaAtual: tip,
 			motivo,
+			seiInvalido: seiComDigitoInvalido(p.num_processo),
 		});
 	}
 
@@ -126,6 +133,7 @@ export async function pesquisarCategoriaUsoNasApis(
 	for (const p of processos) {
 		let tipologiaBi: 'R' | 'nR' | 'R/nR' | null = null;
 		let detalheBi: string | null = null;
+		let encontradoBi: boolean | null = null;
 		let tipologiaGeo: 'R' | 'nR' | 'R/nR' | null = null;
 		let detalheGeosampa: string | null = null;
 		let erro: string | null = null;
@@ -139,11 +147,14 @@ export async function pesquisarCategoriaUsoNasApis(
 				cats = await buscarCategoriasPorProtocoloAdNoBi(protocolo);
 			}
 			if (!cats.length) {
-				cats = await buscarCategoriasPorProcessoNoBi(p.num_processo);
+				cats = await buscarCategoriasPorProcessoNoBi(mascararNumeroProcesso(p.num_processo));
 			}
 			tipologiaBi = classificarTipologiaUsoDeCategorias(cats);
+			encontradoBi = cats.length > 0 || (await processoExisteNoBi(p.num_processo));
 			if (cats.length) {
 				detalheBi = cats.map(descricaoCategoriaBi).join(' · ');
+			} else if (encontradoBi) {
+				detalheBi = 'no BI, mas sem categoria com área computável (ex.: Sisacoe)';
 			}
 		} catch (e) {
 			erro = e instanceof Error ? e.message : 'Erro no BI';
@@ -151,7 +162,7 @@ export async function pesquisarCategoriaUsoNasApis(
 
 		if (!tipologiaBi) {
 			try {
-				const geo = await consultarGeoSampa(undefined, p.num_processo, () => {});
+				const geo = await consultarGeoSampa(undefined, mascararNumeroProcesso(p.num_processo), () => {});
 				const raw =
 					geo.data.enquadramento_urbanistico?.tipologia_uso_oodc ??
 					geo.data.enquadramento_urbanistico?.uso ??
@@ -197,15 +208,36 @@ export async function pesquisarCategoriaUsoNasApis(
 
 		resultados.push({
 			processoId: p.id,
-			num_processo: p.num_processo,
+			num_processo: mascararNumeroProcesso(p.num_processo),
 			tipologiaSugerida: sugerida,
 			fonte,
+			encontradoBi,
 			detalheBi,
 			detalheGeosampa,
 			erro: sugerida ? null : erro,
 			podeAplicar: Boolean(sugerida && p.monitoramento?.enquadramento_urbanistico),
 		});
 	}
+
+	await salvarConsultas(
+		resultados.map((r) => ({
+			processoId: r.processoId,
+			tipoConsulta: 'PESQUISA' as const,
+			status: r.tipologiaSugerida
+				? ('ENCONTRADO' as const)
+				: r.erro
+					? ('ERRO' as const)
+					: ('NAO_ENCONTRADO' as const),
+			fonte: r.fonte,
+			encontradoBi: r.encontradoBi,
+			sql: null,
+			tipologia: r.tipologiaSugerida,
+			detalhe:
+				[r.erro, r.detalheBi && `BI: ${r.detalheBi}`, r.detalheGeosampa && `Geo: ${r.detalheGeosampa}`]
+					.filter(Boolean)
+					.join(' · ') || null,
+		})),
+	);
 
 	return resultados;
 }
@@ -310,7 +342,7 @@ export async function listarProcessosSeiComProtocoloAd(): Promise<
 		const raw = p.monitoramento?.enquadramento_urbanistico?.tipologia_uso_oodc ?? null;
 		lista.push({
 			id: p.id,
-			num_processo: p.num_processo,
+			num_processo: mascararNumeroProcesso(p.num_processo),
 			protocolo_ad: p.protocolo_ad?.replace(/\s+/g, ' ').trim() || norm.limpo,
 			protocoloNucleo: norm.nucleo,
 			origem: p.origem,
@@ -362,7 +394,7 @@ export async function compararSeiComBiPorProtocoloAd(
 		if (!norm) {
 			resultados.push({
 				processoId: p.id,
-				num_processo: p.num_processo,
+				num_processo: mascararNumeroProcesso(p.num_processo),
 				protocolo_ad: protocoloExibicao,
 				protocoloNucleo: null,
 				tipologiaLocal,
@@ -398,7 +430,7 @@ export async function compararSeiComBiPorProtocoloAd(
 
 		resultados.push({
 			processoId: p.id,
-			num_processo: p.num_processo,
+			num_processo: mascararNumeroProcesso(p.num_processo),
 			protocolo_ad: protocoloExibicao,
 			protocoloNucleo: norm.nucleo,
 			tipologiaLocal,
@@ -429,6 +461,8 @@ export type ResultadoBackfillBiGeosampa = {
 };
 
 const BACKFILL_MAX = 50;
+/** Processos consultados ao mesmo tempo no backfill. */
+const BACKFILL_CONCORRENCIA = 3;
 
 /**
  * Backfill completo: consulta BI (SQL + categorias + licenças via fluxo GeoSampa)
@@ -452,9 +486,10 @@ export async function backfillProcessosDoBiGeosampa(
 		},
 	});
 	const porId = new Map(processos.map((p) => [p.id, p]));
-	const resultados: ResultadoBackfillBiGeosampa[] = [];
 
-	for (const id of ids) {
+	/** Processa um processo; devolve o(s) resultado(s) dele (sempre 1 na prática). */
+	const processarUm = async (id: string): Promise<ResultadoBackfillBiGeosampa[]> => {
+		const resultados: ResultadoBackfillBiGeosampa[] = [];
 		const p = porId.get(id);
 		if (!p) {
 			resultados.push({
@@ -466,7 +501,7 @@ export async function backfillProcessosDoBiGeosampa(
 				tipologiaAplicada: null,
 				detalhe: 'Processo não encontrado.',
 			});
-			continue;
+			return resultados;
 		}
 
 		let tipologiaBi: 'R' | 'nR' | 'R/nR' | null = null;
@@ -479,7 +514,7 @@ export async function backfillProcessosDoBiGeosampa(
 				cats = await buscarCategoriasPorProtocoloAdNoBi(protocolo);
 			}
 			if (!cats.length) {
-				cats = await buscarCategoriasPorProcessoNoBi(p.num_processo);
+				cats = await buscarCategoriasPorProcessoNoBi(mascararNumeroProcesso(p.num_processo));
 			}
 			tipologiaBi = classificarTipologiaUsoDeCategorias(cats);
 			if (cats.length) {
@@ -490,15 +525,24 @@ export async function backfillProcessosDoBiGeosampa(
 		}
 
 		try {
-			const consulta = await consultarGeoSampa(undefined, p.num_processo, () => {});
+			const consulta = await consultarGeoSampa(undefined, mascararNumeroProcesso(p.num_processo), () => {});
 			let data = consulta.data;
 
-			if (tipologiaBi) {
+			// Grava sempre a tipologia canônica (R / nR / R/nR): BI preferido; senão
+			// normaliza o valor cru do GeoSampa (`R2v/nR1` → `R/nR`).
+			const tipologiaCanonica =
+				tipologiaBi ??
+				normalizarTipologiaUsoOodc(
+					data.enquadramento_urbanistico?.tipologia_uso_oodc ??
+						data.enquadramento_urbanistico?.uso ??
+						null,
+				);
+			if (tipologiaCanonica) {
 				data = {
 					...data,
 					enquadramento_urbanistico: {
 						...data.enquadramento_urbanistico,
-						tipologia_uso_oodc: tipologiaBi,
+						tipologia_uso_oodc: tipologiaCanonica,
 					},
 				};
 			}
@@ -508,6 +552,7 @@ export async function backfillProcessosDoBiGeosampa(
 				consulta.modoSalvamento,
 				consulta.identificadorSalvamento,
 				data,
+				{ apenasSqlPrincipal: true },
 			);
 
 			if (!p.interessado?.trim() && data.proprietario_interessado?.trim()) {
@@ -536,7 +581,7 @@ export async function backfillProcessosDoBiGeosampa(
 
 			resultados.push({
 				processoId: p.id,
-				num_processo: p.num_processo,
+				num_processo: mascararNumeroProcesso(p.num_processo),
 				status: 'atualizado',
 				fonte: tipologiaBi ? 'bi+geosampa' : 'geosampa',
 				sql: detalheApos?.sql_incra ?? sql,
@@ -551,7 +596,7 @@ export async function backfillProcessosDoBiGeosampa(
 		} catch (e) {
 			if (e instanceof GeoSampaConsultaError) {
 				// Sem lote no GeoSampa — ainda grava todos os SQLs do BI e tipología se houver
-				const sqlsBi = await sincronizarSqlsDoProcessoComBi(p.id, p.num_processo, {
+				const sqlsBi = await sincronizarSqlsDoProcessoComBi(p.id, mascararNumeroProcesso(p.num_processo), {
 					protocoloAd: p.protocolo_ad,
 				});
 				if (sqlsBi.length) {
@@ -572,7 +617,7 @@ export async function backfillProcessosDoBiGeosampa(
 					});
 					resultados.push({
 						processoId: p.id,
-						num_processo: p.num_processo,
+						num_processo: mascararNumeroProcesso(p.num_processo),
 						status: 'atualizado',
 						fonte: 'bi',
 						sql: sqlsBi[0] ?? null,
@@ -585,13 +630,13 @@ export async function backfillProcessosDoBiGeosampa(
 							.filter(Boolean)
 							.join(' · '),
 					});
-					continue;
+					return resultados;
 				}
 
 				if (sqlsBi.length) {
 					resultados.push({
 						processoId: p.id,
-						num_processo: p.num_processo,
+						num_processo: mascararNumeroProcesso(p.num_processo),
 						status: 'atualizado',
 						fonte: 'bi',
 						sql: sqlsBi[0] ?? null,
@@ -601,24 +646,24 @@ export async function backfillProcessosDoBiGeosampa(
 							`${sqlsBi.length} SQL(s) do BI gravados`,
 						].join(' · '),
 					});
-					continue;
+					return resultados;
 				}
 
 				resultados.push({
 					processoId: p.id,
-					num_processo: p.num_processo,
+					num_processo: mascararNumeroProcesso(p.num_processo),
 					status: 'nao_encontrado',
 					fonte: null,
 					sql: null,
 					tipologiaAplicada: null,
 					detalhe: e.message,
 				});
-				continue;
+				return resultados;
 			}
 
 			resultados.push({
 				processoId: p.id,
-				num_processo: p.num_processo,
+				num_processo: mascararNumeroProcesso(p.num_processo),
 				status: 'erro',
 				fonte: null,
 				sql: null,
@@ -626,7 +671,102 @@ export async function backfillProcessosDoBiGeosampa(
 				detalhe: e instanceof Error ? e.message : 'Erro no backfill',
 			});
 		}
-	}
+
+		return resultados;
+	};
+
+	// Pool: vários processos ao mesmo tempo (BI + GeoSampa são I/O), ordem preservada.
+	const porIndice: ResultadoBackfillBiGeosampa[][] = new Array(ids.length);
+	let proximo = 0;
+	await Promise.all(
+		Array.from({ length: Math.min(BACKFILL_CONCORRENCIA, ids.length) }, async () => {
+			while (proximo < ids.length) {
+				const i = proximo++;
+				porIndice[i] = await processarUm(ids[i]);
+			}
+		}),
+	);
+	const resultados = porIndice.flat();
+
+	await salvarConsultas(
+		resultados.map((r) => ({
+			processoId: r.processoId,
+			tipoConsulta: 'BACKFILL' as const,
+			status:
+				r.status === 'atualizado'
+					? ('ENCONTRADO' as const)
+					: r.status === 'erro'
+						? ('ERRO' as const)
+						: ('NAO_ENCONTRADO' as const),
+			fonte: r.fonte,
+			encontradoBi: r.fonte?.includes('bi') ? true : null,
+			sql: r.sql,
+			tipologia: r.tipologiaAplicada,
+			detalhe: r.detalhe,
+		})),
+	);
 
 	return resultados;
+}
+
+export type ConsultaSalva = {
+	processoId: string;
+	tipoConsulta: 'BACKFILL' | 'PESQUISA';
+	status: 'ENCONTRADO' | 'NAO_ENCONTRADO' | 'ERRO';
+	fonte: string | null;
+	encontradoBi: boolean | null;
+	sql: string | null;
+	tipologia: string | null;
+	detalhe: string | null;
+	tentativas: number;
+	/** ISO 8601. */
+	consultadoEm: string;
+};
+
+type ConsultaParaSalvar = Omit<ConsultaSalva, 'tentativas' | 'consultadoEm'>;
+
+/**
+ * Grava (upsert) o resultado de cada consulta, um registro por processo, para que
+ * os "não encontrados" fiquem disponíveis para resolução manual depois.
+ * Falha ao gravar nunca derruba a consulta.
+ */
+async function salvarConsultas(itens: ConsultaParaSalvar[]) {
+	const agora = new Date();
+	for (const c of itens) {
+		const dados = {
+			tipo_consulta: c.tipoConsulta,
+			status: c.status,
+			fonte: c.fonte,
+			encontrado_bi: c.encontradoBi,
+			sql: c.sql,
+			tipologia: c.tipologia,
+			detalhe: c.detalhe,
+			consultado_em: agora,
+		};
+		try {
+			await prisma.consultaDadosFaltantes.upsert({
+				where: { processo_id: c.processoId },
+				create: { processo_id: c.processoId, ...dados },
+				update: { ...dados, tentativas: { increment: 1 } },
+			});
+		} catch (e) {
+			console.error('[dados-faltantes] falha ao salvar consulta', c.processoId, e);
+		}
+	}
+}
+
+export async function listarConsultasSalvas(): Promise<ConsultaSalva[]> {
+	const rows = await prisma.consultaDadosFaltantes.findMany();
+	return rows.map((r) => ({
+		processoId: r.processo_id,
+		tipoConsulta: r.tipo_consulta as ConsultaSalva['tipoConsulta'],
+		status: r.status,
+		fonte: r.fonte,
+		encontradoBi: r.encontrado_bi,
+		sql: r.sql,
+		tipologia: r.tipologia,
+		detalhe: r.detalhe,
+		tentativas: r.tentativas,
+		consultadoEm: r.consultado_em.toISOString(),
+	}));
 }

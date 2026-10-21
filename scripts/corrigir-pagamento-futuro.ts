@@ -11,6 +11,7 @@
  * Também alinha a aba Parcelas de `OUTORGA APROVA DIGITAL - estruturada.xlsx`.
  */
 import { PrismaClient } from "@prisma/client";
+import { normalizarNumeroProcesso } from "../lib/mascara-processo";
 import ExcelJS from "exceljs";
 import path from "path";
 
@@ -51,7 +52,7 @@ async function corrigirBanco() {
 
     // Caso especial: datas absurdas no físico
     if (
-      proc === "2019-0.046.615-1" ||
+      normalizarNumeroProcesso(proc) === "201900466151" ||
       quit.getUTCFullYear() >= 2100 ||
       venc.getUTCFullYear() < 1990
     ) {

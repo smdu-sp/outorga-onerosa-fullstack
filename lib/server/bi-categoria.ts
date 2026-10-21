@@ -95,6 +95,30 @@ export async function buscarCategoriasPorProcessoNoBi(
 }
 
 /**
+ * O processo existe no BI (em qualquer sistema/tabela)? Diferente de
+ * `buscarCategoriasPorProcessoNoBi`, que só devolve linhas do AprovaDigital com
+ * área computável — processos Sisacoe/Portal existem no BI mas sem categoria.
+ */
+export async function processoExisteNoBi(numProcesso: string): Promise<boolean> {
+	const proc = numProcesso.trim();
+	if (!proc) return false;
+	const digits = proc.replace(/\D/g, '');
+	const pool = await getBiPool();
+	const result = await pool
+		.request()
+		.input('processo', sql.VarChar(50), proc)
+		.input('digits', sql.VarChar(30), digits)
+		.query<{ achou: number }>(`
+			SELECT TOP 1 1 AS achou FROM dbo.prata_categoria
+			WHERE processo = @processo
+				OR REPLACE(REPLACE(REPLACE(REPLACE(processo, '.', ''), '/', ''), '-', ''), ' ', '') = @digits
+			UNION ALL
+			SELECT TOP 1 1 FROM dbo.prata_sql_incra WHERE processo = @processo
+		`);
+	return result.recordset.length > 0;
+}
+
+/**
  * Busca categorias no BI pela coluna `protocolo` (Aprova Digital).
  * Tolera `#33287-23`, `33287-23-SP-ALV`, `AD: 44005-24-SP-MOD`, `49080/2020`.
  */

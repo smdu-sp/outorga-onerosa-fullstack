@@ -86,6 +86,38 @@ model Permissao {
   @@map("permissoes")
 }
 
+enum StatusConsultaDadosFaltantes {
+  ENCONTRADO
+  NAO_ENCONTRADO
+  ERRO
+}
+
+/// Resultado da última pesquisa/backfill (BI + GeoSampa) de um processo com dados
+/// faltantes. Um registro por processo; `tentativas` conta as consultas feitas.
+/// Permite listar os "não encontrados" para resolução manual em /admin/dados-faltantes.
+model ConsultaDadosFaltantes {
+  id          String   @id @default(uuid())
+  processo_id String   @unique
+  processo    Processo @relation(fields: [processo_id], references: [id], onDelete: Cascade)
+
+  /// BACKFILL | PESQUISA
+  tipo_consulta String                       @default("BACKFILL")
+  status        StatusConsultaDadosFaltantes
+  /// bi | geosampa | bi+geosampa
+  fonte         String?
+  encontrado_bi Boolean?
+  sql           String?
+  tipologia     String?
+  detalhe       String?                      @db.Text
+  tentativas    Int                          @default(1)
+
+  criado_em     DateTime @default(now())
+  consultado_em DateTime @default(now())
+
+  @@index([status])
+  @@map("consultas_dados_faltantes")
+}
+
 model Processo {
   id               String          @id @default(uuid())
   tipo             Tipo?
@@ -119,13 +151,14 @@ model Processo {
   criado_em   DateTime @default(now())
   alterado_em DateTime @default(now()) @updatedAt
 
-  parcelas           Parcela[]
-  sqls               Sql[]
-  multa              Multa?
-  monitoramento      MonitoramentoFicha?
-  monitoramento_cota MonitoramentoCotaSolidariedade?
-  memoriais_oodc     OodcMemorialCalculo[]
-  memoriais_cota     CotaMemorialCalculo[]
+  parcelas                 Parcela[]
+  sqls                     Sql[]
+  multa                    Multa?
+  monitoramento            MonitoramentoFicha?
+  monitoramento_cota       MonitoramentoCotaSolidariedade?
+  memoriais_oodc           OodcMemorialCalculo[]
+  memoriais_cota           CotaMemorialCalculo[]
+  consulta_dados_faltantes ConsultaDadosFaltantes?
 
   // Vínculo opcional com processo de licenciamento edilício (0..1)
   processo_licenciamento ProcessoLicenciamento?
