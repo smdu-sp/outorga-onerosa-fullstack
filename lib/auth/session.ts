@@ -53,6 +53,17 @@ export async function requireDev() {
 }
 
 /**
+ * Igual a requireDev(), mas para Server Actions: lança erro normal em vez de
+ * redirecionar (redirect() dentro de um try/catch de action quebraria o fluxo —
+ * o catch engoliria o NEXT_REDIRECT e viraria um toast de erro em vez de navegar).
+ */
+export async function requireDevAcao() {
+	const session = await requireAuth();
+	if (!session.usuario.dev) throw new Error('Apenas desenvolvedores podem executar esta ação.');
+	return session;
+}
+
+/**
  * Garante que o usuário pode acessar um processo específico, em 3 níveis:
  * 1. "processos_ver_todos" (CAP/FUNDURB-GAB/Admin) — libera qualquer processo.
  * 2. "processos_ver_quitados" (DEUSO) — libera só se o processo estiver QUITADO.

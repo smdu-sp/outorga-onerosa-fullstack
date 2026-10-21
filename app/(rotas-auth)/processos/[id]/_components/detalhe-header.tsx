@@ -10,6 +10,7 @@ import { processoEhNovo } from '@/lib/processo-novo';
 import { BotaoGeoSampa } from './botao-geosampa';
 import { BotaoBi } from './botao-bi';
 import { BotaoRecalcular } from './botao-recalcular';
+import { BotaoExcluirProcesso } from './botao-excluir-processo';
 
 const fmtBRL = (n: number) =>
 	n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -81,12 +82,14 @@ export function DetalheHeader({
 	onBusca,
 	onDetalheAtualizado,
 	podeRecalcular = false,
+	podeExcluir = false,
 }: {
 	processo: IProcessoDetalhe;
 	busca: string;
 	onBusca: (v: string) => void;
 	onDetalheAtualizado?: (detalhe: IProcessoDetalhe) => void;
 	podeRecalcular?: boolean;
+	podeExcluir?: boolean;
 }) {
 	const buscaRef = useRef<HTMLInputElement>(null);
 	const { valorTotal, valorDevido, valorOutorga, valorCota } = calcularMetricas(processo);
@@ -210,6 +213,12 @@ export function DetalheHeader({
 						<Download className="h-4 w-4" />
 						Exportar
 					</button>
+					{podeExcluir && (
+						<BotaoExcluirProcesso
+							processoId={processo.id}
+							numProcesso={processo.num_processo}
+						/>
+					)}
 				</div>
 			</div>
 		</div>

@@ -25,7 +25,7 @@ export default function ModalUpdateAndCreate({
 	trigger?: ReactNode;
 }) {
 	return (
-		<Dialog>
+		<Dialog modal={false}>
 			<DialogTrigger asChild>
 				{trigger ?? (
 					<Button

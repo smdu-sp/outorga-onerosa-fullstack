@@ -51,3 +51,6 @@ next-env.d.ts
 # excel
 *.xlsx
 *.xlsm
+
+# exportações locais de apresentações (arquivos grandes, não versionados)
+/apresentacao-offline/
