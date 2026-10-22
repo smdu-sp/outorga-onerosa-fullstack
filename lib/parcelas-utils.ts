@@ -104,7 +104,7 @@ export function dataReferenciaArrecadacao(p: ParcelaArrecadacao): Date | null {
 export function anoArrecadacaoParcela(p: ParcelaArrecadacao): number | null {
 	if (!p.status_quitacao || p.quebra) return null;
 	const pagamento = dataPagamentoParcela(p);
-	if (pagamento) return pagamento.getFullYear();
+	if (pagamento) return pagamento.getUTCFullYear();
 	if (p.ano_pagamento != null) return p.ano_pagamento;
 	return dataReferenciaArrecadacao(p)?.getUTCFullYear() ?? null;
 }
@@ -112,7 +112,7 @@ export function anoArrecadacaoParcela(p: ParcelaArrecadacao): number | null {
 /** Mês de arrecadação (0–11) a partir da data de pagamento efetiva (ou proxy no vencimento). */
 export function mesArrecadacaoParcela(p: ParcelaArrecadacao): number | null {
 	const pagamento = dataReferenciaArrecadacao(p);
-	return pagamento ? pagamento.getMonth() : null;
+	return pagamento ? pagamento.getUTCMonth() : null;
 }
 
 /**
@@ -138,8 +138,8 @@ export function parcelaArrecadadaNoPeriodo(
 	if (filtro.mes != null) {
 		const pagamento = dataReferenciaArrecadacao(p);
 		if (!pagamento) return false;
-		if (filtro.ano != null && pagamento.getFullYear() !== filtro.ano) return false;
-		return pagamento.getMonth() === filtro.mes;
+		if (filtro.ano != null && pagamento.getUTCFullYear() !== filtro.ano) return false;
+		return pagamento.getUTCMonth() === filtro.mes;
 	}
 
 	if (filtro.ano != null) {
@@ -160,10 +160,10 @@ export function dataNoPeriodoFiltro(
 	}
 	if (filtro.ano == null && filtro.mes == null) return true;
 	if (filtro.mes != null) {
-		if (filtro.ano != null && data.getFullYear() !== filtro.ano) return false;
-		return data.getMonth() === filtro.mes;
+		if (filtro.ano != null && data.getUTCFullYear() !== filtro.ano) return false;
+		return data.getUTCMonth() === filtro.mes;
 	}
-	if (filtro.ano != null) return data.getFullYear() === filtro.ano;
+	if (filtro.ano != null) return data.getUTCFullYear() === filtro.ano;
 	return true;
 }
 

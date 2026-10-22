@@ -2,6 +2,7 @@ import { Prisma, PrismaClient } from '@prisma/client';
 import { LinhaImportacao, PendenciaImportacao } from '../importador-universal';
 import { classificarAntecipacao } from '../antecipacao';
 import { normalizarNumeroProcesso } from '../mascara-processo';
+import { tipoPredominante } from '../obrigacoes-processo';
 import { recalcularStatusPagamento } from '../parcelas-utils';
 
 /** Preserva IDs e parcelas ausentes na fonte. Cada processo é reconciliado atomicamente. */
@@ -27,7 +28,7 @@ export async function reconciliarParcelas(db: PrismaClient, linhas: LinhaImporta
       if (!processo) relatorio.processosAusentes.push(numero);
       const validas = [...unicas].filter(([key]) => !bloqueadas.has(key)).map(([,l]) => l);
       if (!validas.length) return;
-      if (!processo && aplicar) processo = await tx.processo.create({data:{num_processo:normalizarNumeroProcesso(numero), tipo:validas[0].obrigacao, data_entrada:validas.find(l => l.data_entrada)?.data_entrada, criado_por:usuarioId},include:{parcelas:true}});
+      if (!processo && aplicar) processo = await tx.processo.create({data:{num_processo:normalizarNumeroProcesso(numero), tipo:tipoPredominante(validas) ?? validas[0].obrigacao, data_entrada:validas.find(l => l.data_entrada)?.data_entrada, criado_por:usuarioId},include:{parcelas:true}});
       for (const linha of validas) {
         const candidatas = processo?.parcelas.filter(p => p.num_parcela === linha.num_parcela && (p.obrigacao === linha.obrigacao || p.obrigacao == null && processo?.tipo === linha.obrigacao)) ?? [];
         if (candidatas.length > 1) { pendencias.push({fonte:linha.fonte,processo:numero,parcela:linha.num_parcela,motivo:'Mais de uma parcela correspondente no banco'}); continue; }
@@ -57,7 +58,8 @@ export async function reconciliarParcelas(db: PrismaClient, linhas: LinhaImporta
       }
       if (aplicar && processo) {
         const parcelas = await tx.parcela.findMany({where:{processo_id:processo.id}});
-        await tx.processo.update({where:{id:processo.id},data:{status_pagamento:recalcularStatusPagamento(parcelas),valor_total_parcelas:parcelas.reduce((s,p) => s + Math.round(p.valor*100),0)/100}});
+        // tipo = obrigação predominante (processo com PDE e COTA não fica com o tipo da 1ª linha lida)
+        await tx.processo.update({where:{id:processo.id},data:{tipo:tipoPredominante(parcelas) ?? processo.tipo,status_pagamento:recalcularStatusPagamento(parcelas),valor_total_parcelas:parcelas.reduce((s,p) => s + Math.round(p.valor*100),0)/100}});
         relatorio.processosAplicados++;
       }
     };

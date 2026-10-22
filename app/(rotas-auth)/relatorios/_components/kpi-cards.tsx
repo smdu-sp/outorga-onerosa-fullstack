@@ -83,8 +83,12 @@ export function KpiCards({ d }: { d: IRelatorio | null }) {
 			: 0;
 	const remainingLiq = Math.max(fundurb.prevRestante - fundurb.prevRestante * quebraRate, 0);
 
-	const mesProxLabel = mesAtual < 11 ? meses[mesAtual + 1] : null;
-	const mesRemLabel = mesProxLabel ? `${mesProxLabel}–Dez ${d?.anoAtual ?? ''}` : '';
+	// A receber inclui o saldo em aberto do mês corrente (ano corrente) até dezembro.
+	const anoCorrente = (d?.anoAtual ?? new Date().getFullYear()) === new Date().getFullYear();
+	const mesRemLabel =
+		anoCorrente && mesAtual >= 0
+			? `${mesAtual < 11 ? `${meses[mesAtual]}–Dez` : 'Dez'} ${d?.anoAtual ?? ''}`
+			: '';
 
 	const cards: KpiCardProps[] = [
 		{

@@ -48,3 +48,58 @@ export function classificarAntecipacao(
 
 	return { antecipada, diasAntecipacao: dias };
 }
+
+// ---------------------------------------------------------------- situação do pagamento
+
+export type SituacaoPagamento =
+	| 'ANTECIPADA'
+	| 'EM_DIA'
+	| 'EM_ATRASO'
+	| 'PAGA_SEM_DATA'
+	| 'A_VENCER'
+	| 'VENCIDA_NAO_PAGA'
+	| 'QUEBRA';
+
+/** Por que uma parcela paga antes do vencimento NÃO é antecipação (ou por que é). */
+export type MotivoEmDia = 'NO_DIA' | 'MESMO_MES' | 'VIRADA_DE_MES';
+
+export interface ParcelaParaClassificar {
+	vencimento: Date;
+	dataQuitacao?: Date | null;
+	quitada: boolean;
+	quebra: boolean;
+}
+
+export interface ResultadoSituacao {
+	situacao: SituacaoPagamento;
+	/** vencimento − pagamento, em dias (>0 = pago antes; <0 = pago depois). */
+	dias: number | null;
+	motivoEmDia?: MotivoEmDia;
+}
+
+/**
+ * Situação completa de pagamento de uma parcela (auditoria/relatórios). Usa a regra
+ * canônica de `classificarAntecipacao` para separar ANTECIPADA de EM_DIA; o que a regra
+ * não cobre (atraso, sem data, não paga) é decidido aqui.
+ *
+ * Uma parcela quitada com quebra marcada é tratada como paga (o pagamento prevalece).
+ */
+export function classificarSituacaoPagamento(
+	p: ParcelaParaClassificar,
+	hoje: Date,
+	toleranciaDias: number = DIAS_TOLERANCIA_VIRADA_MES,
+): ResultadoSituacao {
+	if (!p.quitada) {
+		if (p.quebra) return { situacao: 'QUEBRA', dias: null };
+		return { situacao: p.vencimento.getTime() < hoje.getTime() ? 'VENCIDA_NAO_PAGA' : 'A_VENCER', dias: null };
+	}
+	if (!p.dataQuitacao) return { situacao: 'PAGA_SEM_DATA', dias: null };
+
+	const dias = Math.round((p.vencimento.getTime() - p.dataQuitacao.getTime()) / MS_DIA);
+	if (dias < 0) return { situacao: 'EM_ATRASO', dias };
+	if (classificarAntecipacao(p.vencimento, p.dataQuitacao, toleranciaDias).antecipada)
+		return { situacao: 'ANTECIPADA', dias };
+	const motivoEmDia: MotivoEmDia =
+		dias === 0 ? 'NO_DIA' : competencia(p.dataQuitacao) === competencia(p.vencimento) ? 'MESMO_MES' : 'VIRADA_DE_MES';
+	return { situacao: 'EM_DIA', dias, motivoEmDia };
+}

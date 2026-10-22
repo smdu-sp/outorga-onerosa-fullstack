@@ -523,7 +523,9 @@ function montarFiltrosProcessos(
 	}
 
 	if (tipo && tipo !== 'TODOS') {
-		filtros.push({ tipo: tipo as 'PDE' | 'COTA' });
+		// A obrigação vive na parcela: um processo com PDE e COTA entra nos dois filtros.
+		const t = tipo as 'PDE' | 'COTA' | 'AIU';
+		filtros.push({ OR: [{ tipo: t }, { parcelas: { some: { obrigacao: t } } }] });
 	}
 
 	if (status && status !== 'TODOS') {

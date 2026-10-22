@@ -1,6 +1,7 @@
 'use client';
 
 import { formatarDataCivil } from '@/lib/datas';
+import { obrigacoesDoProcesso, rotuloObrigacoes } from '@/lib/obrigacoes-processo';
 import { PENDENCIAS_META, type CodigoPendencia } from '@/lib/pendencias-processo';
 import { processoEhNovo } from '@/lib/processo-novo';
 import { cn } from '@/lib/utils';
@@ -185,7 +186,7 @@ export function TabelaLista({ processos }: { processos: IProcesso[] }) {
 										</td>
 										<td className="border-t border-border px-3.5 py-[13px] align-middle whitespace-nowrap">
 											<span className="inline-flex items-center rounded-full bg-primary-soft px-2.5 py-0.5 text-xs font-semibold text-primary">
-												{p.tipo ?? '—'}
+												{rotuloObrigacoes(obrigacoesDoProcesso(p.tipo, p.parcelas))}
 											</span>
 										</td>
 										<td className="border-t border-border px-3.5 py-[13px] align-middle whitespace-nowrap">

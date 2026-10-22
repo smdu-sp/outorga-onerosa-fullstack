@@ -17,6 +17,7 @@ import {
   ClipboardList,
   FolderOpen,
   House,
+  ListChecks,
   Lock,
   LucideProps,
   Target,
@@ -116,6 +117,11 @@ function montarMenuDev(usuarioDev: boolean): IMenu[] {
       icone: Calculator,
       titulo: "Cálculo OODC (teste)",
       url: "/dev-calculo-oodc",
+    });
+    itens.push({
+      icone: ListChecks,
+      titulo: "Auditoria de parcelas",
+      url: "/dev-auditoria-parcelas",
     });
   }
   return itens;

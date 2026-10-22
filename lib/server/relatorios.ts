@@ -169,8 +169,9 @@ export async function buscarRelatorio(
 					...(filtroHome.mes != null ? { mes: filtroHome.mes } : {}),
 				};
 
-	const inicioAno = new Date(anoAtual, 0, 1);
-	const fimAno = new Date(anoAtual + 1, 0, 1);
+	// Datas de parcela/multa são data civil (meia-noite UTC): limites e meses sempre em UTC.
+	const inicioAno = new Date(Date.UTC(anoAtual, 0, 1));
+	const fimAno = new Date(Date.UTC(anoAtual + 1, 0, 1));
 
 	// ── Previsto: vencimentos no período ──
 	const parcelasVencimentoRaw = await prisma.parcela.findMany({
@@ -184,6 +185,7 @@ export async function buscarRelatorio(
 			status_quitacao: true,
 			quebra: true,
 			antecipada: true,
+			obrigacao: true,
 			processo: { select: { tipo: true } },
 		},
 	});
@@ -203,6 +205,7 @@ export async function buscarRelatorio(
 			antecipada: true,
 			quebra: true,
 			status_quitacao: true,
+			obrigacao: true,
 			processo: { select: { tipo: true } },
 		},
 	});
@@ -234,14 +237,14 @@ export async function buscarRelatorio(
 				(p) => p.vencimento >= inicioAno && p.vencimento < fimAno,
 			)
 		: temRange
-			? parcelasVencimentoAno.filter((p) => p.vencimento.getFullYear() === anoAtual)
+			? parcelasVencimentoAno.filter((p) => p.vencimento.getUTCFullYear() === anoAtual)
 			: parcelasVencimentoAno;
 	const parcelasArrecadadasD26 = todosAnos && !temRange
 		? parcelasPagasAno.filter((p) => parcelaArrecadadaNoPeriodo(p, { ano: anoAtual }))
 		: temRange
 			? parcelasArrecadadasAno.filter((p) => {
 					const pag = dataReferenciaArrecadacao(p);
-					return pag != null && pag.getFullYear() === anoAtual;
+					return pag != null && pag.getUTCFullYear() === anoAtual;
 				})
 			: parcelasArrecadadasAno;
 	const multasPagasD26 = todosAnos && !temRange
@@ -253,7 +256,7 @@ export async function buscarRelatorio(
 			)
 		: temRange
 			? multasPagas.filter(
-					(m) => m.data_quitacao != null && m.data_quitacao.getFullYear() === anoAtual,
+					(m) => m.data_quitacao != null && m.data_quitacao.getUTCFullYear() === anoAtual,
 				)
 			: multasPagas;
 
@@ -270,32 +273,41 @@ export async function buscarRelatorio(
 	let quebrasFundurbBrl = 0;
 	let antecFundurbBrl = 0;
 	let prevRestanteFundurbBrl = 0;
-	const naoAiu = (p: { processo?: { tipo: string | null } | null }) => p.processo?.tipo !== 'AIU';
+	// A obrigação vive na parcela (um processo pode ter OODC e Cota); o tipo do processo é só fallback.
+	const tipoParcela = (p: { obrigacao?: string | null; processo?: { tipo: string | null } | null }) =>
+		p.obrigacao ?? p.processo?.tipo ?? null;
+	const naoAiu = (p: { obrigacao?: string | null; processo?: { tipo: string | null } | null }) =>
+		tipoParcela(p) !== 'AIU';
+	// A receber = ainda em aberto: exclui parcelas já pagas (antecipadas) e quebras.
+	const emAberto = (p: { status_quitacao: boolean; quebra: boolean }) => !p.status_quitacao && !p.quebra;
+	const incluiMesCorrenteNoAReceber = anoAtual === hoje.getFullYear() && filtroHome.mes == null;
 
 	for (let m = 0; m < 12; m++) {
-		const vencNoMes = parcelasVencimentoD26.filter((p) => p.vencimento.getMonth() === m);
+		const vencNoMes = parcelasVencimentoD26.filter((p) => p.vencimento.getUTCMonth() === m);
 		const pagoNoMes = parcelasArrecadadasD26.filter((p) => {
 			const pagamento = dataReferenciaArrecadacao(p);
-			return pagamento != null && pagamento.getMonth() === m;
+			return pagamento != null && pagamento.getUTCMonth() === m;
 		});
 		const temMultaNoMes = multasPagasD26.some(
-			(multa) => multa.data_quitacao != null && multa.data_quitacao.getMonth() === m,
+			(multa) => multa.data_quitacao != null && multa.data_quitacao.getUTCMonth() === m,
 		);
 
 		if (vencNoMes.length === 0 && pagoNoMes.length === 0 && !temMultaNoMes) continue;
 
 		const vencNoMesFundurb = vencNoMes.filter(naoAiu);
 		const pagoNoMesFundurb = pagoNoMes.filter(naoAiu);
-		if (m > mesAtual) {
-			prevRestanteFundurbBrl += vencNoMesFundurb.reduce((s, p) => s + p.valor, 0);
-		} else {
+		// A receber: meses futuros + o que ainda falta no mês corrente (só no ano corrente, sem filtro de mês).
+		if (m > mesAtual || (m === mesAtual && incluiMesCorrenteNoAReceber)) {
+			prevRestanteFundurbBrl += vencNoMesFundurb.filter(emAberto).reduce((s, p) => s + p.valor, 0);
+		}
+		if (m <= mesAtual) {
 			quebrasFundurbBrl += vencNoMesFundurb.filter((p) => p.quebra).reduce((s, p) => s + p.valor, 0);
 			antecFundurbBrl += pagoNoMesFundurb.filter((p) => p.antecipada).reduce((s, p) => s + p.valor, 0);
 		}
 
 		const totalPrev = vencNoMes.reduce((s, p) => s + p.valor, 0);
 		const multaNoMes = multasPagasD26
-			.filter((multa) => multa.data_quitacao != null && multa.data_quitacao.getMonth() === m)
+			.filter((multa) => multa.data_quitacao != null && multa.data_quitacao.getUTCMonth() === m)
 			.reduce((s, multa) => s + Number(multa.valor), 0);
 		const totalReal = pagoNoMes.reduce((s, p) => s + p.valor, 0) + (m <= mesAtual ? multaNoMes : 0);
 		const totalQuebra = vencNoMes
@@ -312,7 +324,7 @@ export async function buscarRelatorio(
 			if (totalQuebra > 0) quebras[m] = +(totalQuebra / BRL_TO_M).toFixed(1);
 			if (totalAntec > 0) antec[m] = +(totalAntec / BRL_TO_M).toFixed(1);
 			for (const p of pagoNoMes) {
-				const tipo = p.processo?.tipo;
+				const tipo = tipoParcela(p);
 				if (tipo === 'COTA') arrecTipoBrl.cota += p.valor;
 				else if (tipo === 'AIU') arrecTipoBrl.aiu += p.valor;
 				else arrecTipoBrl.outorga += p.valor; // PDE ou sem tipo → Outorga
@@ -331,7 +343,7 @@ export async function buscarRelatorio(
 		antecFundurbBrl = 0;
 		prevRestanteFundurbBrl = 0;
 		for (const p of parcelasArrecadadasAno) {
-			const tipo = p.processo?.tipo;
+			const tipo = tipoParcela(p);
 			if (tipo === 'COTA') arrecTipoBrl.cota += p.valor;
 			else if (tipo === 'AIU') arrecTipoBrl.aiu += p.valor;
 			else arrecTipoBrl.outorga += p.valor;
@@ -343,7 +355,7 @@ export async function buscarRelatorio(
 		for (const p of parcelasVencimentoAno) {
 			if (!naoAiu(p)) continue;
 			if (p.quebra) quebrasFundurbBrl += p.valor;
-			else if (!p.status_quitacao) prevRestanteFundurbBrl += p.valor;
+			else if (emAberto(p)) prevRestanteFundurbBrl += p.valor;
 		}
 	}
 
@@ -360,8 +372,8 @@ export async function buscarRelatorio(
 
 	await Promise.all(
 		anosHist.map(async (ano) => {
-			const inicio = new Date(ano, 0, 1);
-			const fim = new Date(ano + 1, 0, 1);
+			const inicio = new Date(Date.UTC(ano, 0, 1));
+			const fim = new Date(Date.UTC(ano + 1, 0, 1));
 			const [parcelas, multas] = await Promise.all([
 				prisma.parcela.findMany({
 					where: { status_quitacao: true },
@@ -389,11 +401,11 @@ export async function buscarRelatorio(
 				if (!parcelaArrecadadaNoPeriodo(p, { ano })) continue;
 				const pagamento = dataReferenciaArrecadacao(p);
 				if (!pagamento) continue;
-				mensal[pagamento.getMonth()] += p.valor;
+				mensal[pagamento.getUTCMonth()] += p.valor;
 			}
 			for (const multa of multas) {
 				if (!multa.data_quitacao) continue;
-				mensal[multa.data_quitacao.getMonth()] += Number(multa.valor);
+				mensal[multa.data_quitacao.getUTCMonth()] += Number(multa.valor);
 			}
 			hist[ano] = mensal.map((v) => +(v / BRL_TO_M).toFixed(1));
 		}),

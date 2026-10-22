@@ -36,10 +36,11 @@ function resolverStatus(p: {
 
 export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRelatorioMesDetalhe> {
 	const mesIdx = mes - 1;
-	const inicioMes = new Date(ano, mesIdx, 1);
-	const fimMes = new Date(ano, mesIdx + 1, 1);
-	const inicioMesAnt = new Date(ano - 1, mesIdx, 1);
-	const fimMesAnt = new Date(ano - 1, mesIdx + 1, 1);
+	// Datas de parcela são data civil (@db.Date, meia-noite UTC): limites do mês também em UTC.
+	const inicioMes = new Date(Date.UTC(ano, mesIdx, 1));
+	const fimMes = new Date(Date.UTC(ano, mesIdx + 1, 1));
+	const inicioMesAnt = new Date(Date.UTC(ano - 1, mesIdx, 1));
+	const fimMesAnt = new Date(Date.UTC(ano - 1, mesIdx + 1, 1));
 
 	const [parcelasVenc, parcelasPagas, prevAnt] = await Promise.all([
 		// Parcelas com vencimento no mês (universo previsto)
@@ -168,7 +169,7 @@ export async function buscarRelatorioMes(ano: number, mes: number): Promise<IRel
 		semanasReal[idx] += p.valor;
 	}
 	for (const p of parcelasVenc) {
-		const dia = p.vencimento.getDate();
+		const dia = p.vencimento.getUTCDate();
 		const idx = Math.min(Math.floor((dia - 1) / 7), 4);
 		semanasPrev[idx] += p.valor;
 	}

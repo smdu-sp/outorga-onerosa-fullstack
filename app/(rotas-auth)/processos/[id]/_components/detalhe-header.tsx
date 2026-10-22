@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRef } from 'react';
 import { cn } from '@/lib/utils';
 import { processoEhNovo } from '@/lib/processo-novo';
+import { obrigacoesDoProcesso, rotuloObrigacoesExtenso, type Obrigacao } from '@/lib/obrigacoes-processo';
 import { BotaoGeoSampa } from './botao-geosampa';
 import { BotaoBi } from './botao-bi';
 import { BotaoRecalcular } from './botao-recalcular';
@@ -29,16 +30,12 @@ const TIPO_CLASS: Record<string, string> = {
 	AIU: 'bg-violet-50 text-violet-700',
 };
 
-function labelTipo(processo: IProcessoDetalhe): string {
-	const tipo = processo.tipo ?? '';
-	const temCota =
-		processo.monitoramento_cota?.valor_calculado_processo != null ||
-		(processo.parcelas ?? []).some((p) => p.obrigacao === 'COTA');
-	if ((tipo === 'PDE' || tipo === 'AIU') && temCota) return 'Outorga/Cota';
-	if (tipo === 'PDE') return 'Outorga';
-	if (tipo === 'COTA') return 'Cota';
-	if (tipo === 'AIU') return 'AIU';
-	return tipo;
+/** Obrigações do processo vêm das parcelas (Processo.tipo é só o predominante). */
+function obrigacoes(processo: IProcessoDetalhe): Obrigacao[] {
+	const lista = obrigacoesDoProcesso(processo.tipo, processo.parcelas ?? []);
+	// Cota calculada no monitoramento, ainda sem parcelas lançadas
+	if (processo.monitoramento_cota?.valor_calculado_processo != null && !lista.includes('COTA')) lista.push('COTA');
+	return lista;
 }
 
 function parseValorMonetario(valor?: string | null): number {
@@ -94,8 +91,9 @@ export function DetalheHeader({
 	const buscaRef = useRef<HTMLInputElement>(null);
 	const { valorTotal, valorDevido, valorOutorga, valorCota } = calcularMetricas(processo);
 	const status = processo.status_pagamento ?? '';
-	const tipo = processo.tipo ?? '';
-	const tipoLabel = labelTipo(processo);
+	const listaObrigacoes = obrigacoes(processo);
+	const tipo = listaObrigacoes[0] ?? '';
+	const tipoLabel = rotuloObrigacoesExtenso(listaObrigacoes);
 
 	return (
 		<div className="mb-5 space-y-4">
