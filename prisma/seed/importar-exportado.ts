@@ -26,6 +26,11 @@ type DadosExportados = {
 	};
 	processos: Record<string, unknown>[];
 	parcelas: Record<string, unknown>[];
+	/** Ausentes em snapshots versão 1. */
+	multas?: Record<string, unknown>[];
+	sqls?: Record<string, unknown>[];
+	sqlEnderecos?: Record<string, unknown>[];
+	consultasDadosFaltantes?: Record<string, unknown>[];
 	monitoramento: {
 		fichas: Record<string, unknown>[];
 		coordenadas: Record<string, unknown>[];
@@ -90,6 +95,7 @@ async function limparBanco(prisma: PrismaClient) {
 		'monitoramento_coordenadas',
 		'monitoramento_fichas',
 		'monitoramento_cota_solidariedade',
+		'multas',
 		'parcelas',
 		'processos',
 		'_GrupoPermissaoToUsuario',
@@ -145,6 +151,15 @@ export async function importarDadosExportados(prisma: PrismaClient) {
 		for (const n of seiInvalidos) console.warn(`    - ${mascararNumeroProcesso(n)}`);
 	}
 	await inserirLote(prisma, prisma.parcela, dados.parcelas, 'Parcelas');
+	await inserirLote(prisma, prisma.multa, dados.multas ?? [], 'Multas');
+	await inserirLote(prisma, prisma.sql, dados.sqls ?? [], 'SQLs');
+	await inserirLote(prisma, prisma.sqlEndereco, dados.sqlEnderecos ?? [], 'SQL — endereços');
+	await inserirLote(
+		prisma,
+		prisma.consultaDadosFaltantes,
+		dados.consultasDadosFaltantes ?? [],
+		'Consultas de dados faltantes',
+	);
 
 	const m = dados.monitoramento;
 	await inserirLote(prisma, prisma.monitoramentoFicha, m.fichas, 'Monitoramento — fichas');
