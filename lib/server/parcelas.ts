@@ -29,6 +29,12 @@ export type IDadosParcelasEmLote = {
 	valor: number;
 	vencimento_inicial: string | Date;
 	obrigacao: 'PDE' | 'COTA';
+	/**
+	 * Entrada da Cota (50%), gravada como a parcela `num_parcela_inicial`; o saldo
+	 * (`quantidade` parcelas de `valor`) vem numerado logo depois. Obrigatória para
+	 * Cota parcelada — só a Cota à vista (1 parcela) dispensa.
+	 */
+	entrada?: { valor: number; vencimento: string | Date };
 };
 
 /** Soma `meses` à data preservando o dia (com ajuste para meses mais curtos). */
@@ -90,6 +96,18 @@ export async function criarParcelasEmLote(processoId: string, dados: IDadosParce
 	const vencimentoInicial = parseDataCivil(dados.vencimento_inicial);
 	if (!vencimentoInicial) throw new Error('Vencimento inválido.');
 
+	let entrada: { valor: number; vencimento: Date } | null = null;
+	if (dados.entrada) {
+		if (dados.obrigacao !== 'COTA') throw new Error('Entrada só se aplica à Cota de Solidariedade.');
+		const vencimentoEntrada = parseDataCivil(dados.entrada.vencimento);
+		if (!vencimentoEntrada) throw new Error('Vencimento da entrada inválido.');
+		if (!(dados.entrada.valor > 0)) throw new Error('Valor da entrada inválido.');
+		entrada = { valor: dados.entrada.valor, vencimento: vencimentoEntrada };
+	} else if (dados.obrigacao === 'COTA' && dados.quantidade > 1) {
+		throw new Error('Cota de Solidariedade parcelada exige a entrada de 50% — informe o valor e o vencimento da entrada.');
+	}
+	const numSaldoInicial = dados.num_parcela_inicial + (entrada ? 1 : 0);
+
 	// Gerar em lote SUBSTITUI o plano de parcelas do processo para a obrigação
 	// informada (não soma a um lote anterior, e não mexe nas parcelas da outra
 	// obrigação — um processo pode ter Outorga e Cota em paralelo, ver
@@ -109,13 +127,26 @@ export async function criarParcelasEmLote(processoId: string, dados: IDadosParce
 			where: { processo_id: processoId, ...whereObrigacao(dados.obrigacao) },
 		}),
 		prisma.parcela.createMany({
-			data: Array.from({ length: dados.quantidade }, (_, i) => ({
-				processo_id: processoId,
-				num_parcela: dados.num_parcela_inicial + i,
-				valor: dados.valor,
-				vencimento: adicionarMeses(vencimentoInicial, i),
-				obrigacao: dados.obrigacao,
-			})),
+			data: [
+				...(entrada
+					? [
+							{
+								processo_id: processoId,
+								num_parcela: dados.num_parcela_inicial,
+								valor: entrada.valor,
+								vencimento: entrada.vencimento,
+								obrigacao: dados.obrigacao,
+							},
+						]
+					: []),
+				...Array.from({ length: dados.quantidade }, (_, i) => ({
+					processo_id: processoId,
+					num_parcela: numSaldoInicial + i,
+					valor: dados.valor,
+					vencimento: adicionarMeses(vencimentoInicial, i),
+					obrigacao: dados.obrigacao,
+				})),
+			],
 		}),
 	]);
 

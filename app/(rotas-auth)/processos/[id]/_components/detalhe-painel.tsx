@@ -84,6 +84,11 @@ export function DetalhePainel({
 							secao.id === 'parcelas-cota' ? p.obrigacao === 'COTA' : (p.obrigacao ?? 'PDE') !== 'COTA',
 						)}
 						obrigacao={secao.id === 'parcelas-cota' ? 'COTA' : 'PDE'}
+						valorTotalCota={
+							secao.id === 'parcelas-cota' && detalhe.monitoramento_cota?.valor_calculado_processo != null
+								? Number(detalhe.monitoramento_cota.valor_calculado_processo)
+								: null
+						}
 						statusPagamento={detalhe.status_pagamento}
 						onAtualizado={onDetalheAtualizado}
 						podeEditar={permissoes.podeEditarParcelas}

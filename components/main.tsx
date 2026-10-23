@@ -17,6 +17,7 @@ import {
   ClipboardList,
   FolderOpen,
   House,
+  HandCoins,
   ListChecks,
   Lock,
   LucideProps,
@@ -122,6 +123,11 @@ function montarMenuDev(usuarioDev: boolean): IMenu[] {
       icone: ListChecks,
       titulo: "Auditoria de parcelas",
       url: "/dev-auditoria-parcelas",
+    });
+    itens.push({
+      icone: HandCoins,
+      titulo: "Cota de Solidariedade",
+      url: "/dev-cota-solidariedade",
     });
   }
   return itens;

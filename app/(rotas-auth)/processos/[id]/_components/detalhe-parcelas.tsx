@@ -5,7 +5,8 @@ import { IParcela } from '@/types/processo';
 import { IProcessoDetalhe } from '@/types/processo-detalhe';
 import { enriquecerParcelas, type IParcelaView } from '@/lib/parcelas-utils';
 import { acaoParcela } from '@/services/processos/server-functions/acao-parcela';
-import { CheckCircle2, RotateCcw, TrendingDown, Undo2, Zap } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, RotateCcw, TrendingDown, Undo2, Zap } from 'lucide-react';
+import { planoCotaTemEntrada } from '@/lib/cota/entrada';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { STATUS_PAGAMENTO } from '@/app/(rotas-auth)/_components/processo-detalhe-labels';
@@ -113,10 +114,13 @@ export function DetalheParcelas({
 	onAtualizado,
 	podeEditar = false,
 	podeReverterAntecipacao = false,
+	valorTotalCota,
 }: {
 	processoId: string;
 	parcelas: IParcela[];
 	obrigacao: 'PDE' | 'COTA';
+	/** Valor calculado da Cota (ficha) — sugere o total e ajuda a achar a entrada. */
+	valorTotalCota?: number | null;
 	statusPagamento?: string | null;
 	onAtualizado: (detalhe: IProcessoDetalhe) => void;
 	podeEditar?: boolean;
@@ -126,6 +130,12 @@ export function DetalheParcelas({
 	const parcelasView = enriquecerParcelas(parcelas);
 	const total = parcelas.reduce((s, p) => s + (p.valor ?? 0), 0);
 	const pagas = parcelas.filter((p) => p.status_quitacao).length;
+	const cotaSemEntrada =
+		obrigacao === 'COTA' &&
+		!planoCotaTemEntrada(
+			parcelas.map((p) => p.valor ?? 0),
+			valorTotalCota,
+		);
 
 	function executarAcao(
 		parcelaId: string,
@@ -178,6 +188,7 @@ export function DetalheParcelas({
 							processoId={processoId}
 							parcelas={parcelas}
 							obrigacao={obrigacao}
+							valorTotalCota={valorTotalCota}
 							onAtualizado={onAtualizado}
 						/>
 					)}
@@ -186,6 +197,18 @@ export function DetalheParcelas({
 					)}
 				</div>
 			</div>
+
+			{cotaSemEntrada && (
+				<div className="mb-4 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-3.5 py-2.5 text-[13px]">
+					<AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+					<div>
+						<b>Plano da Cota sem a entrada de 50%.</b> A Cota parcelada é paga com entrada de 50% e o saldo
+						parcelado — nenhuma parcela deste plano corresponde à entrada
+						{valorTotalCota ? ` (≈ ${fmtBRL(valorTotalCota / 2)})` : ''}.
+						{podeEditar && ' Cadastre a entrada em "Nova parcela", ou gere o plano de novo em "Gerar parcelas".'}
+					</div>
+				</div>
+			)}
 
 			<div className="overflow-x-auto">
 				<table className="w-full border-separate border-spacing-0 text-[13.5px]">
