@@ -1,5 +1,7 @@
 /** @format */
 
+'use client';
+
 import { Button } from '@/components/ui/button';
 import {
 	Dialog,
@@ -12,6 +14,7 @@ import {
 import { IUsuario } from '@/types/usuario';
 import { Plus, SquarePen } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import FormUsuario from './form-usuario';
 
 export default function ModalUpdateAndCreate({
@@ -23,8 +26,13 @@ export default function ModalUpdateAndCreate({
 	user?: Partial<IUsuario>;
 	trigger?: ReactNode;
 }) {
+	const [open, setOpen] = useState(false);
+
 	return (
-		<Dialog modal={false}>
+		<Dialog
+			modal={false}
+			open={open}
+			onOpenChange={setOpen}>
 			<DialogTrigger asChild>
 				{trigger ?? (
 					<Button
@@ -59,6 +67,7 @@ export default function ModalUpdateAndCreate({
 				<FormUsuario
 					user={user}
 					isUpdating={isUpdating}
+					onSuccess={() => setOpen(false)}
 				/>
 			</DialogContent>
 		</Dialog>
