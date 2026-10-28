@@ -15,6 +15,7 @@ import {
 	FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Switch } from '@/components/ui/switch';
 import * as usuario from '@/services/usuario';
 import * as gruposPermissao from '@/services/grupos-permissao';
 import * as permissoes from '@/services/permissoes';
@@ -24,6 +25,7 @@ import { IUsuario } from '@/types/usuario';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -36,6 +38,7 @@ const formSchemaUsuario = z.object({
 	avatar: z.string().optional(),
 	permissoes: z.string().array().optional(),
 	grupos: z.string().array().optional(),
+	dev: z.boolean().optional(),
 });
 
 const formSchema = z.object({
@@ -45,10 +48,11 @@ const formSchema = z.object({
 interface FormUsuarioProps {
 	isUpdating: boolean;
 	user?: Partial<IUsuario>;
+	onSuccess?: () => void;
 }
 
-export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
-	console.log(isUpdating);
+export default function FormUsuario({ isUpdating, user, onSuccess }: FormUsuarioProps) {
+	const router = useRouter();
 	const [isPending, startTransition] = useTransition();
 
 	const [gruposLista, setGruposLista] = useState<IGrupoPermissao[]>([]);
@@ -76,7 +80,8 @@ export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
 			nome: user?.nome || '',
 			avatar: user?.avatar || '',
 			permissoes: defaultPermissoes,
-			grupos: defaultGrupos
+			grupos: defaultGrupos,
+			dev: user?.dev ?? false,
 		},
 	});
 
@@ -113,30 +118,40 @@ export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
 	async function onSubmitUser(values: z.infer<typeof formSchemaUsuario>) {
 		startTransition(async () => {
 			if (isUpdating && user?.id) {
-				console.log(values);
-				const { avatar, permissoes, grupos } = values;
+				const { avatar, permissoes, grupos, dev } = values;
 				const resp = await usuario.atualizar(user?.id, {
-					avatar, permissoes, grupos
+					avatar,
+					permissoes,
+					grupos,
+					// Só manda `dev` se o switch estava visível (quem está logado já é
+					// dev) — senão o server action rejeitaria a tentativa mesmo vindo
+					// com o mesmo valor atual.
+					...(session?.usuario?.dev && { dev }),
 				});
 				if (resp.error) {
 					toast.error('Algo deu errado', { description: resp.error });
+					return;
 				}
-				if (resp.ok) {
-					await update({
-						...session,
-						usuario: {
-							...session?.usuario,
-							avatar: avatar,
-						},
-					});
-					toast.success('Usuário Atualizado', { description: resp.status });
-				}
+				await update({
+					...session,
+					usuario: {
+						...session?.usuario,
+						avatar: avatar,
+					},
+				});
+				toast.success('Usuário Atualizado', { description: resp.status });
+				router.refresh();
+				onSuccess?.();
 			} else {
-				console.log(values);
-				const { email, login, nome, avatar } = values;
-				const resp = await usuario.criar({ email, login, nome, avatar });
-				if (resp.error) toast.error('Algo deu errado', { description: resp.error });
-				if (resp.ok) toast.success('Usuário Criado', { description: resp.status });
+				const { email, login, nome, avatar, permissoes, grupos } = values;
+				const resp = await usuario.criar({ email, login, nome, avatar, permissoes, grupos });
+				if (resp.error) {
+					toast.error('Algo deu errado', { description: resp.error });
+					return;
+				}
+				toast.success('Usuário Criado', { description: resp.status });
+				router.refresh();
+				onSuccess?.();
 			}
 		});
 	}
@@ -295,6 +310,29 @@ export default function FormUsuario({ isUpdating, user }: FormUsuarioProps) {
 						</FormItem>
 						)}
 					/>
+					{isUpdating && session?.usuario?.dev && (
+						<FormField
+							control={formUsuario.control}
+							name="dev"
+							render={({ field }) => (
+								<FormItem className='flex items-center justify-between gap-2'>
+									<div>
+										<FormLabel>Tornar Dev</FormLabel>
+										<FormDescription>
+											Dá acesso total ao sistema, ignorando permissões e grupos.
+										</FormDescription>
+									</div>
+									<FormControl>
+										<Switch
+											checked={field.value}
+											onCheckedChange={field.onChange}
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					)}
 					<div className='flex gap-2 items-center justify-end'>
 						<DialogClose asChild>
 							<Button variant={'outline'}>Voltar</Button>

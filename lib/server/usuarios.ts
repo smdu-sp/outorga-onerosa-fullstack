@@ -26,15 +26,21 @@ export async function listaCompletaUsuarios() {
 }
 
 export async function criarUsuario(createUsuarioDto: ICreateUsuario) {
-	const { grupos, permissoes, ...dados } = createUsuarioDto;
-	const loguser = await prisma.usuario.findUnique({ where: { login: dados.login } });
+	// Whitelist explícito: nunca espalhar o DTO recebido direto no Prisma — o
+	// chamador (server action) pode receber payload arbitrário em runtime, e
+	// `dev` é uma coluna real da tabela (bypass total de permissões).
+	const { nome, email, login, avatar, grupos, permissoes } = createUsuarioDto;
+	const loguser = await prisma.usuario.findUnique({ where: { login } });
 	if (loguser) throw new Error('Login já cadastrado.');
-	const emailuser = await prisma.usuario.findUnique({ where: { email: dados.email } });
+	const emailuser = await prisma.usuario.findUnique({ where: { email } });
 	if (emailuser) throw new Error('Email já cadastrado.');
 
 	return prisma.usuario.create({
 		data: {
-			...dados,
+			nome,
+			email,
+			login,
+			avatar,
 			grupos: grupos?.length ? { connect: grupos.map((id) => ({ id })) } : {},
 			permissoes: permissoes?.length ? { connect: permissoes.map((id) => ({ id })) } : {},
 		},
@@ -82,10 +88,14 @@ export async function buscarUsuarioPorId(id: string) {
 }
 
 export async function atualizarUsuario(id: string, updateUsuarioDto: IUpdateUsuario) {
-	const { grupos, permissoes, ...dados } = updateUsuarioDto;
+	// Whitelist explícito (mesmo motivo de criarUsuario): `dev` só chega aqui se
+	// quem chamou o server action já passou por requireDevAcao().
+	const { status, avatar, dev, grupos, permissoes } = updateUsuarioDto;
 	return prisma.usuario.update({
 		data: {
-			...dados,
+			...(status !== undefined && { status }),
+			...(avatar !== undefined && { avatar }),
+			...(dev !== undefined && { dev }),
 			...(grupos && grupos.length >= 0 && {
 				grupos: { set: [], connect: grupos.map((gid) => ({ id: gid })) },
 			}),

@@ -12,6 +12,7 @@ export interface IUsuario {
 	grupos: IGrupoPermissao[];
 	avatar?: string;
 	status: boolean;
+	dev: boolean;
 	ultimologin: Date;
 	criadoEm: Date;
 	atualizadoEm?: Date;
@@ -32,6 +33,8 @@ export interface IUpdateUsuario {
 	avatar?: string;
 	permissoes?: string[];
 	grupos?: string[];
+	/** Só pode ser alterado por quem já é dev — ver requireDevAcao() em atualizar.ts. */
+	dev?: boolean;
 }
 
 export interface IPaginadoUsuario {
