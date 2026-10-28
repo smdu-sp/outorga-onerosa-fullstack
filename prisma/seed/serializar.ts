@@ -1,6 +1,9 @@
 export {
 	CAMPOS_DECIMAL,
 	CAMPOS_DECIMAL_CALCULO,
+	CAMPOS_DECIMAL_VALOR_REFERENCIA,
+	CAMPOS_DECIMAL_OODC_MEMORIAL,
+	CAMPOS_DECIMAL_COTA_MEMORIAL,
 	deserializarRegistro,
 	serializarRegistro,
 } from '@/lib/serializar-prisma';

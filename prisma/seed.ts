@@ -29,7 +29,19 @@ async function main() {
 		shell: true,
 	});
 
-	const [usuarios, permissoes, grupos, processos, parcelas, sqls, consultas] = await Promise.all([
+	const [
+		usuarios,
+		permissoes,
+		grupos,
+		processos,
+		parcelas,
+		sqls,
+		consultas,
+		oodcValoresReferencia,
+		cotaValoresReferencia,
+		oodcMemoriais,
+		cotaMemoriais,
+	] = await Promise.all([
 		prisma.usuario.count(),
 		prisma.permissao.count(),
 		prisma.grupoPermissao.count(),
@@ -37,10 +49,26 @@ async function main() {
 		prisma.parcela.count(),
 		prisma.sql.count(),
 		prisma.consultaDadosFaltantes.count(),
+		prisma.oodcValorReferencia.count(),
+		prisma.cotaValorReferencia.count(),
+		prisma.oodcMemorialCalculo.count(),
+		prisma.cotaMemorialCalculo.count(),
 	]);
 
 	console.log('\n=== Resumo final do seed ===');
-	console.log({ usuarios, permissoes, grupos, processos, parcelas, sqls, consultas });
+	console.log({
+		usuarios,
+		permissoes,
+		grupos,
+		processos,
+		parcelas,
+		sqls,
+		consultas,
+		oodcValoresReferencia,
+		cotaValoresReferencia,
+		oodcMemoriais,
+		cotaMemoriais,
+	});
 }
 
 main()

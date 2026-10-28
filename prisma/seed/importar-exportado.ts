@@ -6,7 +6,14 @@ import {
 	normalizarNumeroProcesso,
 	seiComDigitoInvalido,
 } from '../../lib/mascara-processo';
-import { deserializarRegistro, CAMPOS_DECIMAL, CAMPOS_DECIMAL_CALCULO } from './serializar';
+import {
+	deserializarRegistro,
+	CAMPOS_DECIMAL,
+	CAMPOS_DECIMAL_CALCULO,
+	CAMPOS_DECIMAL_VALOR_REFERENCIA,
+	CAMPOS_DECIMAL_OODC_MEMORIAL,
+	CAMPOS_DECIMAL_COTA_MEMORIAL,
+} from './serializar';
 
 const ARQUIVO = path.join(__dirname, 'dados-exportados.json');
 const LOTE = 500;
@@ -31,6 +38,14 @@ type DadosExportados = {
 	sqls?: Record<string, unknown>[];
 	sqlEnderecos?: Record<string, unknown>[];
 	consultasDadosFaltantes?: Record<string, unknown>[];
+	/** Ausentes em snapshots versão 1 e 2 — parâmetros e memoriais de OODC/Cota. */
+	oodcValoresReferencia?: Record<string, unknown>[];
+	cotaValoresReferencia?: Record<string, unknown>[];
+	oodcMemorialCalculo?: Record<string, unknown>[];
+	oodcMemorialEnderecos?: Record<string, unknown>[];
+	oodcMemorialTipologias?: Record<string, unknown>[];
+	cotaMemorialCalculo?: Record<string, unknown>[];
+	cotaMemorialEnderecos?: Record<string, unknown>[];
 	monitoramento: {
 		fichas: Record<string, unknown>[];
 		coordenadas: Record<string, unknown>[];
@@ -81,6 +96,13 @@ async function limparBanco(prisma: PrismaClient) {
 	console.log('Limpando banco antes da importação...');
 	await prisma.$executeRawUnsafe('SET FOREIGN_KEY_CHECKS = 0');
 	const tabelas = [
+		'oodc_memorial_tipologias',
+		'oodc_memorial_enderecos',
+		'oodc_memorial_calculo',
+		'cota_memorial_enderecos',
+		'cota_memorial_calculo',
+		'oodc_valores_referencia',
+		'cota_valores_referencia',
 		'consultas_dados_faltantes',
 		'sql_enderecos',
 		'sqls',
@@ -203,5 +225,56 @@ export async function importarDadosExportados(prisma: PrismaClient) {
 		prisma.monitoramentoCotaSolidariedade,
 		m.cotaSolidariedade,
 		'Monitoramento — cota solidariedade',
+	);
+
+	// --- Parâmetros e memoriais de cálculo (OODC + Cota de Solidariedade) ---
+	await inserirLote(
+		prisma,
+		prisma.oodcValorReferencia,
+		dados.oodcValoresReferencia ?? [],
+		'OODC — valores de referência',
+		CAMPOS_DECIMAL_VALOR_REFERENCIA,
+	);
+	await inserirLote(
+		prisma,
+		prisma.cotaValorReferencia,
+		dados.cotaValoresReferencia ?? [],
+		'Cota — valores de referência',
+		CAMPOS_DECIMAL_VALOR_REFERENCIA,
+	);
+	await inserirLote(
+		prisma,
+		prisma.oodcMemorialCalculo,
+		dados.oodcMemorialCalculo ?? [],
+		'OODC — memoriais de cálculo',
+		CAMPOS_DECIMAL_OODC_MEMORIAL,
+	);
+	await inserirLote(
+		prisma,
+		prisma.oodcMemorialEndereco,
+		dados.oodcMemorialEnderecos ?? [],
+		'OODC — memoriais (endereços)',
+		CAMPOS_DECIMAL_OODC_MEMORIAL,
+	);
+	await inserirLote(
+		prisma,
+		prisma.oodcMemorialTipologia,
+		dados.oodcMemorialTipologias ?? [],
+		'OODC — memoriais (tipologias)',
+		CAMPOS_DECIMAL_OODC_MEMORIAL,
+	);
+	await inserirLote(
+		prisma,
+		prisma.cotaMemorialCalculo,
+		dados.cotaMemorialCalculo ?? [],
+		'Cota — memoriais de cálculo',
+		CAMPOS_DECIMAL_COTA_MEMORIAL,
+	);
+	await inserirLote(
+		prisma,
+		prisma.cotaMemorialEndereco,
+		dados.cotaMemorialEnderecos ?? [],
+		'Cota — memoriais (endereços)',
+		CAMPOS_DECIMAL_COTA_MEMORIAL,
 	);
 }

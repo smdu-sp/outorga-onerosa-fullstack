@@ -40,6 +40,62 @@ export const CAMPOS_DECIMAL_CALCULO = new Set([
 	'contrapartida_total',
 ]);
 
+/** Campos Decimal de `oodc_valores_referencia` / `cota_valores_referencia`. */
+export const CAMPOS_DECIMAL_VALOR_REFERENCIA = new Set(['valor']);
+
+/** Campos Decimal de `oodc_memorial_calculo` + `oodc_memorial_tipologias` (entrada e resultado). */
+export const CAMPOS_DECIMAL_OODC_MEMORIAL = new Set([
+	'area_res_fruicao_m2',
+	'area_doacao_verde_m2',
+	'area_doacao_melhoramento_m2',
+	'area_reserva_praca_m2',
+	'area_doacao_calcada_m2',
+	'area_reserva_calcada_m2',
+	'area_desapropriacao_melhoramento_m2',
+	'cota_parte_maxima_m2',
+	'outorga_projeto_anterior_rs',
+	'incentivo_certificacao_rs',
+	'incentivo_cota_ambiental_rs',
+	'outorga_projeto_modificativo_rs',
+	'outorga_apoio_urbano_sul_rs',
+	'v_max',
+	'soma_terreno_m2',
+	'soma_computavel_m2',
+	'soma_tdc_m2',
+	'soma_outorga_adquirida_m2',
+	'soma_beneficio_m2',
+	'soma_outorga_m2',
+	'valor_total_bruto_rs',
+	'deducao_ehis_ezeis_rs',
+	'valor_total_recolhido_rs',
+	'valor_total_liquido_rs',
+	'ca_basico',
+	'ca_maximo',
+	'terreno_m2',
+	'computavel_m2',
+	'tdc_m2',
+	'outorga_adquirida_m2',
+	'fp',
+	'fs',
+	'ca_adicional',
+	'beneficio_m2',
+	'objeto_outorga_m2',
+	'c_rs_m2',
+	'valor_rs',
+	'valor_encontrado',
+]);
+
+/** Campos Decimal de `cota_memorial_calculo`. */
+export const CAMPOS_DECIMAL_COTA_MEMORIAL = new Set([
+	'area_terreno_escritura_m2',
+	'area_terreno_real_m2',
+	'terreno_usado_m2',
+	'v_max',
+	'valor_total_rs',
+	'valor_cinquenta_pct_rs',
+	'valor_encontrado',
+]);
+
 const CAMPOS_DATA = new Set([
 	'criado_em',
 	'alterado_em',
@@ -49,6 +105,9 @@ const CAMPOS_DATA = new Set([
 	'vencimento',
 	'data_quitacao',
 	'data_expedicao',
+	'data_inicio_vigencia',
+	'data_vigencia',
+	'data_referencia',
 ]);
 
 /** Converte Decimal/Date do Prisma em tipos serializáveis (Server → Client). */

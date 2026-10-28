@@ -43,6 +43,10 @@ async function main() {
 		sqlEnderecos,
 		consultasDadosFaltantes,
 		multas,
+		oodcValoresReferencia,
+		cotaValoresReferencia,
+		oodcMemoriais,
+		cotaMemoriais,
 		permissoesUsuarios,
 		permissoesGrupos,
 		usuariosGrupos,
@@ -67,13 +71,23 @@ async function main() {
 		prisma.sqlEndereco.findMany(),
 		prisma.consultaDadosFaltantes.findMany(),
 		prisma.multa.findMany(),
+		prisma.oodcValorReferencia.findMany(),
+		prisma.cotaValorReferencia.findMany(),
+		prisma.oodcMemorialCalculo.findMany({ include: { enderecos: true, tipologias: true } }),
+		prisma.cotaMemorialCalculo.findMany({ include: { enderecos: true } }),
 		vinculos('_PermissaoToUsuario'),
 		vinculos('_GrupoPermissaoToPermissao'),
 		vinculos('_GrupoPermissaoToUsuario'),
 	]);
 
+	const oodcMemorialCalculo = oodcMemoriais.map(({ enderecos, tipologias, ...resto }) => resto);
+	const oodcMemorialEnderecos = oodcMemoriais.flatMap((m) => m.enderecos);
+	const oodcMemorialTipologias = oodcMemoriais.flatMap((m) => m.tipologias);
+	const cotaMemorialCalculo = cotaMemoriais.map(({ enderecos, ...resto }) => resto);
+	const cotaMemorialEnderecos = cotaMemoriais.flatMap((m) => m.enderecos);
+
 	const payload = {
-		versao: 2,
+		versao: 3,
 		exportadoEm: new Date().toISOString(),
 		usuarios: usuarios.map(serializarRegistro),
 		permissoes: permissoes.map(serializarRegistro),
@@ -89,6 +103,13 @@ async function main() {
 		sqls: sqls.map(serializarRegistro),
 		sqlEnderecos: sqlEnderecos.map(serializarRegistro),
 		consultasDadosFaltantes: consultasDadosFaltantes.map(serializarRegistro),
+		oodcValoresReferencia: oodcValoresReferencia.map(serializarRegistro),
+		cotaValoresReferencia: cotaValoresReferencia.map(serializarRegistro),
+		oodcMemorialCalculo: oodcMemorialCalculo.map(serializarRegistro),
+		oodcMemorialEnderecos: oodcMemorialEnderecos.map(serializarRegistro),
+		oodcMemorialTipologias: oodcMemorialTipologias.map(serializarRegistro),
+		cotaMemorialCalculo: cotaMemorialCalculo.map(serializarRegistro),
+		cotaMemorialEnderecos: cotaMemorialEnderecos.map(serializarRegistro),
 		monitoramento: {
 			fichas: monitoramentoFichas.map(serializarRegistro),
 			coordenadas: monitoramentoCoordenadas.map(serializarRegistro),
@@ -124,6 +145,10 @@ async function main() {
 		consultasDadosFaltantes: consultasDadosFaltantes.length,
 		monitoramentoFichas: monitoramentoFichas.length,
 		monitoramentoCota: monitoramentoCotaSolidariedade.length,
+		oodcValoresReferencia: oodcValoresReferencia.length,
+		cotaValoresReferencia: cotaValoresReferencia.length,
+		oodcMemorialCalculo: oodcMemorialCalculo.length,
+		cotaMemorialCalculo: cotaMemorialCalculo.length,
 	});
 	console.log('\nCompartilhe o arquivo dados-exportados.json com seu colega.');
 	console.log('No ambiente dele: npm run db:migrate && npm run db:seed');
