@@ -10,5 +10,6 @@ export {
     atualizar,
     criar,
     desativar,
-    autorizar
+    autorizar,
+    atualizarFotos
 } from './server-functions';

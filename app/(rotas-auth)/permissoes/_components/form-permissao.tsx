@@ -70,13 +70,12 @@ export default function FormPermissao({ isUpdating, permissao }: FormPermissaoPr
 					grupos
 				});
 				if (resp.error) toast.error('Algo deu errado', { description: resp.error });
-				else toast.success('Permissão Atualizada', { description: resp.status });
+				else toast.success('Permissão atualizada com sucesso');
 			} else {
 				const { nome, permissao } = values;
 				const resp = await permissoes.criar({ nome, permissao });
 				if (resp.error) toast.error('Algo deu errado', { description: resp.error });
-				if (resp.ok) toast.success('Permissão Criada', { description: resp.status });
-				console.log(JSON.stringify(resp));
+				if (resp.ok) toast.success('Permissão criada com sucesso');
 			}
 		});
 	}

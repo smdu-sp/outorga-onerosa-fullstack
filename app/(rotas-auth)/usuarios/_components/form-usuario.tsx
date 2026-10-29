@@ -112,6 +112,7 @@ export default function FormUsuario({ isUpdating, user, onSuccess }: FormUsuario
 			formUsuario.setValue('nome', usuario.nome);
 			formUsuario.setValue('email', usuario.email);
 			formUsuario.setValue('login', usuario.login);
+			if (usuario.avatar) formUsuario.setValue('avatar', usuario.avatar);
 		}
 	}
 
@@ -139,17 +140,25 @@ export default function FormUsuario({ isUpdating, user, onSuccess }: FormUsuario
 						avatar: avatar,
 					},
 				});
-				toast.success('Usuário Atualizado', { description: resp.status });
+				toast.success('Usuário atualizado com sucesso');
 				router.refresh();
 				onSuccess?.();
 			} else {
-				const { email, login, nome, avatar, permissoes, grupos } = values;
-				const resp = await usuario.criar({ email, login, nome, avatar, permissoes, grupos });
+				const { email, login, nome, avatar, permissoes, grupos, dev } = values;
+				const resp = await usuario.criar({
+					email,
+					login,
+					nome,
+					avatar,
+					permissoes,
+					grupos,
+					...(session?.usuario?.dev && { dev }),
+				});
 				if (resp.error) {
 					toast.error('Algo deu errado', { description: resp.error });
 					return;
 				}
-				toast.success('Usuário Criado', { description: resp.status });
+				toast.success('Usuário criado com sucesso');
 				router.refresh();
 				onSuccess?.();
 			}
@@ -310,7 +319,7 @@ export default function FormUsuario({ isUpdating, user, onSuccess }: FormUsuario
 						</FormItem>
 						)}
 					/>
-					{isUpdating && session?.usuario?.dev && (
+					{session?.usuario?.dev && (
 						<FormField
 							control={formUsuario.control}
 							name="dev"

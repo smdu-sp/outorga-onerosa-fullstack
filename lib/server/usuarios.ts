@@ -25,11 +25,43 @@ export async function listaCompletaUsuarios() {
 	return lista;
 }
 
+/**
+ * Busca unitária (um a um) no AD via buscarUsuarioLDAP para atualizar a foto de
+ * todos os usuários — só vale a pena quando a API SMUL Auth passar a retornar
+ * o campo `avatar` (hoje sempre undefined, então ninguém é atualizado ainda).
+ */
+export async function atualizarFotosTodosUsuarios() {
+	const usuarios = await prisma.usuario.findMany({ select: { id: true, login: true } });
+
+	let atualizados = 0;
+	let semFoto = 0;
+	let falhas = 0;
+
+	for (const usuario of usuarios) {
+		try {
+			const ldapUser = await buscarUsuarioLDAP(usuario.login);
+			if (ldapUser?.avatar) {
+				await prisma.usuario.update({
+					where: { id: usuario.id },
+					data: { avatar: ldapUser.avatar },
+				});
+				atualizados++;
+			} else {
+				semFoto++;
+			}
+		} catch {
+			falhas++;
+		}
+	}
+
+	return { total: usuarios.length, atualizados, semFoto, falhas };
+}
+
 export async function criarUsuario(createUsuarioDto: ICreateUsuario) {
 	// Whitelist explícito: nunca espalhar o DTO recebido direto no Prisma — o
 	// chamador (server action) pode receber payload arbitrário em runtime, e
 	// `dev` é uma coluna real da tabela (bypass total de permissões).
-	const { nome, email, login, avatar, grupos, permissoes } = createUsuarioDto;
+	const { nome, email, login, avatar, dev, grupos, permissoes } = createUsuarioDto;
 	const loguser = await prisma.usuario.findUnique({ where: { login } });
 	if (loguser) throw new Error('Login já cadastrado.');
 	const emailuser = await prisma.usuario.findUnique({ where: { email } });
@@ -41,6 +73,7 @@ export async function criarUsuario(createUsuarioDto: ICreateUsuario) {
 			email,
 			login,
 			avatar,
+			...(dev !== undefined && { dev }),
 			grupos: grupos?.length ? { connect: grupos.map((id) => ({ id })) } : {},
 			permissoes: permissoes?.length ? { connect: permissoes.map((id) => ({ id })) } : {},
 		},
@@ -141,7 +174,7 @@ export async function buscarNovoUsuario(login: string) {
 
 	const ldapUser = await buscarUsuarioLDAP(login);
 	if (!ldapUser?.nome || !ldapUser.email) throw new Error('Usuário não encontrado.');
-	return { login, nome: ldapUser.nome, email: ldapUser.email };
+	return { login, nome: ldapUser.nome, email: ldapUser.email, avatar: ldapUser.avatar };
 }
 
 export async function buscarPorLogin(login: string) {

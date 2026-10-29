@@ -23,9 +23,7 @@ export default function ModalDelete({ id }: { id: string }) {
 		if (!resp.ok) {
 			toast.error('Algo deu errado', { description: resp.error });
 		} else {
-			toast.success('Permissão excluída com sucesso', {
-				description: resp.status,
-			});
+			toast.success('Grupo de permissão excluído com sucesso');
 		}
 	}
 	return (

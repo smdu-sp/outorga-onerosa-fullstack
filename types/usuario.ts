@@ -25,6 +25,8 @@ export interface ICreateUsuario {
 	avatar?: string;
 	permissoes?: string[];
 	grupos?: string[];
+	/** Só pode ser definido por quem já é dev — ver requireDevAcao() em criar.ts. */
+	dev?: boolean;
 }
 
 export interface IUpdateUsuario {
@@ -48,6 +50,7 @@ export interface INovoUsuario {
 	login: string;
 	nome: string;
 	email: string;
+	avatar?: string;
 }
 
 export interface IRespostaUsuario {

@@ -68,13 +68,12 @@ export default function FormGrupoPermissao({ isUpdating, grupoPermissao }: FormG
 					permissoes
 				});
 				if (resp.error) toast.error('Algo deu errado', { description: resp.error });
-				else toast.success('Grupo de permissão atualizado', { description: resp.status });
+				else toast.success('Grupo de permissão atualizado com sucesso');
 			} else {
 				const { nome, permissoes } = values;
 				const resp = await gruposPermissao.criar({ nome, permissoes });
 				if (resp.error) toast.error('Algo deu errado', { description: resp.error });
-				if (resp.ok) toast.success('Grupo de permissão criado', { description: resp.status });
-				console.log(JSON.stringify(resp));
+				if (resp.ok) toast.success('Grupo de permissão criado com sucesso');
 			}
 		});
 	}

@@ -15,6 +15,7 @@ import {
 import { Input } from '@/components/ui/input';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
@@ -23,15 +24,18 @@ import { signIn } from 'next-auth/react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
+const DOMINIO_EMAIL = 'prefeitura.sp.gov.br';
+
 const formSchema = z.object({
 	login: z
 		.string()
-		.min(7, {
-			message: 'Login tem de ter 7 caracteres.',
+		.min(1, {
+			message: 'Informe seu login de rede ou e-mail.',
 		})
-		.max(7, {
-			message: 'Login tem de ter 7 caracteres.',
-		}),
+		.refine(
+			(valor) => valor.length === 7 || z.string().email().safeParse(valor).success,
+			{ message: 'Informe seu login de rede (7 caracteres) ou e-mail cadastrado.' },
+		),
 	senha: z.string().min(2, {
 		message: 'Campo senha não pode ser vazio.',
 	}),
@@ -39,6 +43,7 @@ const formSchema = z.object({
 
 export function LoginForm() {
 	const router = useRouter();
+	const loginInputRef = useRef<HTMLInputElement | null>(null);
 	const form = useForm<z.infer<typeof formSchema>>({
 		resolver: zodResolver(formSchema),
 		defaultValues: {
@@ -76,11 +81,31 @@ export function LoginForm() {
 							name='login'
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>Login</FormLabel>
+									<FormLabel>Login ou e-mail</FormLabel>
 									<FormControl>
 										<Input
 											{...field}
+											ref={(el) => {
+												field.ref(el);
+												loginInputRef.current = el;
+											}}
+											placeholder='Login de rede ou e-mail'
 											className='dark:bg-background bg-muted'
+											onChange={(e) => {
+												const valor = e.target.value;
+												if (valor.endsWith('@')) {
+													const completo = `${valor}${DOMINIO_EMAIL}`;
+													field.onChange(completo);
+													requestAnimationFrame(() => {
+														loginInputRef.current?.setSelectionRange(
+															valor.length,
+															completo.length,
+														);
+													});
+													return;
+												}
+												field.onChange(valor);
+											}}
 										/>
 									</FormControl>
 									<FormDescription />

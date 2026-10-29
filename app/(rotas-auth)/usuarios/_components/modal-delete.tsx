@@ -34,9 +34,6 @@ export default function ModalDelete({
 		} else {
 			toast.success(
 				status ? 'Usuário Ativado com sucesso' : 'Usuário Deletado com sucesso',
-				{
-					description: resp.status,
-				},
 			);
 			window.location.reload();
 		}

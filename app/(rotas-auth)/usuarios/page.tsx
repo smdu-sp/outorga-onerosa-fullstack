@@ -10,6 +10,7 @@ import * as usuario from '@/services/usuario';
 import { IPaginadoUsuario, IUsuario } from '@/types/usuario';
 import { Plus } from 'lucide-react';
 import { Suspense } from 'react';
+import BotaoAtualizarFotos from './_components/botao-atualizar-fotos';
 import { columns } from './_components/columns';
 import ModalUpdateAndCreate from './_components/modal-update-create';
 
@@ -61,15 +62,18 @@ async function Usuarios({
 			<PageHeader
 				title='Usuários'
 				actions={
-					<ModalUpdateAndCreate
-						isUpdating={false}
-						trigger={
-							<Button className='gap-2'>
-								<Plus className='size-4' />
-								Novo usuário
-							</Button>
-						}
-					/>
+					<div className='flex gap-2'>
+						<BotaoAtualizarFotos />
+						<ModalUpdateAndCreate
+							isUpdating={false}
+							trigger={
+								<Button className='gap-2'>
+									<Plus className='size-4' />
+									Novo usuário
+								</Button>
+							}
+						/>
+					</div>
 				}
 			/>
 			<div className='flex flex-col gap-6'>
